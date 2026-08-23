@@ -62,7 +62,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
     }
 
     .brand-logo {
@@ -95,6 +95,151 @@
       font-size: 12px;
       color: var(--text-muted);
       margin-top: 1px;
+    }
+
+    /* ===== Live EPL Ticker ===== */
+    .epl-ticker {
+      display: none;
+      height: 34px;
+      margin-bottom: 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      background: linear-gradient(90deg, #0c1a12 0%, #0f172a 40%, #0c1a12 100%);
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    }
+
+    .epl-ticker.visible {
+      display: block;
+    }
+
+    .epl-ticker::before,
+    .epl-ticker::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 48px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .epl-ticker::before {
+      left: 0;
+      background: linear-gradient(90deg, #0c1a12 0%, transparent 100%);
+    }
+
+    .epl-ticker::after {
+      right: 0;
+      background: linear-gradient(270deg, #0c1a12 0%, transparent 100%);
+    }
+
+    .epl-ticker-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px 0 10px;
+      background: linear-gradient(90deg, #14532d 0%, #166534 70%, transparent 100%);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #86efac;
+      white-space: nowrap;
+    }
+
+    .epl-ticker-label .pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+      animation: livePulse 1.6s ease-out infinite;
+    }
+
+    @keyframes livePulse {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+      70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    .epl-ticker-viewport {
+      height: 100%;
+      overflow: hidden;
+      margin-left: 78px;
+    }
+
+    .epl-ticker-track {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      width: max-content;
+      will-change: transform;
+      animation: eplScroll linear infinite;
+    }
+
+    .epl-ticker-track:hover {
+      animation-play-state: paused;
+    }
+
+    @keyframes eplScroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .epl-match {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 18px;
+      height: 100%;
+      white-space: nowrap;
+      font-size: 12px;
+      color: var(--text);
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .epl-match .teams {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+    }
+
+    .epl-match .score {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #f8fafc;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .epl-match .minute {
+      font-size: 10px;
+      font-weight: 600;
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    .epl-match .vs {
+      color: var(--text-faint);
+      font-size: 11px;
+    }
+
+    @media (max-width: 600px) {
+      .epl-ticker { height: 30px; }
+      .epl-ticker-viewport { margin-left: 68px; }
+      .epl-ticker-label { font-size: 9px; padding: 0 8px 0 8px; }
+      .epl-match { font-size: 11px; padding: 0 12px; gap: 6px; }
     }
 
     .stats-bar {
@@ -762,8 +907,8 @@
     .table-scroll {
       overflow-x: auto;
       overflow-y: auto;
-      max-height: calc(100vh - 380px);
-      max-height: calc(100dvh - 380px);
+      max-height: calc(100vh - 420px);
+      max-height: calc(100dvh - 420px);
       overscroll-behavior: contain;
       scroll-behavior: auto;
       -webkit-overflow-scrolling: touch;
@@ -959,7 +1104,6 @@
       color: var(--text);
     }
 
-    /* Compact dropdown: ~5 options, no visible scrollbar */
     #customSelectMenu {
       position: fixed;
       z-index: 99999;
@@ -1038,15 +1182,15 @@
       display: flex;
       flex-direction: column;
       gap: 1px;
-      max-height: 210px; /* ~5 options */
+      max-height: 210px;
       overflow-y: auto;
       overflow-x: hidden;
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE/Edge */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
     #customSelectMenu .menu-list::-webkit-scrollbar {
-      display: none; /* Chrome, Safari, Opera */
+      display: none;
       width: 0;
       height: 0;
     }
@@ -1357,7 +1501,7 @@
     @media (max-width: 900px) {
       .stat-item { min-width: 33.333%; }
       .stat-item:nth-child(3n) { border-right: none; }
-      .table-scroll { max-height: calc(100vh - 440px); max-height: calc(100dvh - 440px); }
+      .table-scroll { max-height: calc(100vh - 480px); max-height: calc(100dvh - 480px); }
       .toolbar { gap: 8px; }
       .search-wrap { min-width: 100%; max-width: 100%; }
     }
@@ -1380,6 +1524,7 @@
         transition-duration: 0.01ms !important;
       }
       .table-scroll, .used-panel-body { scroll-behavior: auto; }
+      .epl-ticker-track { animation: none !important; }
     }
   </style>
 </head>
@@ -1392,6 +1537,17 @@
         <div class="brand-sub">Student Records Management</div>
       </div>
     </header>
+
+    <!-- Live EPL Match Ticker (hidden when no live matches) -->
+    <div class="epl-ticker" id="eplTicker" aria-live="polite" aria-label="Live Premier League scores">
+      <div class="epl-ticker-label">
+        <span class="pulse" aria-hidden="true"></span>
+        EPL Live
+      </div>
+      <div class="epl-ticker-viewport">
+        <div class="epl-ticker-track" id="eplTickerTrack"></div>
+      </div>
+    </div>
 
     <div class="stats-bar mb-1" role="region" aria-label="Record statistics">
       <div class="stat-item">
@@ -1540,7 +1696,7 @@
 
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing (select “Other…” or type custom in menu) · Virtual scrolling enabled · Duplicate High School / Phone plays beep</span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing · Live EPL ticker above when matches are in progress</span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -1587,7 +1743,7 @@
     </div>
 
     <p class="footer-note">
-      Oneweb · Data auto-saves to browser local storage · Use Save button to force-save · High School &amp; Phone unique within University · GPA auto-suggests from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · Ctrl/Cmd+N to add row · Duplicate detection plays beep
+      Oneweb · Data auto-saves to browser local storage · Use Save button to force-save · Live EPL scores when matches are in progress · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save
     </p>
   </div>
 
@@ -1797,6 +1953,7 @@
       const ROW_HEIGHT = 46;
       const BUFFER_ROWS = 20;
       const VIRTUAL_THRESHOLD = 40;
+      const EPL_REFRESH_MS = 60000;
 
       let data = [];
       let filteredData = [];
@@ -1811,6 +1968,7 @@
       let usedTypeFilter = 'all';
       let usedCollapsedUnis = new Set();
       let lastBeepAt = 0;
+      let eplTimer = null;
 
       let customOpenId = null;
       let customTriggerEl = null;
@@ -1819,6 +1977,89 @@
       let customMenuKey = null;
 
       let audioCtx = null;
+
+      /* ========== Live EPL Ticker ========== */
+      async function fetchLiveEPL() {
+        const ticker = document.getElementById('eplTicker');
+        const track = document.getElementById('eplTickerTrack');
+        if (!ticker || !track) return;
+
+        try {
+          const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard', {
+            cache: 'no-store'
+          });
+          if (!res.ok) throw new Error('EPL fetch failed');
+          const json = await res.json();
+          const events = Array.isArray(json.events) ? json.events : [];
+
+          const live = events.filter(ev => {
+            const state = (ev.status && ev.status.type && ev.status.type.state) || '';
+            const detail = (ev.status && ev.status.type && ev.status.type.detail) || '';
+            // in = in progress; also accept status that look live
+            return state === 'in' || /live|half|minute|HT|1st|2nd/i.test(detail);
+          });
+
+          if (!live.length) {
+            ticker.classList.remove('visible');
+            track.innerHTML = '';
+            track.style.animationDuration = '';
+            return;
+          }
+
+          const items = live.map(ev => {
+            const comps = (ev.competitions && ev.competitions[0]) || {};
+            const competitors = comps.competitors || [];
+            const home = competitors.find(c => c.homeAway === 'home') || competitors[0] || {};
+            const away = competitors.find(c => c.homeAway === 'away') || competitors[1] || {};
+            const homeName = (home.team && (home.team.shortDisplayName || home.team.abbreviation || home.team.displayName)) || 'Home';
+            const awayName = (away.team && (away.team.shortDisplayName || away.team.abbreviation || away.team.displayName)) || 'Away';
+            const homeScore = home.score != null ? home.score : '–';
+            const awayScore = away.score != null ? away.score : '–';
+            let minute = '';
+            if (ev.status && ev.status.displayClock) {
+              minute = String(ev.status.displayClock).replace("'", '') + "'";
+            } else if (ev.status && ev.status.type && ev.status.type.shortDetail) {
+              minute = ev.status.type.shortDetail;
+            } else if (ev.status && ev.status.type && ev.status.type.detail) {
+              minute = ev.status.type.detail;
+            }
+            if (!minute) minute = 'LIVE';
+
+            return `
+              <span class="epl-match">
+                <span class="teams">
+                  <span>${escapeHtml(homeName)}</span>
+                  <span class="score">${escapeHtml(String(homeScore))}–${escapeHtml(String(awayScore))}</span>
+                  <span>${escapeHtml(awayName)}</span>
+                </span>
+                <span class="minute">${escapeHtml(minute)}</span>
+              </span>
+            `;
+          }).join('');
+
+          // Duplicate for seamless loop
+          track.innerHTML = items + items;
+
+          // Speed based on content width (~40px per second feel)
+          requestAnimationFrame(() => {
+            const half = track.scrollWidth / 2;
+            const seconds = Math.max(18, Math.min(55, half / 45));
+            track.style.animationDuration = seconds + 's';
+          });
+
+          ticker.classList.add('visible');
+        } catch (err) {
+          // Network / CORS / offline → hide feed
+          ticker.classList.remove('visible');
+          track.innerHTML = '';
+        }
+      }
+
+      function startEplTicker() {
+        fetchLiveEPL();
+        if (eplTimer) clearInterval(eplTimer);
+        eplTimer = setInterval(fetchLiveEPL, EPL_REFRESH_MS);
+      }
 
       function playBeep() {
         const now = Date.now();
@@ -3113,6 +3354,7 @@
 
         loadFromStorage();
         applyFilters();
+        startEplTicker();
 
         const scrollEl = document.getElementById('tableScroll');
         scrollEl.addEventListener('scroll', onTableScroll, { passive: true });
