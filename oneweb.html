@@ -1,0 +1,3259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Oneweb Student Records Management – fast, reliable, offline-capable student data tool" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>Oneweb — Student Records</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { font-family: 'Inter', system-ui, -apple-system, sans-serif; box-sizing: border-box; }
+
+    :root {
+      color-scheme: dark;
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1c1c1c;
+      --border: #2a2a2a;
+      --border-soft: #333333;
+      --text: #e8e8e8;
+      --text-muted: #a0a0a0;
+      --text-faint: #6b6b6b;
+      --brand: #e8e8e8;
+      --brand-hover: #d0d0d0;
+      --input-bg: #1c1c1c;
+      --thead: #0a0a0a;
+      --thead-text: #e8e8e8;
+      --shadow: 0 1px 3px rgba(0,0,0,0.4);
+      --scroll-thumb: #3a3a3a;
+      --scroll-thumb-hover: #555555;
+      --accent: #3b82f6;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --info: #6366f1;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-size-adjust: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      color: var(--text);
+      transition: background 0.25s ease, color 0.25s ease;
+      overscroll-behavior-y: contain;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #e8e8e8 0%, #a0a0a0 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0a0a0a;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .brand-logo:hover { transform: scale(1.04); }
+
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .stats-bar {
+      display: flex;
+      background: var(--surface-alt);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      transition: background 0.25s ease, border-color 0.25s ease;
+    }
+
+    .stat-item {
+      flex: 1;
+      text-align: center;
+      padding: 14px 10px;
+      border-right: 1px solid var(--border);
+      min-width: 80px;
+      transition: background 0.2s ease;
+    }
+
+    .stat-item:last-child { border-right: none; }
+    .stat-item:hover { background: var(--surface); }
+
+    .stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      transition: color 0.2s ease;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0 12px;
+    }
+
+    .search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
+
+    .search-input {
+      width: 100%;
+      height: 40px;
+      padding: 0 14px 0 40px;
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      background: var(--input-bg);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: #555;
+      box-shadow: 0 0 0 3px rgba(80,80,80,0.3);
+    }
+
+    .search-wrap i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      font-size: 14px;
+      pointer-events: none;
+      transition: color 0.2s ease;
+    }
+
+    .filter-select {
+      height: 40px;
+      padding: 0 32px 0 12px;
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      background-color: var(--input-bg);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b6b6b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 14px;
+      font-size: 13px;
+      color: var(--text);
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+      max-height: 40px;
+      color-scheme: dark;
+    }
+
+    .filter-select:focus { border-color: #555; }
+
+    .filter-select option,
+    select.cell-input option {
+      background-color: #1c1c1c;
+      color: #e8e8e8;
+      padding: 8px 12px;
+    }
+
+    .tool-btn {
+      height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      background: var(--input-bg);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .tool-btn:hover {
+      background: var(--surface-alt);
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .tool-btn:active { transform: translateY(0); }
+
+    .tool-btn.active {
+      background: var(--brand);
+      color: #0a0a0a;
+      border-color: var(--brand);
+    }
+
+    .tool-btn.danger:hover {
+      background: #2a1212;
+      border-color: #5c2020;
+      color: #f87171;
+    }
+
+    .tool-btn.save-btn {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.35);
+      color: #86efac;
+    }
+
+    .tool-btn.save-btn:hover {
+      background: rgba(34, 197, 94, 0.25);
+      border-color: rgba(34, 197, 94, 0.5);
+      color: #bbf7d0;
+      transform: translateY(-1px);
+    }
+
+    .btn-add {
+      height: 40px;
+      padding: 0 16px;
+      border: none;
+      border-radius: 10px;
+      background: #e8e8e8;
+      color: #0a0a0a;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.2s ease, transform 0.15s ease;
+      user-select: none;
+    }
+
+    .btn-add:hover { background: #d0d0d0; transform: translateY(-1px); }
+    .btn-add:active { transform: translateY(0); }
+
+    .used-panel {
+      background: linear-gradient(165deg, #161616 0%, #121212 100%);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.35s ease,
+                  border-color 0.25s ease,
+                  box-shadow 0.25s ease;
+    }
+
+    .used-panel.visible {
+      max-height: 640px;
+      opacity: 1;
+    }
+
+    .used-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s ease;
+      gap: 12px;
+    }
+
+    .used-panel-header:hover {
+      background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+    }
+
+    .used-panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .used-panel-title .title-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 12px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.35);
+    }
+
+    .used-panel-title .title-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+
+    .used-panel-title .title-main {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .used-panel-title .title-sub {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-faint);
+    }
+
+    .used-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .used-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(59,130,246,0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59,130,246,0.25);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .used-badge i { font-size: 10px; opacity: 0.8; }
+
+    #usedChevron {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      color: var(--text-faint);
+      font-size: 12px;
+    }
+
+    .used-panel-body {
+      padding: 0;
+      max-height: 480px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-gutter: stable;
+    }
+
+    .used-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background: rgba(0,0,0,0.2);
+      flex-wrap: wrap;
+    }
+
+    .used-search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 160px;
+      max-width: 280px;
+    }
+
+    .used-search-input {
+      width: 100%;
+      height: 34px;
+      padding: 0 12px 0 34px;
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      background: var(--input-bg);
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .used-search-input:focus {
+      border-color: #555;
+      box-shadow: 0 0 0 2px rgba(80,80,80,0.25);
+    }
+
+    .used-search-wrap i {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    .used-filter-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .used-filter-btn {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.18s ease;
+    }
+
+    .used-filter-btn:hover {
+      background: var(--surface-alt);
+      color: var(--text);
+    }
+
+    .used-filter-btn.active {
+      background: rgba(59,130,246,0.18);
+      border-color: rgba(59,130,246,0.4);
+      color: #93c5fd;
+    }
+
+    .used-uni-block {
+      padding: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.2s ease;
+    }
+
+    .used-uni-block:last-child { border-bottom: none; }
+
+    .used-uni-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      gap: 10px;
+      transition: background 0.18s ease;
+    }
+
+    .used-uni-header:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .used-uni-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .used-uni-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .used-uni-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .used-uni-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .used-count-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .used-count-pill.hs {
+      background: rgba(245,158,11,0.12);
+      color: #fbbf24;
+      border: 1px solid rgba(245,158,11,0.2);
+    }
+
+    .used-count-pill.phone {
+      background: rgba(59,130,246,0.12);
+      color: #60a5fa;
+      border: 1px solid rgba(59,130,246,0.2);
+    }
+
+    .used-uni-chevron {
+      color: var(--text-faint);
+      font-size: 11px;
+      transition: transform 0.25s ease;
+    }
+
+    .used-uni-block.collapsed .used-uni-chevron {
+      transform: rotate(-90deg);
+    }
+
+    .used-uni-body {
+      padding: 0 16px 14px 58px;
+      max-height: 400px;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease;
+      opacity: 1;
+    }
+
+    .used-uni-block.collapsed .used-uni-body {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
+    .used-list-group {
+      margin-bottom: 12px;
+    }
+
+    .used-list-group:last-child { margin-bottom: 0; }
+
+    .used-list-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .used-list-label .label-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+    }
+
+    .used-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .used-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 9px;
+      padding: 6px 11px;
+      max-width: 100%;
+      word-break: break-word;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .used-tag::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 9px 0 0 9px;
+    }
+
+    .used-tag.hs::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
+    .used-tag.phone::before { background: linear-gradient(180deg, #3b82f6, #2563eb); }
+
+    .used-tag:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .used-tag i {
+      font-size: 11px;
+      color: var(--text-faint);
+      flex-shrink: 0;
+    }
+
+    .used-tag .tag-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .used-empty {
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .used-empty-icon {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 14px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-faint);
+      font-size: 20px;
+    }
+
+    .used-empty-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .used-empty-sub {
+      font-size: 12px;
+      color: var(--text-faint);
+      max-width: 280px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    .used-no-results {
+      padding: 24px 16px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-faint);
+    }
+
+    .table-wrap {
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: visible;
+      box-shadow: var(--shadow);
+      transition: background 0.25s ease, border-color 0.25s ease;
+    }
+
+    .table-hint {
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--text-faint);
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11px;
+      flex-wrap: wrap;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      transition: transform 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .legend-item:hover .legend-dot { transform: scale(1.2); }
+
+    .legend-dot.accepted { background: #22c55e; }
+    .legend-dot.rejected { background: #ef4444; }
+    .legend-dot.id { background: #6366f1; }
+    .legend-dot.fee { background: #f59e0b; }
+    .legend-dot.other { background: #64748b; }
+
+    .table-scroll {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: calc(100vh - 380px);
+      max-height: calc(100dvh - 380px);
+      overscroll-behavior: contain;
+      scroll-behavior: auto;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+      scrollbar-gutter: stable;
+      border-radius: 0 0 12px 12px;
+    }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 2900px;
+      width: 100%;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--thead);
+      color: var(--thead-text);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 12px 14px;
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 2px solid #2a2a2a;
+    }
+
+    thead th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 30;
+      background: var(--thead);
+      min-width: 48px;
+      text-align: center;
+    }
+
+    tbody tr {
+      transition: background 0.15s ease;
+    }
+
+    tbody tr.row-accepted { background: #14532d !important; }
+    tbody tr.row-rejected { background: #7f1d1d !important; }
+    tbody tr.row-id { background: #312e81 !important; }
+    tbody tr.row-fee { background: #78350f !important; }
+    tbody tr.row-other { background: #1e293b !important; }
+    tbody tr.row-default { background: var(--surface) !important; }
+
+    td {
+      padding: 0;
+      border-bottom: 1px solid var(--border-soft);
+      vertical-align: middle;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      background: inherit;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      min-width: 48px;
+      padding: 0 8px;
+    }
+
+    .cell-input {
+      width: 100%;
+      min-width: 140px;
+      padding: 11px 12px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: background 0.15s ease, box-shadow 0.15s ease, min-width 0.2s ease;
+      white-space: nowrap;
+      overflow: visible;
+      text-overflow: clip;
+    }
+
+    .cell-input:focus {
+      background: var(--input-bg);
+      box-shadow: inset 0 0 0 2px var(--brand);
+      min-width: 180px;
+    }
+
+    .cell-input::placeholder { color: var(--text-faint); font-size: 12px; }
+
+    .cell-input.duplicate,
+    .app-status-trigger.duplicate {
+      background: #7f1d1d !important;
+      box-shadow: inset 0 0 0 2px #ef4444 !important;
+      color: #fecaca;
+      animation: duplicatePulse 0.45s ease;
+    }
+
+    @keyframes duplicatePulse {
+      0% { box-shadow: inset 0 0 0 2px #ef4444; }
+      50% { box-shadow: inset 0 0 0 4px #f87171; }
+      100% { box-shadow: inset 0 0 0 2px #ef4444; }
+    }
+
+    select.cell-input {
+      height: 42px;
+      min-height: 42px;
+      width: 100%;
+      min-width: 150px;
+      padding: 0 28px 0 12px;
+      border: none;
+      border-radius: 0;
+      background-color: transparent;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b6b6b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 14px;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 13px;
+      color-scheme: dark;
+      position: relative;
+      z-index: 2;
+    }
+
+    select.cell-input:focus {
+      background-color: var(--input-bg);
+      box-shadow: inset 0 0 0 2px var(--brand);
+      z-index: 50;
+      min-width: 180px;
+    }
+
+    .app-status-trigger {
+      width: 100%;
+      min-width: 150px;
+      height: 42px;
+      padding: 0 32px 0 12px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+      outline: none;
+    }
+
+    .app-status-trigger:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .app-status-trigger:focus,
+    .app-status-trigger.open {
+      background: var(--input-bg);
+      box-shadow: inset 0 0 0 2px var(--brand);
+    }
+
+    .app-status-trigger .label {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .app-status-trigger .label.placeholder {
+      color: var(--text-faint);
+    }
+
+    .app-status-trigger .chevron {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      font-size: 11px;
+      transition: transform 0.2s ease, color 0.2s ease;
+      pointer-events: none;
+    }
+
+    .app-status-trigger.open .chevron {
+      transform: translateY(-50%) rotate(180deg);
+      color: var(--text);
+    }
+
+    /* Compact dropdown: ~5 options, no visible scrollbar */
+    #customSelectMenu {
+      position: fixed;
+      z-index: 99999;
+      min-width: 180px;
+      max-width: 360px;
+      max-height: min(250px, 50vh);
+      background: #1a1a1a;
+      border: 1px solid #3a3a3a;
+      border-radius: 12px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+      padding: 6px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-6px) scale(0.97);
+      transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+      pointer-events: none;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    #customSelectMenu::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
+    #customSelectMenu.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    #customSelectMenu .menu-search-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 4px 8px;
+      margin: -2px -2px 4px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2e2e2e;
+    }
+
+    #customSelectMenu .menu-search-wrap i {
+      position: absolute;
+      left: 14px;
+      color: var(--text-faint);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    #customSelectMenu .menu-search {
+      width: 100%;
+      height: 34px;
+      padding: 0 10px 0 32px;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      background: #121212;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #customSelectMenu .menu-search:focus {
+      border-color: #555;
+      box-shadow: 0 0 0 2px rgba(80,80,80,0.3);
+    }
+
+    #customSelectMenu .menu-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      max-height: 210px; /* ~5 options */
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
+    }
+
+    #customSelectMenu .menu-list::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+      width: 0;
+      height: 0;
+    }
+
+    #customSelectMenu .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      text-align: left;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.12s ease;
+      flex-shrink: 0;
+    }
+
+    #customSelectMenu .menu-item:hover,
+    #customSelectMenu .menu-item:focus {
+      background: #2a2a2a;
+      outline: none;
+    }
+
+    #customSelectMenu .menu-item.active {
+      background: #2f2f2f;
+      font-weight: 500;
+    }
+
+    #customSelectMenu .menu-item .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    #customSelectMenu .menu-item .dot.accepted { background: #22c55e; }
+    #customSelectMenu .menu-item .dot.rejected { background: #ef4444; }
+    #customSelectMenu .menu-item .dot.id { background: #6366f1; }
+    #customSelectMenu .menu-item .dot.fee { background: #f59e0b; }
+    #customSelectMenu .menu-item .dot.other { background: #64748b; }
+    #customSelectMenu .menu-item .dot.empty { background: transparent; border: 1px solid #555; }
+
+    #customSelectMenu .menu-divider {
+      height: 1px;
+      background: #2e2e2e;
+      margin: 4px 8px;
+    }
+
+    #customSelectMenu .menu-no-results {
+      padding: 16px 12px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    #customSelectMenu .menu-use-custom {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      background: rgba(59,130,246,0.12);
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: left;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: background 0.12s ease;
+    }
+
+    #customSelectMenu .menu-use-custom:hover {
+      background: rgba(59,130,246,0.22);
+    }
+
+    .masked { -webkit-text-security: disc; text-security: disc; letter-spacing: 1px; }
+
+    .row-actions {
+      display: flex;
+      gap: 4px;
+      padding: 6px 10px;
+      justify-content: center;
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-faint);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .icon-btn:hover {
+      background: #3a1515;
+      color: #f87171;
+      transform: scale(1.08);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 64px 20px;
+      color: var(--text-faint);
+    }
+
+    .table-scroll::-webkit-scrollbar,
+    .used-panel-body::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .table-scroll::-webkit-scrollbar-track,
+    .used-panel-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb,
+    .used-panel-body::-webkit-scrollbar-thumb {
+      background: var(--scroll-thumb);
+      border-radius: 99px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      transition: background 0.2s ease;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb:hover,
+    .used-panel-body::-webkit-scrollbar-thumb:hover {
+      background: var(--scroll-thumb-hover);
+      background-clip: padding-box;
+    }
+
+    .table-scroll,
+    .used-panel-body {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scroll-thumb) transparent;
+    }
+
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+      min-width: 200px;
+      z-index: 50;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .dropdown-menu.show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      animation: menuIn 0.18s ease forwards;
+    }
+
+    @keyframes menuIn {
+      from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 14px;
+      border: none;
+      background: none;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s ease;
+    }
+
+    .dropdown-item:hover { background: var(--surface-alt); }
+
+    .file-input-hidden { display: none; }
+
+    .footer-note {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-faint);
+      margin-top: 16px;
+      padding-bottom: 24px;
+    }
+
+    .virtual-spacer td {
+      padding: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      line-height: 0 !important;
+      font-size: 0 !important;
+    }
+
+    .tool-btn:focus-visible,
+    .btn-add:focus-visible,
+    .icon-btn:focus-visible,
+    .search-input:focus-visible,
+    .filter-select:focus-visible,
+    .cell-input:focus-visible,
+    .app-status-trigger:focus-visible,
+    .dropdown-item:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    .loading-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      pointer-events: auto;
+      max-width: 90vw;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+    .toast.info { border-left: 3px solid var(--info); }
+    .toast.warning { border-left: 3px solid var(--warning); }
+
+    @media (max-width: 1100px) {
+      .stats-bar { flex-wrap: wrap; }
+      .stat-item {
+        min-width: 25%;
+        border-bottom: 1px solid var(--border);
+      }
+      .stat-item:nth-child(4n) { border-right: none; }
+    }
+
+    @media (max-width: 900px) {
+      .stat-item { min-width: 33.333%; }
+      .stat-item:nth-child(3n) { border-right: none; }
+      .table-scroll { max-height: calc(100vh - 440px); max-height: calc(100dvh - 440px); }
+      .toolbar { gap: 8px; }
+      .search-wrap { min-width: 100%; max-width: 100%; }
+    }
+
+    @media (max-width: 600px) {
+      .stat-item { min-width: 50%; }
+      .stat-item:nth-child(2n) { border-right: none; }
+      .brand-name { font-size: 18px; }
+      .tool-btn, .btn-add { padding: 0 12px; font-size: 12px; }
+      .table-hint { font-size: 11px; }
+      .stat-value { font-size: 18px; }
+      .used-uni-body { padding-left: 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .table-scroll, .used-panel-body { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body class="p-4 md:p-6">
+  <div class="max-w-[1600px] mx-auto" id="appRoot">
+    <header class="brand" role="banner">
+      <div class="brand-logo" aria-hidden="true">Ow</div>
+      <div>
+        <div class="brand-name">Oneweb</div>
+        <div class="brand-sub">Student Records Management</div>
+      </div>
+    </header>
+
+    <div class="stats-bar mb-1" role="region" aria-label="Record statistics">
+      <div class="stat-item">
+        <div class="stat-label">On Roster</div>
+        <div class="stat-value" id="statRoster" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Showing</div>
+        <div class="stat-value" id="statShowing" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Accepted</div>
+        <div class="stat-value" id="statAccepted" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Rejected</div>
+        <div class="stat-value" id="statRejected" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">ID</div>
+        <div class="stat-value" id="statID" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">App Fee</div>
+        <div class="stat-value" id="statFee" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Not Sent</div>
+        <div class="stat-value" id="statNotSent" aria-live="polite">0</div>
+      </div>
+    </div>
+
+    <div class="toolbar" role="toolbar" aria-label="Table controls">
+      <div class="search-wrap">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" class="search-input" id="searchInput" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" />
+      </div>
+
+      <select class="filter-select" id="statusFilter" aria-label="Filter by status">
+        <option value="">All statuses</option>
+        <option value="Accepted">Accepted</option>
+        <option value="Rejected">Rejected</option>
+        <option value="ID">ID</option>
+        <option value="Application Fee">Application Fee</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <select class="filter-select" id="programFilter" aria-label="Filter by program">
+        <option value="">All programs</option>
+      </select>
+
+      <select class="filter-select" id="sortSelect" aria-label="Sort records">
+        <option value="">Sort: Default</option>
+        <option value="name-asc">Name A-Z</option>
+        <option value="name-desc">Name Z-A</option>
+        <option value="time-desc">Time (Newest)</option>
+        <option value="time-asc">Time (Oldest)</option>
+      </select>
+
+      <button type="button" class="tool-btn" id="btnRevealSSN" title="Reveal / hide SSN" aria-pressed="false">
+        <i class="fas fa-eye" aria-hidden="true"></i> Reveal SSN
+      </button>
+
+      <button type="button" class="tool-btn" id="btnUsedPanel" aria-expanded="false" aria-controls="usedPanel">
+        <i class="fas fa-list-ul" aria-hidden="true"></i> Already Used
+      </button>
+
+      <div class="dropdown">
+        <button type="button" class="tool-btn" id="btnFileMenu" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu">
+          <i class="fas fa-file" aria-hidden="true"></i> File
+        </button>
+        <div class="dropdown-menu" id="fileMenu" role="menu" aria-labelledby="btnFileMenu">
+          <button type="button" class="dropdown-item" role="menuitem" id="btnImport">
+            <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Import Excel
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnExportExcel">
+            <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Export Excel
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnExportCSV">
+            <i class="fas fa-file-csv" style="color:#64748b" aria-hidden="true"></i> Export CSV
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
+            <i class="fas fa-database" aria-hidden="true"></i> Load Sample Data
+          </button>
+        </div>
+      </div>
+
+      <input type="file" id="excelInput" class="file-input-hidden" accept=".xlsx,.xls,.csv" aria-hidden="true" />
+
+      <button type="button" class="tool-btn save-btn" id="btnSave" title="Save all data to browser storage">
+        <i class="fas fa-save" aria-hidden="true"></i> Save
+      </button>
+
+      <button type="button" class="tool-btn danger" id="btnClear" title="Clear all records">
+        <i class="fas fa-trash-alt" aria-hidden="true"></i> Clear
+      </button>
+
+      <button type="button" class="btn-add" id="btnAdd" title="Add new student (Ctrl/Cmd+N)">
+        <i class="fas fa-plus" aria-hidden="true"></i> Add
+      </button>
+    </div>
+
+    <div class="used-panel" id="usedPanel" role="region" aria-label="Already used high schools and phones">
+      <div class="used-panel-header" id="usedPanelHeader" role="button" tabindex="0" aria-expanded="true">
+        <div class="used-panel-title">
+          <div class="title-icon" aria-hidden="true"><i class="fas fa-shield-halved"></i></div>
+          <div class="title-text">
+            <span class="title-main">Already Used — High Schools &amp; Phones</span>
+            <span class="title-sub">Unique within each university · Duplicates trigger alert</span>
+          </div>
+        </div>
+        <div class="used-header-right">
+          <span class="used-badge" id="usedTotalBadge" title="Total unique entries">
+            <i class="fas fa-layer-group" aria-hidden="true"></i>
+            <span id="usedTotalCount">0</span>
+          </span>
+          <i class="fas fa-chevron-down" id="usedChevron" aria-hidden="true"></i>
+        </div>
+      </div>
+      <div class="used-panel-body" id="usedPanelBody">
+        <div class="used-toolbar" id="usedToolbar" style="display:none">
+          <div class="used-search-wrap">
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <input type="search" class="used-search-input" id="usedSearchInput" placeholder="Filter universities, schools, phones..." aria-label="Filter used entries" autocomplete="off" />
+          </div>
+          <div class="used-filter-btns">
+            <button type="button" class="used-filter-btn active" data-filter="all" id="usedFilterAll">
+              <i class="fas fa-border-all" aria-hidden="true"></i> All
+            </button>
+            <button type="button" class="used-filter-btn" data-filter="hs" id="usedFilterHs">
+              <i class="fas fa-school" aria-hidden="true"></i> Schools
+            </button>
+            <button type="button" class="used-filter-btn" data-filter="phone" id="usedFilterPhone">
+              <i class="fas fa-phone" aria-hidden="true"></i> Phones
+            </button>
+          </div>
+        </div>
+        <div class="used-empty" id="usedEmpty">
+          <div class="used-empty-icon"><i class="fas fa-inbox" aria-hidden="true"></i></div>
+          <div class="used-empty-title">No entries yet</div>
+          <div class="used-empty-sub">Add students to see used High Schools and Phone numbers grouped by University.</div>
+        </div>
+        <div id="usedContent"></div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-hint">
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing (select “Other…” or type custom in menu) · Virtual scrolling enabled · Duplicate High School / Phone plays beep</span>
+        <div class="legend" aria-hidden="true">
+          <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
+          <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
+          <div class="legend-item"><span class="legend-dot id"></span> ID</div>
+          <div class="legend-item"><span class="legend-dot fee"></span> Application Fee</div>
+          <div class="legend-item"><span class="legend-dot other"></span> Other</div>
+        </div>
+      </div>
+      <div class="table-scroll" id="tableScroll" role="region" aria-label="Student records table" tabindex="0">
+        <table id="dataTable" role="grid" aria-rowcount="0">
+          <thead>
+            <tr role="row">
+              <th scope="col" role="columnheader">#</th>
+              <th scope="col" role="columnheader" style="min-width:180px">Student Name</th>
+              <th scope="col" role="columnheader" style="min-width:220px">University</th>
+              <th scope="col" role="columnheader" style="min-width:140px">SSN</th>
+              <th scope="col" role="columnheader" style="min-width:130px">DOB</th>
+              <th scope="col" role="columnheader" style="min-width:220px">Email</th>
+              <th scope="col" role="columnheader" style="min-width:120px">Gender</th>
+              <th scope="col" role="columnheader" style="min-width:140px">Username</th>
+              <th scope="col" role="columnheader" style="min-width:140px">Password</th>
+              <th scope="col" role="columnheader" style="min-width:260px">Address</th>
+              <th scope="col" role="columnheader" style="min-width:180px">High School</th>
+              <th scope="col" role="columnheader" style="min-width:210px">Grad Period</th>
+              <th scope="col" role="columnheader" style="min-width:90px">GPA</th>
+              <th scope="col" role="columnheader" style="min-width:150px">Phone</th>
+              <th scope="col" role="columnheader" style="min-width:140px">Start Date</th>
+              <th scope="col" role="columnheader" style="min-width:200px">Transcript Mail</th>
+              <th scope="col" role="columnheader" style="min-width:180px">Ethnicity</th>
+              <th scope="col" role="columnheader" style="min-width:200px">Program</th>
+              <th scope="col" role="columnheader" style="min-width:180px">Transcript Status</th>
+              <th scope="col" role="columnheader" style="min-width:160px">App Status</th>
+              <th scope="col" role="columnheader" style="text-align:center;min-width:80px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div id="emptyState" class="empty-state hidden" role="status">
+          <i class="fas fa-table text-4xl mb-3 opacity-40" aria-hidden="true"></i>
+          <p class="text-base font-medium" style="color:var(--text-muted)">No student records yet</p>
+          <p class="text-sm mt-1" style="color:var(--text-faint)">Click “Add” or import an Excel file to get started</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="footer-note">
+      Oneweb · Data auto-saves to browser local storage · Use Save button to force-save · High School &amp; Phone unique within University · GPA auto-suggests from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · Ctrl/Cmd+N to add row · Duplicate detection plays beep
+    </p>
+  </div>
+
+  <div id="customSelectMenu" role="listbox" aria-label="Select option"></div>
+
+  <div class="loading-overlay" id="loadingOverlay" aria-hidden="true" aria-live="assertive">
+    <div class="loading-spinner" role="status" aria-label="Loading"></div>
+  </div>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <datalist id="usUniversities"></datalist>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const PROGRAM_LIST = [
+        '', 'Accounting', 'Aerospace Engineering', 'Anthropology', 'Architecture', 'Art History',
+        'Biology', 'Biomedical Engineering', 'Business Administration', 'Chemical Engineering',
+        'Chemistry', 'Civil Engineering', 'Communications', 'Computer Engineering', 'Computer Science',
+        'Criminal Justice', 'Data Science', 'Economics', 'Education', 'Electrical Engineering',
+        'English Literature', 'Environmental Science', 'Finance', 'Graphic Design', 'History',
+        'Human Resources', 'Information Technology', 'International Relations', 'Journalism',
+        'Law / Pre-Law', 'Marketing', 'Mathematics', 'Mechanical Engineering', 'Medicine / Pre-Med',
+        'Music', 'Nursing', 'Philosophy', 'Physics', 'Political Science', 'Psychology',
+        'Public Health', 'Sociology', 'Software Engineering', 'Statistics', 'Theatre / Performing Arts', 'Other'
+      ];
+
+      const US_UNIVERSITIES = [
+        'Abilene Christian University','Adelphi University','Agnes Scott College','Alabama A&M University','Alabama State University',
+        'Albany State University','American University','Amherst College','Appalachian State University','Arizona State University',
+        'Arkansas State University','Auburn University','Augustana College','Babson College','Ball State University',
+        'Barnard College','Bates College','Baylor University','Belmont University','Beloit College','Bentley University',
+        'Binghamton University','Boise State University','Boston College','Boston University','Bowdoin College',
+        'Bowling Green State University','Bradley University','Brandeis University','Brigham Young University','Brown University',
+        'Bryn Mawr College','Bucknell University','Butler University','California Institute of Technology','California Polytechnic State University',
+        'California State University, Fullerton','California State University, Long Beach','California State University, Northridge',
+        'Carleton College','Carnegie Mellon University','Case Western Reserve University','Catholic University of America','Chapman University',
+        'Claremont McKenna College','Clemson University','Colby College','Colgate University','College of Charleston',
+        'College of the Holy Cross','College of William & Mary','Colorado College','Colorado School of Mines','Colorado State University',
+        'Columbia University','Connecticut College','Cornell University','Creighton University','Dartmouth College','Davidson College',
+        'DePaul University','DePauw University','Dickinson College','Drexel University','Duke University','Duquesne University',
+        'East Carolina University','Eastern Michigan University','Elon University','Emerson College','Emory University',
+        'Florida Atlantic University','Florida International University','Florida State University','Fordham University',
+        'Franklin & Marshall College','Furman University','George Mason University','George Washington University','Georgetown University',
+        'Georgia Institute of Technology','Georgia State University','Gettysburg College','Gonzaga University','Grinnell College',
+        'Hamilton College','Harvard University','Harvey Mudd College','Haverford College','Hofstra University','Howard University',
+        'Illinois Institute of Technology','Illinois State University','Indiana University Bloomington','Iowa State University',
+        'Ithaca College','James Madison University','Johns Hopkins University','Kansas State University','Kent State University',
+        'Kenyon College','Lafayette College','Lehigh University','Lewis & Clark College','Louisiana State University',
+        'Loyola Marymount University','Loyola University Chicago','Macalester College','Marquette University',
+        'Massachusetts Institute of Technology','Miami University','Michigan State University','Middlebury College',
+        'Mississippi State University','Missouri University of Science and Technology','Montana State University','Mount Holyoke College',
+        'New Jersey Institute of Technology','New York University','North Carolina State University','Northeastern University',
+        'Northern Arizona University','Northern Illinois University','Northwestern University','Oberlin College','Occidental College',
+        'Ohio State University','Ohio University','Oklahoma State University','Oregon State University','Pennsylvania State University',
+        'Pepperdine University','Pomona College','Princeton University','Purdue University','Quinnipiac University','Reed College',
+        'Rensselaer Polytechnic Institute','Rice University','Rochester Institute of Technology','Rutgers University',
+        'Saint Louis University','San Diego State University','San Francisco State University','Santa Clara University',
+        'Sarah Lawrence College','Seattle University','Seton Hall University','Smith College','Southern Methodist University',
+        'Stanford University','Stevens Institute of Technology','Stony Brook University','Swarthmore College','Syracuse University',
+        'Temple University','Texas A&M University','Texas Christian University','Texas Tech University','The New School',
+        'The Ohio State University','The University of Alabama','The University of Arizona','The University of Texas at Austin',
+        'The University of Utah','Thomas Jefferson University','Trinity College','Trinity University','Tufts University','Tulane University',
+        'University at Buffalo','University of Alabama at Birmingham','University of Alaska Anchorage','University of Alaska Fairbanks',
+        'University of Arkansas','University of California, Berkeley','University of California, Davis','University of California, Irvine',
+        'University of California, Los Angeles','University of California, Merced','University of California, Riverside',
+        'University of California, San Diego','University of California, Santa Barbara','University of California, Santa Cruz',
+        'University of Central Florida','University of Chicago','University of Cincinnati','University of Colorado Boulder',
+        'University of Connecticut','University of Delaware','University of Denver','University of Florida','University of Georgia',
+        'University of Hawaii at Manoa','University of Houston','University of Idaho','University of Illinois Chicago',
+        'University of Illinois Urbana-Champaign','University of Iowa','University of Kansas','University of Kentucky',
+        'University of Louisville','University of Maine','University of Maryland','University of Massachusetts Amherst',
+        'University of Miami','University of Michigan','University of Minnesota','University of Mississippi','University of Missouri',
+        'University of Montana','University of Nebraska–Lincoln','University of Nevada, Las Vegas','University of Nevada, Reno',
+        'University of New Hampshire','University of New Mexico','University of North Carolina at Chapel Hill',
+        'University of North Carolina at Charlotte','University of North Dakota','University of North Texas','University of Notre Dame',
+        'University of Oklahoma','University of Oregon','University of Pennsylvania','University of Pittsburgh','University of Rhode Island',
+        'University of Richmond','University of Rochester','University of San Diego','University of San Francisco',
+        'University of South Carolina','University of South Florida','University of Southern California','University of Tennessee',
+        'University of Texas at Dallas','University of Texas at San Antonio','University of Toledo','University of Vermont',
+        'University of Virginia','University of Washington','University of Wisconsin–Madison','University of Wyoming',
+        'Utah State University','Vanderbilt University','Vassar College','Villanova University','Virginia Commonwealth University',
+        'Virginia Polytechnic Institute and State University','Wake Forest University','Washington State University',
+        'Washington University in St. Louis','Wellesley College','Wesleyan University','West Virginia University',
+        'Western Michigan University','Wheaton College','Williams College','Worcester Polytechnic Institute','Yale University'
+      ];
+
+      const APP_STATUS_FIXED = ['Accepted', 'Rejected', 'ID', 'Application Fee'];
+      const APP_STATUS_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        { value: 'Accepted', label: 'Accepted', dot: 'accepted' },
+        { value: 'Rejected', label: 'Rejected', dot: 'rejected' },
+        { value: 'ID', label: 'ID', dot: 'id' },
+        { value: 'Application Fee', label: 'Application Fee', dot: 'fee' },
+        { value: 'Other', label: 'Other…', dot: 'other' }
+      ];
+      const GENDER_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        { value: 'Male', label: 'Male', dot: 'empty' },
+        { value: 'Female', label: 'Female', dot: 'empty' },
+        { value: 'Non-binary', label: 'Non-binary', dot: 'empty' },
+        { value: 'Prefer not to say', label: 'Prefer not to say', dot: 'empty' }
+      ];
+      const HIGH_SCHOOL_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        { value: 'William P. Clements High School', label: 'William P. Clements High School', gpa: '3.48', dot: 'empty' },
+        { value: 'Blue Valley High School', label: 'Blue Valley High School', gpa: '3.51', dot: 'empty' },
+        { value: 'Northville High School', label: 'Northville High School', gpa: '3.53', dot: 'empty' }
+      ];
+      const HS_GPA_MAP = {
+        'william p. clements high school': '3.48',
+        'blue valley high school': '3.51',
+        'northville high school': '3.53'
+      };
+      const ETHNICITY_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        { value: 'Asian', label: 'Asian', dot: 'empty' },
+        { value: 'Black / African American', label: 'Black / African American', dot: 'empty' },
+        { value: 'Hispanic / Latino', label: 'Hispanic / Latino', dot: 'empty' },
+        { value: 'White', label: 'White', dot: 'empty' },
+        { value: 'Native American', label: 'Native American', dot: 'empty' },
+        { value: 'Pacific Islander', label: 'Pacific Islander', dot: 'empty' },
+        { value: 'Two or More', label: 'Two or More', dot: 'empty' },
+        { value: 'Other', label: 'Other', dot: 'empty' },
+        { value: 'Prefer not to say', label: 'Prefer not to say', dot: 'empty' }
+      ];
+      const PROGRAM_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        ...PROGRAM_LIST.filter(Boolean).map(p => ({ value: p, label: p, dot: 'empty' })),
+        { value: 'Other', label: 'Other…', dot: 'other' }
+      ];
+      const TRANSCRIPT_STATUS_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        { value: 'Sent (Received)', label: 'Sent (Received)', dot: 'empty' },
+        { value: 'Sent (Not Received)', label: 'Sent (Not Received)', dot: 'empty' },
+        { value: 'Not Sent', label: 'Not Sent', dot: 'empty' }
+      ];
+      const UNIVERSITY_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        ...US_UNIVERSITIES.map(u => ({ value: u, label: u, dot: 'empty' })),
+        { value: 'Other', label: 'Other…', dot: 'other' }
+      ];
+
+      const columns = [
+        { key: 'name', type: 'text', placeholder: 'Full Name' },
+        { key: 'university', type: 'customSelect', options: UNIVERSITY_OPTIONS },
+        { key: 'ssn', type: 'text', placeholder: 'XXX-XX-XXXX' },
+        { key: 'dob', type: 'date', placeholder: '' },
+        { key: 'email', type: 'email', placeholder: 'email@example.com' },
+        { key: 'gender', type: 'customSelect', options: GENDER_OPTIONS },
+        { key: 'username', type: 'text', placeholder: 'Username' },
+        { key: 'password', type: 'password', placeholder: 'Password' },
+        { key: 'address', type: 'text', placeholder: 'Full Address' },
+        { key: 'highSchool', type: 'customSelect', options: HIGH_SCHOOL_OPTIONS },
+        { key: 'gradYear', type: 'text', placeholder: 'MM/DD/YYYY – MM/DD/YYYY' },
+        { key: 'gpa', type: 'number', placeholder: '0.00', step: '0.01' },
+        { key: 'phone', type: 'tel', placeholder: '+1 234 567 8900' },
+        { key: 'startDate', type: 'text', placeholder: 'Fall / Spring / or date' },
+        { key: 'transcriptMail', type: 'email', placeholder: 'transcript@uni.edu' },
+        { key: 'ethnicity', type: 'customSelect', options: ETHNICITY_OPTIONS },
+        { key: 'program', type: 'customSelect', options: PROGRAM_OPTIONS },
+        { key: 'transcriptStatus', type: 'customSelect', options: TRANSCRIPT_STATUS_OPTIONS },
+        { key: 'appStatus', type: 'appStatus' }
+      ];
+
+      const headerMap = {
+        'student name': 'name', 'name': 'name', 'students name': 'name', 'full name': 'name', 'student': 'name',
+        'student_name': 'name', 'fullname': 'name', 'applicant name': 'name', 'applicant': 'name',
+        'university': 'university', 'school': 'university', 'college': 'university', 'uni': 'university',
+        'institution': 'university', 'campus': 'university',
+        'ssn': 'ssn', 'social security': 'ssn', 'social security number': 'ssn', 'ssn number': 'ssn',
+        'social': 'ssn', 'ss#': 'ssn',
+        'dob': 'dob', 'date of birth': 'dob', 'birthdate': 'dob', 'birth date': 'dob', 'dateofbirth': 'dob',
+        'birthday': 'dob', 'date_of_birth': 'dob',
+        'email': 'email', 'e-mail': 'email', 'email address': 'email', 'emailaddress': 'email',
+        'gender': 'gender', 'sex': 'gender',
+        'username': 'username', 'user name': 'username', 'user': 'username', 'login': 'username',
+        'user_name': 'username',
+        'password': 'password', 'pass': 'password', 'pwd': 'password',
+        'address': 'address', 'full address': 'address', 'home address': 'address', 'street': 'address',
+        'high school': 'highSchool', 'highschool': 'highSchool', 'hs': 'highSchool', 'secondary school': 'highSchool',
+        'high_school': 'highSchool', 'secondary': 'highSchool',
+        'grad year': 'gradYear', 'graduation year': 'gradYear', 'gradyear': 'gradYear', 'year of graduation': 'gradYear',
+        'grad': 'gradYear', 'grad_year': 'gradYear', 'graduation': 'gradYear',
+        'grad period': 'gradYear', 'gradperiod': 'gradYear', 'graduation period': 'gradYear',
+        'grad range': 'gradYear', 'years attended': 'gradYear', 'attendance years': 'gradYear',
+        'graduation period start': 'gradYear', 'grad start': 'gradYear',
+        'gpa': 'gpa', 'grade point average': 'gpa', 'grade': 'gpa',
+        'phone': 'phone', 'phone no': 'phone', 'phone number': 'phone', 'mobile': 'phone', 'mobile number': 'phone',
+        'cell': 'phone', 'cellphone': 'phone', 'telephone': 'phone', 'phone_number': 'phone', 'tel': 'phone',
+        'start date': 'startDate', 'startdate': 'startDate', 'enrollment date': 'startDate', 'start': 'startDate',
+        'start_date': 'startDate', 'enroll date': 'startDate', 'term': 'startDate', 'semester': 'startDate',
+        'entry term': 'startDate', 'start term': 'startDate',
+        'transcript mail': 'transcriptMail', 'transcript email': 'transcriptMail', 'transcript e-mail': 'transcriptMail',
+        'transcript_mail': 'transcriptMail', 'transcriptemail': 'transcriptMail',
+        'app status': 'appStatus', 'application status': 'appStatus', 'status': 'appStatus',
+        'applicationstatus': 'appStatus', 'app_status': 'appStatus', 'application': 'appStatus',
+        'ethnicity': 'ethnicity', 'race': 'ethnicity', 'ethnic': 'ethnicity',
+        'program': 'program', 'major': 'program', 'degree program': 'program', 'course': 'program',
+        'field of study': 'program',
+        'transcript status': 'transcriptStatus', 'transcriptstatus': 'transcriptStatus', 'transcript_status': 'transcriptStatus'
+      };
+
+      const STORAGE_KEY = 'oneweb_studentRecords_v6';
+      const ROW_HEIGHT = 46;
+      const BUFFER_ROWS = 20;
+      const VIRTUAL_THRESHOLD = 40;
+
+      let data = [];
+      let filteredData = [];
+      let revealSSN = false;
+      let usedPanelOpen = false;
+      let usedBodyCollapsed = false;
+      let saveTimer = null;
+      let scrollRaf = null;
+      let virtualStart = -1;
+      let virtualEnd = -1;
+      let usedSearchQuery = '';
+      let usedTypeFilter = 'all';
+      let usedCollapsedUnis = new Set();
+      let lastBeepAt = 0;
+
+      let customOpenId = null;
+      let customTriggerEl = null;
+      let customOpenKey = null;
+      let customMenuOptions = [];
+      let customMenuKey = null;
+
+      let audioCtx = null;
+
+      function playBeep() {
+        const now = Date.now();
+        if (now - lastBeepAt < 350) return;
+        lastBeepAt = now;
+        try {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
+          osc.start(audioCtx.currentTime);
+          osc.stop(audioCtx.currentTime + 0.2);
+        } catch (e) {}
+      }
+
+      function escapeHtml(text) {
+        if (text == null) return '';
+        const d = document.createElement('div');
+        d.textContent = String(text);
+        return d.innerHTML;
+      }
+
+      function normalize(str) {
+        return String(str || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      }
+
+      function debounce(fn, ms) {
+        let t;
+        return function (...args) {
+          clearTimeout(t);
+          t = setTimeout(() => fn.apply(this, args), ms);
+        };
+      }
+
+      function showLoading(show) {
+        const el = document.getElementById('loadingOverlay');
+        if (!el) return;
+        el.classList.toggle('visible', !!show);
+        el.setAttribute('aria-hidden', show ? 'false' : 'true');
+      }
+
+      function showToast(message, type = 'info', duration = 3200) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.setAttribute('role', 'status');
+        toast.textContent = message;
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+      }
+
+      function createEmptyRow() {
+        const row = {};
+        columns.forEach(col => { row[col.key] = ''; });
+        row.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+        row.createdAt = Date.now();
+        return row;
+      }
+
+      function isFixedAppStatus(val) {
+        return !val || APP_STATUS_FIXED.includes(val);
+      }
+
+      function isFixedUniversity(val) {
+        if (!val) return true;
+        return US_UNIVERSITIES.some(u => normalize(u) === normalize(val));
+      }
+
+      function isFixedProgram(val) {
+        if (!val) return true;
+        const list = PROGRAM_LIST.filter(Boolean);
+        return list.some(p => normalize(p) === normalize(val));
+      }
+
+      function isDuplicateHighSchool(university, highSchool, excludeId) {
+        if (!university || !highSchool) return false;
+        const u = normalize(university);
+        const hs = normalize(highSchool);
+        return data.some(r => r.id !== excludeId && normalize(r.university) === u && normalize(r.highSchool) === hs);
+      }
+
+      function isDuplicatePhone(university, phone, excludeId) {
+        if (!university || !phone) return false;
+        const u = normalize(university);
+        const p = normalize(phone).replace(/[\s\-\(\)\.]/g, '');
+        if (!p) return false;
+        return data.some(r => {
+          if (r.id === excludeId) return false;
+          if (normalize(r.university) !== u) return false;
+          const rp = normalize(r.phone).replace(/[\s\-\(\)\.]/g, '');
+          return rp && rp === p;
+        });
+      }
+
+      function getKnownGpaForHighSchool(highSchool, excludeId) {
+        if (!highSchool) return '';
+        const hs = normalize(highSchool);
+        if (HS_GPA_MAP[hs]) return HS_GPA_MAP[hs];
+        const match = data.find(r =>
+          r.id !== excludeId &&
+          normalize(r.highSchool) === hs &&
+          r.gpa !== '' && r.gpa != null
+        );
+        return match ? String(match.gpa) : '';
+      }
+
+      function getRowClass(appStatus) {
+        const s = normalize(appStatus);
+        if (s === 'accepted') return 'row-accepted';
+        if (s === 'rejected') return 'row-rejected';
+        if (s === 'id') return 'row-id';
+        if (s === 'application fee') return 'row-fee';
+        if (s) return 'row-other';
+        return 'row-default';
+      }
+
+      function getAllUsedByUniversity() {
+        const map = {};
+        data.forEach(r => {
+          const u = (r.university || '').trim();
+          if (!u) return;
+          if (!map[u]) map[u] = { highSchools: new Set(), phones: new Set() };
+          if (r.highSchool) map[u].highSchools.add(r.highSchool.trim());
+          if (r.phone) map[u].phones.add(r.phone.trim());
+        });
+        return map;
+      }
+
+      function renderUsedPanel() {
+        const map = getAllUsedByUniversity();
+        const keys = Object.keys(map).sort((a, b) => a.localeCompare(b));
+        const empty = document.getElementById('usedEmpty');
+        const content = document.getElementById('usedContent');
+        const toolbar = document.getElementById('usedToolbar');
+        const totalBadge = document.getElementById('usedTotalCount');
+
+        let totalEntries = 0;
+        keys.forEach(u => {
+          totalEntries += map[u].highSchools.size + map[u].phones.size;
+        });
+        if (totalBadge) totalBadge.textContent = String(totalEntries);
+
+        if (!keys.length) {
+          empty.style.display = 'block';
+          content.innerHTML = '';
+          if (toolbar) toolbar.style.display = 'none';
+          return;
+        }
+
+        empty.style.display = 'none';
+        if (toolbar) toolbar.style.display = 'flex';
+
+        const q = normalize(usedSearchQuery);
+        const type = usedTypeFilter;
+
+        const filteredKeys = keys.filter(uni => {
+          if (!q) return true;
+          if (normalize(uni).includes(q)) return true;
+          const hs = [...map[uni].highSchools];
+          const phones = [...map[uni].phones];
+          if (hs.some(h => normalize(h).includes(q))) return true;
+          if (phones.some(p => normalize(p).includes(q))) return true;
+          return false;
+        });
+
+        if (!filteredKeys.length) {
+          content.innerHTML = '<div class="used-no-results"><i class="fas fa-search mr-1"></i> No matches for current filter</div>';
+          return;
+        }
+
+        const html = filteredKeys.map(uni => {
+          let hs = [...map[uni].highSchools].sort((a, b) => a.localeCompare(b));
+          let phones = [...map[uni].phones].sort((a, b) => a.localeCompare(b));
+
+          if (q) {
+            hs = hs.filter(h => normalize(h).includes(q) || normalize(uni).includes(q));
+            phones = phones.filter(p => normalize(p).includes(q) || normalize(uni).includes(q));
+          }
+
+          if (type === 'hs') phones = [];
+          if (type === 'phone') hs = [];
+
+          if (!hs.length && !phones.length && q) return '';
+
+          const isCollapsed = usedCollapsedUnis.has(uni);
+          const hsCount = map[uni].highSchools.size;
+          const phoneCount = map[uni].phones.size;
+
+          return `
+            <div class="used-uni-block ${isCollapsed ? 'collapsed' : ''}" data-uni="${escapeHtml(uni)}">
+              <div class="used-uni-header" role="button" tabindex="0" aria-expanded="${!isCollapsed}">
+                <div class="used-uni-left">
+                  <div class="used-uni-icon"><i class="fas fa-university" aria-hidden="true"></i></div>
+                  <div class="used-uni-name" title="${escapeHtml(uni)}">${escapeHtml(uni)}</div>
+                </div>
+                <div class="used-uni-meta">
+                  ${hsCount ? `<span class="used-count-pill hs"><i class="fas fa-school" aria-hidden="true"></i> ${hsCount}</span>` : ''}
+                  ${phoneCount ? `<span class="used-count-pill phone"><i class="fas fa-phone" aria-hidden="true"></i> ${phoneCount}</span>` : ''}
+                  <i class="fas fa-chevron-down used-uni-chevron" aria-hidden="true"></i>
+                </div>
+              </div>
+              <div class="used-uni-body">
+                ${hs.length ? `
+                  <div class="used-list-group">
+                    <div class="used-list-label">
+                      <i class="fas fa-school" aria-hidden="true"></i> High Schools
+                      <span class="label-line"></span>
+                    </div>
+                    <div class="used-tags">
+                      ${hs.map(h => `<span class="used-tag hs"><i class="fas fa-graduation-cap" aria-hidden="true"></i><span class="tag-text">${escapeHtml(h)}</span></span>`).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+                ${phones.length ? `
+                  <div class="used-list-group">
+                    <div class="used-list-label">
+                      <i class="fas fa-phone" aria-hidden="true"></i> Phone Numbers
+                      <span class="label-line"></span>
+                    </div>
+                    <div class="used-tags">
+                      ${phones.map(p => `<span class="used-tag phone"><i class="fas fa-mobile-screen" aria-hidden="true"></i><span class="tag-text">${escapeHtml(p)}</span></span>`).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+                ${!hs.length && !phones.length ? '<div style="font-size:12px;color:var(--text-faint)">No matching entries under current filter</div>' : ''}
+              </div>
+            </div>
+          `;
+        }).filter(Boolean).join('');
+
+        content.innerHTML = html || '<div class="used-no-results">No matching entries</div>';
+      }
+
+      function closeCustomSelectMenu() {
+        const menu = document.getElementById('customSelectMenu');
+        if (menu) {
+          menu.classList.remove('visible');
+          menu.onkeydown = null;
+        }
+        if (customTriggerEl) {
+          customTriggerEl.classList.remove('open');
+          customTriggerEl.setAttribute('aria-expanded', 'false');
+        }
+        customOpenId = null;
+        customTriggerEl = null;
+        customOpenKey = null;
+        customMenuOptions = [];
+        customMenuKey = null;
+      }
+
+      function openCustomSelectMenu(trigger, rowId, key, currentValue, options) {
+        const menu = document.getElementById('customSelectMenu');
+        if (!menu) return;
+
+        customMenuOptions = options;
+        customMenuKey = key;
+
+        const isLong = options.length > 15;
+        const allowsCustom = (key === 'university' || key === 'program' || key === 'appStatus');
+        menu.innerHTML = '';
+
+        if (isLong || allowsCustom) {
+          const searchWrap = document.createElement('div');
+          searchWrap.className = 'menu-search-wrap';
+          searchWrap.innerHTML = '<i class="fas fa-search" aria-hidden="true"></i><input type="search" class="menu-search" placeholder="Type to filter or enter custom..." aria-label="Filter options" autocomplete="off" />';
+          menu.appendChild(searchWrap);
+        }
+
+        const list = document.createElement('div');
+        list.className = 'menu-list';
+        menu.appendChild(list);
+
+        function renderItems(filter = '') {
+          const q = normalize(filter);
+          list.innerHTML = '';
+          let matchCount = 0;
+          options.forEach((opt, i) => {
+            if (key === 'appStatus' && i === 5) {
+              const div = document.createElement('div');
+              div.className = 'menu-divider';
+              list.appendChild(div);
+            }
+            if (q && !normalize(opt.label).includes(q) && !normalize(opt.value).includes(q)) return;
+            matchCount++;
+            const isActive = (opt.value === currentValue) ||
+              (key === 'appStatus' && opt.value === 'Other' && currentValue && !isFixedAppStatus(currentValue)) ||
+              ((key === 'university' || key === 'program') && opt.value === 'Other' && currentValue && !(key === 'university' ? isFixedUniversity(currentValue) : isFixedProgram(currentValue)));
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'menu-item' + (isActive ? ' active' : '');
+            btn.setAttribute('role', 'option');
+            btn.setAttribute('data-value', opt.value);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            btn.tabIndex = 0;
+            btn.innerHTML = `<span class="dot ${opt.dot || 'empty'}"></span><span>${escapeHtml(opt.label)}</span>`;
+            list.appendChild(btn);
+          });
+
+          if (allowsCustom && filter.trim()) {
+            const exactMatch = options.some(o => normalize(o.value) === normalize(filter) || normalize(o.label) === normalize(filter));
+            if (!exactMatch) {
+              const useCustom = document.createElement('button');
+              useCustom.type = 'button';
+              useCustom.className = 'menu-use-custom';
+              useCustom.setAttribute('data-custom-value', filter.trim());
+              useCustom.innerHTML = `<i class="fas fa-pen" aria-hidden="true"></i> Use “${escapeHtml(filter.trim())}”`;
+              list.appendChild(useCustom);
+              matchCount++;
+            }
+          }
+
+          if (matchCount === 0) {
+            list.innerHTML = '<div class="menu-no-results">No matches</div>';
+          }
+        }
+
+        renderItems();
+
+        const rect = trigger.getBoundingClientRect();
+        const menuWidth = Math.max(180, Math.min(360, rect.width + 40));
+        let top = rect.bottom + 4;
+        let left = rect.left;
+
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (left + menuWidth > vw - 8) left = vw - menuWidth - 8;
+        if (left < 8) left = 8;
+
+        menu.style.width = menuWidth + 'px';
+        menu.style.visibility = 'hidden';
+        menu.style.display = 'block';
+        const menuHeight = menu.offsetHeight || 220;
+        menu.style.display = '';
+        menu.style.visibility = '';
+
+        if (top + menuHeight > vh - 8 && rect.top > menuHeight + 8) {
+          top = rect.top - menuHeight - 4;
+        }
+
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+
+        if (customTriggerEl && customTriggerEl !== trigger) {
+          customTriggerEl.classList.remove('open');
+        }
+        trigger.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+        customOpenId = rowId;
+        customTriggerEl = trigger;
+        customOpenKey = key;
+
+        const searchInput = menu.querySelector('.menu-search');
+        if (searchInput) {
+          searchInput.addEventListener('input', () => renderItems(searchInput.value));
+          searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              const first = list.querySelector('.menu-item, .menu-use-custom');
+              if (first) first.focus();
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              const typed = searchInput.value.trim();
+              if (typed && allowsCustom) {
+                const exact = options.find(o => normalize(o.value) === normalize(typed) || normalize(o.label) === normalize(typed));
+                if (exact) {
+                  handleCustomSelect(exact.value);
+                } else {
+                  handleCustomSelect(typed);
+                }
+              }
+            } else if (e.key === 'Escape') {
+              closeCustomSelectMenu();
+            }
+          });
+        }
+
+        menu.onkeydown = function (e) {
+          const items = Array.from(list.querySelectorAll('.menu-item, .menu-use-custom'));
+          if (!items.length) return;
+          const focused = document.activeElement;
+          const idx = items.indexOf(focused);
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (idx < 0) items[0].focus();
+            else if (idx < items.length - 1) items[idx + 1].focus();
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (idx <= 0) {
+              if (searchInput) searchInput.focus();
+              else items[0].focus();
+            } else {
+              items[idx - 1].focus();
+            }
+          } else if (e.key === 'Enter' && focused) {
+            e.preventDefault();
+            if (focused.classList.contains('menu-use-custom')) {
+              handleCustomSelect(focused.getAttribute('data-custom-value'));
+            } else if (focused.classList.contains('menu-item')) {
+              handleCustomSelect(focused.getAttribute('data-value'));
+            }
+          } else if (e.key === 'Escape') {
+            closeCustomSelectMenu();
+          }
+        };
+
+        requestAnimationFrame(() => {
+          menu.classList.add('visible');
+          if (searchInput) {
+            setTimeout(() => searchInput.focus(), 20);
+          }
+        });
+      }
+
+      function handleCustomSelect(value) {
+        if (!customOpenId || !customOpenKey) return;
+        const id = customOpenId;
+        const key = customOpenKey;
+        closeCustomSelectMenu();
+
+        if (key === 'appStatus') {
+          if (value === 'Other') {
+            updateCell(id, 'appStatus', 'Other');
+            setTimeout(() => {
+              const input = document.querySelector(`tr[data-id="${id}"] input.cell-input[data-appstatus]`);
+              if (input) {
+                input.focus();
+                input.select();
+              }
+            }, 30);
+          } else {
+            updateCell(id, 'appStatus', value);
+            const trigger = document.querySelector(`tr[data-id="${id}"] .app-status-trigger[data-key="appStatus"]`);
+            if (trigger) {
+              const label = trigger.querySelector('.label');
+              if (label) {
+                if (value) {
+                  label.textContent = value;
+                  label.classList.remove('placeholder');
+                } else {
+                  label.textContent = '— Select —';
+                  label.classList.add('placeholder');
+                }
+              }
+              const tr = trigger.closest('tr');
+              if (tr) tr.className = getRowClass(value);
+            } else {
+              renderTable();
+            }
+          }
+        } else if ((key === 'university' || key === 'program') && value === 'Other') {
+          updateCell(id, key, 'Other');
+          setTimeout(() => {
+            const input = document.querySelector(`tr[data-id="${id}"] input.cell-input[data-key="${key}"]`);
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          }, 30);
+        } else {
+          updateCell(id, key, value);
+          if (key === 'highSchool') {
+            const gpa = HS_GPA_MAP[normalize(value)] || '';
+            if (gpa) {
+              updateCell(id, 'gpa', gpa);
+            }
+          }
+          const isCustomUni = key === 'university' && value && !isFixedUniversity(value);
+          const isCustomProg = key === 'program' && value && !isFixedProgram(value);
+          if (isCustomUni || isCustomProg) {
+            renderTable();
+            setTimeout(() => {
+              const input = document.querySelector(`tr[data-id="${id}"] input.cell-input[data-key="${key}"]`);
+              if (input) {
+                input.focus();
+                input.select();
+              }
+            }, 40);
+          } else {
+            const trigger = document.querySelector(`tr[data-id="${id}"] .app-status-trigger[data-key="${key}"]`);
+            if (trigger) {
+              const label = trigger.querySelector('.label');
+              if (label) {
+                if (value) {
+                  label.textContent = value;
+                  label.classList.remove('placeholder');
+                } else {
+                  label.textContent = '— Select —';
+                  label.classList.add('placeholder');
+                }
+              }
+            } else {
+              renderTable();
+            }
+          }
+        }
+      }
+
+      function buildRowHtml(row, idx) {
+        const rowClass = getRowClass(row.appStatus);
+        const cells = columns.map(col => {
+          if (col.key === 'appStatus') {
+            const val = row.appStatus || '';
+            if (isFixedAppStatus(val)) {
+              const display = val || '— Select —';
+              const isPlaceholder = !val;
+              return `<td role="gridcell">
+                <button type="button" class="app-status-trigger" data-id="${row.id}" data-key="appStatus"
+                  aria-haspopup="listbox" aria-expanded="false" aria-label="App Status">
+                  <span class="label ${isPlaceholder ? 'placeholder' : ''}">${escapeHtml(display)}</span>
+                  <i class="fas fa-chevron-down chevron" aria-hidden="true"></i>
+                </button>
+              </td>`;
+            } else {
+              return `<td role="gridcell">
+                <input type="text" class="cell-input" data-appstatus="1" data-id="${row.id}" data-key="appStatus"
+                  value="${escapeHtml(val)}" data-real="${escapeHtml(val)}"
+                  placeholder="Type custom status..." aria-label="Custom App Status" />
+              </td>`;
+            }
+          }
+
+          if (col.type === 'customSelect') {
+            const val = row[col.key] || '';
+            const isUni = col.key === 'university';
+            const isProg = col.key === 'program';
+            const isHS = col.key === 'highSchool';
+            const isFixed = isUni ? isFixedUniversity(val) : (isProg ? isFixedProgram(val) : true);
+
+            if ((isUni || isProg) && !isFixed) {
+              return `<td role="gridcell">
+                <input type="text" class="cell-input" data-id="${row.id}" data-key="${col.key}"
+                  value="${escapeHtml(val)}" data-real="${escapeHtml(val)}"
+                  placeholder="Type custom ${isUni ? 'university' : 'program'}..." aria-label="Custom ${col.key}" />
+              </td>`;
+            }
+
+            const display = val || '— Select —';
+            const isPlaceholder = !val;
+            let extraClass = '';
+            if (isHS && isDuplicateHighSchool(row.university, row.highSchool, row.id)) {
+              extraClass = ' duplicate';
+            }
+            return `<td role="gridcell">
+              <button type="button" class="app-status-trigger${extraClass}" data-id="${row.id}" data-key="${col.key}"
+                aria-haspopup="listbox" aria-expanded="false" aria-label="${col.key}">
+                <span class="label ${isPlaceholder ? 'placeholder' : ''}">${escapeHtml(display)}</span>
+                <i class="fas fa-chevron-down chevron" aria-hidden="true"></i>
+              </button>
+            </td>`;
+          }
+
+          if (col.type === 'select') {
+            const opts = col.options.map(o =>
+              `<option value="${escapeHtml(o)}" ${row[col.key] === o ? 'selected' : ''}>${o || '— Select —'}</option>`
+            ).join('');
+            return `<td role="gridcell"><select class="cell-input" data-id="${row.id}" data-key="${col.key}" aria-label="${col.key}">${opts}</select></td>`;
+          }
+
+          const isSSN = col.key === 'ssn';
+          const isPass = col.type === 'password';
+          const isHS = col.key === 'highSchool';
+          const isPhone = col.key === 'phone';
+          const inputType = isPass ? 'text' : col.type;
+          let extraClass = '';
+          if (isPass) extraClass = 'masked';
+          if (isSSN && !revealSSN) extraClass = 'masked';
+
+          if (isHS && isDuplicateHighSchool(row.university, row.highSchool, row.id)) {
+            extraClass += ' duplicate';
+          }
+          if (isPhone && isDuplicatePhone(row.university, row.phone, row.id)) {
+            extraClass += ' duplicate';
+          }
+
+          const step = col.step ? `step="${col.step}"` : '';
+          const listAttr = col.list ? `list="${col.list}"` : '';
+          const realVal = row[col.key] || '';
+          const displayVal = (isSSN && !revealSSN && realVal)
+            ? '•••••' + String(realVal).slice(-4)
+            : realVal;
+
+          return `<td role="gridcell">
+            <input type="${inputType}" class="cell-input ${extraClass}"
+              value="${escapeHtml(displayVal)}"
+              data-real="${escapeHtml(realVal)}"
+              data-id="${row.id}" data-key="${col.key}"
+              data-ssn="${isSSN ? '1' : '0'}" data-pass="${isPass ? '1' : '0'}"
+              placeholder="${col.placeholder || ''}" ${step} ${listAttr}
+              aria-label="${col.key}" />
+          </td>`;
+        }).join('');
+
+        return `<tr class="${rowClass}" data-id="${row.id}" data-idx="${idx}" style="height:${ROW_HEIGHT}px" role="row">
+          <td role="gridcell">${idx + 1}</td>
+          ${cells}
+          <td role="gridcell">
+            <div class="row-actions">
+              <button type="button" class="icon-btn" title="Delete" data-delete="${row.id}" aria-label="Delete row">
+                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`;
+      }
+
+      function computeVirtualRange() {
+        const scrollEl = document.getElementById('tableScroll');
+        const scrollTop = scrollEl.scrollTop;
+        const viewHeight = scrollEl.clientHeight || 400;
+        const total = filteredData.length;
+        const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+        const visibleCount = Math.ceil(viewHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
+        const end = Math.min(total, start + visibleCount);
+        return { start, end, total };
+      }
+
+      function renderVirtualRows() {
+        const { start, end, total } = computeVirtualRange();
+        if (start === virtualStart && end === virtualEnd && document.getElementById('tableBody').children.length > 0) {
+          return;
+        }
+        virtualStart = start;
+        virtualEnd = end;
+
+        const tbody = document.getElementById('tableBody');
+        const topPad = start * ROW_HEIGHT;
+        const bottomPad = Math.max(0, (total - end) * ROW_HEIGHT);
+
+        let html = '';
+        if (topPad > 0) {
+          html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="21" style="height:${topPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
+        }
+        for (let i = start; i < end; i++) {
+          html += buildRowHtml(filteredData[i], i);
+        }
+        if (bottomPad > 0) {
+          html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="21" style="height:${bottomPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
+        }
+        tbody.innerHTML = html;
+        document.getElementById('dataTable').setAttribute('aria-rowcount', String(total));
+      }
+
+      function renderTable() {
+        closeCustomSelectMenu();
+        const tbody = document.getElementById('tableBody');
+        const empty = document.getElementById('emptyState');
+
+        if (filteredData.length === 0) {
+          tbody.innerHTML = '';
+          empty.classList.remove('hidden');
+          document.getElementById('dataTable').setAttribute('aria-rowcount', '0');
+          return;
+        }
+        empty.classList.add('hidden');
+
+        if (filteredData.length >= VIRTUAL_THRESHOLD) {
+          virtualStart = -1;
+          virtualEnd = -1;
+          renderVirtualRows();
+        } else {
+          tbody.innerHTML = filteredData.map((row, idx) => buildRowHtml(row, idx)).join('');
+          document.getElementById('dataTable').setAttribute('aria-rowcount', String(filteredData.length));
+        }
+      }
+
+      function updateStats() {
+        document.getElementById('statRoster').textContent = data.length;
+        document.getElementById('statShowing').textContent = filteredData.length;
+        document.getElementById('statAccepted').textContent = data.filter(r => r.appStatus === 'Accepted').length;
+        document.getElementById('statRejected').textContent = data.filter(r => r.appStatus === 'Rejected').length;
+        document.getElementById('statID').textContent = data.filter(r => r.appStatus === 'ID').length;
+        document.getElementById('statFee').textContent = data.filter(r => r.appStatus === 'Application Fee').length;
+        document.getElementById('statNotSent').textContent = data.filter(r => r.transcriptStatus === 'Not Sent').length;
+      }
+
+      function updateProgramFilter() {
+        const select = document.getElementById('programFilter');
+        const current = select.value;
+        const fromData = data.map(r => r.program).filter(Boolean);
+        const all = [...new Set([...PROGRAM_LIST.filter(Boolean), ...fromData])].sort();
+        select.innerHTML = '<option value="">All programs</option>' +
+          all.map(p => `<option value="${escapeHtml(p)}" ${p === current ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
+      }
+
+      function applyFilters() {
+        const search = document.getElementById('searchInput').value.toLowerCase().trim();
+        const status = document.getElementById('statusFilter').value;
+        const program = document.getElementById('programFilter').value;
+        const sort = document.getElementById('sortSelect').value;
+
+        filteredData = data.filter(row => {
+          const matchSearch = !search || Object.values(row).some(v => String(v).toLowerCase().includes(search));
+          let matchStatus = true;
+          if (status) {
+            if (status === 'Other') {
+              matchStatus = !!row.appStatus && !isFixedAppStatus(row.appStatus);
+            } else {
+              matchStatus = row.appStatus === status;
+            }
+          }
+          const matchProgram = !program || row.program === program;
+          return matchSearch && matchStatus && matchProgram;
+        });
+
+        if (sort === 'name-asc') {
+          filteredData.sort((a, b) => normalize(a.name).localeCompare(normalize(b.name)));
+        } else if (sort === 'name-desc') {
+          filteredData.sort((a, b) => normalize(b.name).localeCompare(normalize(a.name)));
+        } else if (sort === 'time-desc') {
+          filteredData.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        } else if (sort === 'time-asc') {
+          filteredData.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        }
+
+        virtualStart = -1;
+        virtualEnd = -1;
+        renderTable();
+        updateStats();
+        updateProgramFilter();
+        if (usedPanelOpen) renderUsedPanel();
+      }
+
+      const debouncedApplyFilters = debounce(applyFilters, 140);
+
+      function updateCell(id, key, value) {
+        const row = data.find(r => r.id === id);
+        if (!row) return;
+
+        row[key] = value;
+
+        if (key === 'highSchool' && value) {
+          const known = getKnownGpaForHighSchool(value, id);
+          if (known && (!row.gpa || row.gpa === '')) {
+            row.gpa = known;
+          }
+        }
+
+        if (key === 'highSchool' || key === 'phone' || key === 'university') {
+          const isHsDup = isDuplicateHighSchool(row.university, row.highSchool, row.id);
+          const isPhoneDup = isDuplicatePhone(row.university, row.phone, row.id);
+          if ((key === 'highSchool' && isHsDup) || (key === 'phone' && isPhoneDup) ||
+              (key === 'university' && (isHsDup || isPhoneDup))) {
+            playBeep();
+            showToast(
+              isHsDup && isPhoneDup
+                ? 'Duplicate High School & Phone detected for this university'
+                : isHsDup
+                  ? 'Duplicate High School detected for this university'
+                  : 'Duplicate Phone detected for this university',
+              'warning',
+              2800
+            );
+          }
+        }
+
+        scheduleSave();
+        updateStats();
+        updateProgramFilter();
+
+        if (key === 'appStatus') {
+          const tr = document.querySelector(`tr[data-id="${id}"]`);
+          if (tr) tr.className = getRowClass(value);
+          renderTable();
+        } else if (key === 'highSchool' || key === 'phone' || key === 'university' || key === 'gpa' || key === 'program') {
+          renderTable();
+        }
+
+        if (usedPanelOpen && (key === 'university' || key === 'highSchool' || key === 'phone')) {
+          renderUsedPanel();
+        }
+      }
+
+      function addRow() {
+        const newRow = createEmptyRow();
+        data.unshift(newRow);
+        scheduleSave();
+        applyFilters();
+        if (usedPanelOpen) renderUsedPanel();
+        setTimeout(() => {
+          const first = document.querySelector('#tableBody tr:first-child .cell-input, #tableBody tr:first-child .app-status-trigger');
+          if (first) {
+            first.focus();
+            document.getElementById('tableScroll').scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 40);
+      }
+
+      function deleteRow(id) {
+        if (!confirm('Delete this student record?')) return;
+        data = data.filter(r => r.id !== id);
+        scheduleSave();
+        applyFilters();
+        if (usedPanelOpen) renderUsedPanel();
+        showToast('Record deleted', 'info');
+      }
+
+      function toggleSSN() {
+        revealSSN = !revealSSN;
+        const btn = document.getElementById('btnRevealSSN');
+        btn.classList.toggle('active', revealSSN);
+        btn.setAttribute('aria-pressed', revealSSN ? 'true' : 'false');
+        btn.innerHTML = revealSSN
+          ? '<i class="fas fa-eye-slash" aria-hidden="true"></i> Hide SSN'
+          : '<i class="fas fa-eye" aria-hidden="true"></i> Reveal SSN';
+        renderTable();
+      }
+
+      function toggleUsedPanel() {
+        const panel = document.getElementById('usedPanel');
+        usedPanelOpen = !usedPanelOpen;
+        panel.classList.toggle('visible', usedPanelOpen);
+        document.getElementById('btnUsedPanel').classList.toggle('active', usedPanelOpen);
+        document.getElementById('btnUsedPanel').setAttribute('aria-expanded', usedPanelOpen ? 'true' : 'false');
+        if (usedPanelOpen) {
+          renderUsedPanel();
+          requestAnimationFrame(() => {
+            const body = document.getElementById('usedPanelBody');
+            if (body && !usedBodyCollapsed) body.scrollTop = 0;
+          });
+        }
+      }
+
+      function toggleUsedPanelBody() {
+        const body = document.getElementById('usedPanelBody');
+        const chev = document.getElementById('usedChevron');
+        const header = document.getElementById('usedPanelHeader');
+        usedBodyCollapsed = !usedBodyCollapsed;
+        if (usedBodyCollapsed) {
+          body.style.maxHeight = '0';
+          body.style.overflow = 'hidden';
+          chev.style.transform = 'rotate(-90deg)';
+          header.setAttribute('aria-expanded', 'false');
+        } else {
+          body.style.maxHeight = '480px';
+          body.style.overflow = 'auto';
+          chev.style.transform = 'rotate(0deg)';
+          header.setAttribute('aria-expanded', 'true');
+        }
+      }
+
+      function clearAll() {
+        if (!confirm('Permanently delete ALL records? This cannot be undone.')) return;
+        data = [];
+        scheduleSave(true);
+        applyFilters();
+        if (usedPanelOpen) renderUsedPanel();
+        showToast('All records cleared', 'info');
+      }
+
+      function forceSave() {
+        if (saveTimer) {
+          clearTimeout(saveTimer);
+          saveTimer = null;
+        }
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          localStorage.setItem('oneweb_studentRecords', JSON.stringify(data));
+          showToast(`Saved ${data.length} record(s) successfully`, 'success', 2500);
+        } catch (e) {
+          console.warn('localStorage save failed', e);
+          showToast('Could not save (storage full or blocked). Try exporting instead.', 'error', 4000);
+        }
+      }
+
+      function parseExcelValue(val) {
+        if (val == null || val === undefined) return '';
+        if (val instanceof Date) {
+          const m = String(val.getMonth() + 1).padStart(2, '0');
+          const d = String(val.getDate()).padStart(2, '0');
+          const y = val.getFullYear();
+          return `${m}/${d}/${y}`;
+        }
+        if (typeof val === 'number') {
+          if (val > 20000 && val < 60000) {
+            const d = new Date((val - 25569) * 86400 * 1000);
+            if (!isNaN(d.getTime())) {
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              return `${m}/${day}/${d.getFullYear()}`;
+            }
+          }
+          return String(val);
+        }
+        return String(val).trim();
+      }
+
+      function normalizeGradPeriod(val) {
+        if (!val) return '';
+        const s = String(val).trim();
+        if (/\d{1,2}\/\d{1,2}\/\d{2,4}\s*[–\-]\s*\d{1,2}\/\d{1,2}\/\d{2,4}/.test(s)) {
+          return s.replace(/\s*-\s*/, ' – ');
+        }
+        if (/^\d{4}$/.test(s)) {
+          const y = parseInt(s, 10);
+          return `08/01/${y - 4} – 06/01/${y}`;
+        }
+        const m = s.match(/^(\d{4})\s*[–\-]\s*(\d{4})$/);
+        if (m) {
+          return `08/01/${m[1]} – 06/01/${m[2]}`;
+        }
+        return s;
+      }
+
+      function normalizeLegacyTranscriptStatus(val) {
+        if (!val) return '';
+        const s = String(val).trim().toLowerCase();
+        if (s === 'received' || s === 'verified') return 'Sent (Received)';
+        if (s === 'not received' || s === 'incomplete') return 'Sent (Not Received)';
+        if (s === 'not sent' || s === 'waived') return 'Not Sent';
+        const known = TRANSCRIPT_STATUS_OPTIONS.some(o => o.value === val);
+        if (known) return val;
+        return val;
+      }
+
+      function handleExcelImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (typeof XLSX === 'undefined') {
+          showToast('Excel library not loaded. Please refresh the page.', 'error');
+          event.target.value = '';
+          return;
+        }
+
+        showLoading(true);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const dataArr = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(dataArr, { type: 'array', cellDates: true, raw: false });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+
+            if (!json.length) {
+              showToast('No data found in the file.', 'error');
+              event.target.value = '';
+              showLoading(false);
+              return;
+            }
+
+            const sampleHeaders = Object.keys(json[0] || {});
+            const mapped = {};
+            const unmapped = [];
+            sampleHeaders.forEach(h => {
+              const norm = h.toLowerCase().trim().replace(/[_\-]+/g, ' ');
+              const key = headerMap[norm] || headerMap[h.toLowerCase().trim()];
+              if (key) mapped[h] = key;
+              else unmapped.push(h);
+            });
+
+            if (Object.keys(mapped).length === 0) {
+              showToast('No recognizable columns found. Check header names.', 'error');
+              event.target.value = '';
+              showLoading(false);
+              return;
+            }
+
+            let mapMsg = 'Oneweb — Column mapping:\n\n';
+            Object.entries(mapped).forEach(([h, k]) => {
+              mapMsg += `  "${h}" → ${k}\n`;
+            });
+            if (unmapped.length) {
+              mapMsg += `\nUnmapped (ignored):\n  ${unmapped.join(', ')}\n`;
+            }
+
+            const imported = json.map(row => {
+              const newRow = createEmptyRow();
+              Object.keys(row).forEach(header => {
+                const norm = header.toLowerCase().trim().replace(/[_\-]+/g, ' ');
+                const key = headerMap[norm] || headerMap[header.toLowerCase().trim()];
+                if (key) {
+                  let val = parseExcelValue(row[header]);
+                  if (key === 'gradYear') val = normalizeGradPeriod(val);
+                  if (key === 'transcriptStatus') val = normalizeLegacyTranscriptStatus(val);
+                  newRow[key] = val;
+                }
+              });
+              if (newRow.highSchool && (!newRow.gpa || newRow.gpa === '')) {
+                const known = getKnownGpaForHighSchool(newRow.highSchool, null);
+                if (known) newRow.gpa = known;
+              }
+              return newRow;
+            });
+
+            const hsGpaMap = new Map();
+            imported.forEach(nr => {
+              const hs = normalize(nr.highSchool);
+              if (hs && nr.gpa && !hsGpaMap.has(hs)) hsGpaMap.set(hs, nr.gpa);
+            });
+            imported.forEach(nr => {
+              const hs = normalize(nr.highSchool);
+              if (hs && (!nr.gpa || nr.gpa === '') && hsGpaMap.has(hs)) {
+                nr.gpa = hsGpaMap.get(hs);
+              }
+            });
+
+            const mode = confirm(
+              mapMsg + `\n\nImport ${imported.length} row(s)?\n\nOK = Append to existing\nCancel = Replace all data`
+            );
+            if (mode) {
+              data = [...imported, ...data];
+            } else {
+              data = imported;
+            }
+            scheduleSave(true);
+            applyFilters();
+            showToast(`Successfully imported ${imported.length} record(s).`, 'success');
+          } catch (err) {
+            console.error(err);
+            showToast('Failed to parse file. Use a valid .xlsx, .xls or .csv.', 'error');
+          } finally {
+            event.target.value = '';
+            showLoading(false);
+          }
+        };
+        reader.onerror = () => {
+          showToast('Failed to read the file.', 'error');
+          event.target.value = '';
+          showLoading(false);
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      function exportExcel() {
+        document.getElementById('fileMenu').classList.remove('show');
+        if (!data.length) {
+          showToast('No data to export', 'info');
+          return;
+        }
+        if (typeof XLSX === 'undefined') {
+          showToast('Excel library not loaded. Please refresh.', 'error');
+          return;
+        }
+
+        const headers = [
+          'Student Name', 'University', 'SSN', 'DOB', 'Email', 'Gender',
+          'Username', 'Password', 'Address', 'High School', 'Grad Period',
+          'GPA', 'Phone', 'Start Date', 'Transcript Mail', 'Ethnicity',
+          'Program', 'Transcript Status', 'App Status'
+        ];
+        const keys = columns.map(c => c.key);
+
+        const aoa = [headers, ...data.map(row => keys.map(k => row[k] || ''))];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Students');
+        XLSX.writeFile(wb, `oneweb_student_records_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        showToast('Excel exported', 'success');
+      }
+
+      function exportCSV() {
+        document.getElementById('fileMenu').classList.remove('show');
+        if (!data.length) {
+          showToast('No data to export', 'info');
+          return;
+        }
+
+        const headers = [
+          'Student Name', 'University', 'SSN', 'DOB', 'Email', 'Gender',
+          'Username', 'Password', 'Address', 'High School', 'Grad Period',
+          'GPA', 'Phone', 'Start Date', 'Transcript Mail', 'Ethnicity',
+          'Program', 'Transcript Status', 'App Status'
+        ];
+        const keys = columns.map(c => c.key);
+
+        const csv = [
+          headers.join(','),
+          ...data.map(row => keys.map(k => {
+            let v = String(row[k] || '');
+            if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+              v = `"${v.replace(/"/g, '""')}"`;
+            }
+            return v;
+          }).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `oneweb_student_records_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast('CSV exported', 'success');
+      }
+
+      function loadSample() {
+        document.getElementById('fileMenu').classList.remove('show');
+        if (data.length && !confirm('Replace current data with sample records?')) return;
+
+        data = [
+          {
+            id: 's1', name: 'Amara Chen', university: 'Stanford University', ssn: '123-45-1001',
+            dob: '2007-03-14', email: 'amara.chen@lincoln.edu', gender: 'Female',
+            username: 'achen07', password: 'SecureP@ss1', address: '450 Serra Mall, Stanford, CA 94305',
+            highSchool: 'William P. Clements High School', gradYear: '08/15/2021 – 06/05/2025', gpa: '3.48', phone: '+1 650 555 0101',
+            startDate: 'Fall', transcriptMail: 'transcripts@stanford.edu',
+            appStatus: 'Accepted', ethnicity: 'Asian', program: 'Computer Science', transcriptStatus: 'Sent (Received)',
+            createdAt: Date.now() - 50000
+          },
+          {
+            id: 's2', name: 'Jordan Hale', university: 'University of Michigan', ssn: '123-45-1002',
+            dob: '2006-11-02', email: 'jhale@westfield.edu', gender: 'Male',
+            username: 'jhale26', password: 'GoBlue2024!', address: '500 S State St, Ann Arbor, MI 48109',
+            highSchool: 'Blue Valley High School', gradYear: '08/20/2020 – 06/01/2024', gpa: '3.51', phone: '+1 734 555 0198',
+            startDate: 'Fall', transcriptMail: 'registrar@umich.edu',
+            appStatus: 'ID', ethnicity: 'White', program: 'Business Administration', transcriptStatus: 'Sent (Not Received)',
+            createdAt: Date.now() - 40000
+          },
+          {
+            id: 's3', name: 'Sofia Reyes', university: 'University of California, Los Angeles', ssn: '123-45-1003',
+            dob: '2007-07-22', email: 'sreyes@rioseco.edu', gender: 'Female',
+            username: 'sreyes', password: 'Bruins!2025', address: '405 Hilgard Ave, Los Angeles, CA 90095',
+            highSchool: 'Northville High School', gradYear: '08/10/2021 – 06/12/2025', gpa: '3.53', phone: '+1 310 555 0144',
+            startDate: 'Spring', transcriptMail: 'transcripts@ucla.edu',
+            appStatus: 'Application Fee', ethnicity: 'Hispanic / Latino', program: 'Psychology', transcriptStatus: 'Not Sent',
+            createdAt: Date.now() - 30000
+          },
+          {
+            id: 's4', name: 'Marcus Thompson', university: 'Massachusetts Institute of Technology', ssn: '987-65-4321',
+            dob: '2006-05-18', email: 'mthompson@mit.edu', gender: 'Male',
+            username: 'mthompson', password: 'MitRocks!', address: '77 Massachusetts Ave, Cambridge, MA 02139',
+            highSchool: 'William P. Clements High School', gradYear: '09/01/2020 – 05/28/2024', gpa: '3.48', phone: '+1 617 555 0177',
+            startDate: 'Fall', transcriptMail: 'registrar@mit.edu',
+            appStatus: 'Rejected', ethnicity: 'Black / African American', program: 'Electrical Engineering', transcriptStatus: 'Sent (Received)',
+            createdAt: Date.now() - 20000
+          },
+          {
+            id: 's5', name: 'Priya Patel', university: 'University of California, Berkeley', ssn: '456-78-9012',
+            dob: '2007-01-30', email: 'ppatel@berkeley.edu', gender: 'Female',
+            username: 'ppatel', password: 'GoBears2025', address: '110 Sproul Hall, Berkeley, CA 94720',
+            highSchool: 'Blue Valley High School', gradYear: '08/15/2021 – 06/05/2025', gpa: '3.51', phone: '+1 510 555 0133',
+            startDate: 'Fall 2025', transcriptMail: 'transcripts@berkeley.edu',
+            appStatus: 'Other - Pending Review', ethnicity: 'Asian', program: 'Data Science', transcriptStatus: 'Not Sent',
+            createdAt: Date.now() - 10000
+          }
+        ];
+        scheduleSave(true);
+        applyFilters();
+        if (usedPanelOpen) renderUsedPanel();
+        showToast('Sample data loaded', 'success');
+      }
+
+      function scheduleSave(immediate) {
+        if (saveTimer) clearTimeout(saveTimer);
+        if (immediate) {
+          saveToStorage();
+          return;
+        }
+        saveTimer = setTimeout(saveToStorage, 180);
+      }
+
+      function saveToStorage() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          localStorage.setItem('oneweb_studentRecords', JSON.stringify(data));
+        } catch (e) {
+          console.warn('localStorage save failed', e);
+          showToast('Could not save to local storage (quota exceeded?)', 'error');
+        }
+      }
+
+      function loadFromStorage() {
+        try {
+          let saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) {
+            saved = localStorage.getItem('oneweb_studentRecords_v5') ||
+                    localStorage.getItem('oneweb_studentRecords_v4') ||
+                    localStorage.getItem('oneweb_studentRecords_v3') ||
+                    localStorage.getItem('oneweb_studentRecords_v2') ||
+                    localStorage.getItem('oneweb_studentRecords');
+          }
+          if (saved) {
+            data = JSON.parse(saved);
+            if (!Array.isArray(data)) data = [];
+            data.forEach(r => {
+              if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+              if (!r.createdAt) r.createdAt = Date.now();
+              if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+              if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+            });
+          }
+        } catch {
+          data = [];
+        }
+      }
+
+      function onTableScroll() {
+        if (scrollRaf) return;
+        scrollRaf = requestAnimationFrame(() => {
+          scrollRaf = null;
+          if (filteredData.length >= VIRTUAL_THRESHOLD) {
+            renderVirtualRows();
+          }
+          if (customOpenId) closeCustomSelectMenu();
+        });
+      }
+
+      function handleTableInteraction(e) {
+        const target = e.target;
+
+        const delBtn = target.closest('[data-delete]');
+        if (delBtn) {
+          e.preventDefault();
+          deleteRow(delBtn.getAttribute('data-delete'));
+          return;
+        }
+
+        const trigger = target.closest('.app-status-trigger');
+        if (trigger) {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = trigger.getAttribute('data-id');
+          const key = trigger.getAttribute('data-key');
+          const row = data.find(r => r.id === id);
+          const current = row ? (row[key] || '') : '';
+          if (customOpenId === id && customOpenKey === key) {
+            closeCustomSelectMenu();
+          } else {
+            let options = APP_STATUS_OPTIONS;
+            if (key === 'gender') options = GENDER_OPTIONS;
+            else if (key === 'highSchool') options = HIGH_SCHOOL_OPTIONS;
+            else if (key === 'university') options = UNIVERSITY_OPTIONS;
+            else if (key === 'ethnicity') options = ETHNICITY_OPTIONS;
+            else if (key === 'program') options = PROGRAM_OPTIONS;
+            else if (key === 'transcriptStatus') options = TRANSCRIPT_STATUS_OPTIONS;
+            openCustomSelectMenu(trigger, id, key, current, options);
+          }
+          return;
+        }
+
+        if (target.matches('select.cell-input')) {
+          const id = target.getAttribute('data-id');
+          const key = target.getAttribute('data-key');
+          if (!id || !key) return;
+          updateCell(id, key, target.value);
+          return;
+        }
+      }
+
+      function handleCellFocus(e) {
+        const el = e.target;
+        if (!el.classList.contains('cell-input') || el.tagName === 'SELECT') return;
+        const real = el.dataset.real || '';
+        el.value = real;
+        el.classList.remove('masked');
+      }
+
+      function handleCellBlur(e) {
+        const el = e.target;
+        if (!el.classList.contains('cell-input') || el.tagName === 'SELECT') return;
+        const id = el.getAttribute('data-id');
+        const key = el.getAttribute('data-key');
+        if (!id || !key) return;
+
+        const value = el.value;
+        updateCell(id, key, value);
+        el.dataset.real = value;
+
+        const isSSN = el.getAttribute('data-ssn') === '1';
+        const isPass = el.getAttribute('data-pass') === '1';
+
+        if (isPass) el.classList.add('masked');
+        if (isSSN && !revealSSN) {
+          el.classList.add('masked');
+          el.value = value ? '•••••' + String(value).slice(-4) : '';
+        }
+      }
+
+      function handleCellInput(e) {
+        const el = e.target;
+        if (!el.classList.contains('cell-input') || el.tagName === 'SELECT') return;
+        el.dataset.real = el.value;
+      }
+
+      function init() {
+        const dl = document.getElementById('usUniversities');
+        dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
+
+        loadFromStorage();
+        applyFilters();
+
+        const scrollEl = document.getElementById('tableScroll');
+        scrollEl.addEventListener('scroll', onTableScroll, { passive: true });
+
+        document.getElementById('searchInput').addEventListener('input', debouncedApplyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        document.getElementById('programFilter').addEventListener('change', applyFilters);
+        document.getElementById('sortSelect').addEventListener('change', applyFilters);
+        document.getElementById('btnRevealSSN').addEventListener('click', toggleSSN);
+        document.getElementById('btnUsedPanel').addEventListener('click', toggleUsedPanel);
+        document.getElementById('usedPanelHeader').addEventListener('click', toggleUsedPanelBody);
+        document.getElementById('usedPanelHeader').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleUsedPanelBody();
+          }
+        });
+        document.getElementById('btnClear').addEventListener('click', clearAll);
+        document.getElementById('btnAdd').addEventListener('click', addRow);
+        document.getElementById('btnSave').addEventListener('click', forceSave);
+
+        const usedSearch = document.getElementById('usedSearchInput');
+        if (usedSearch) {
+          usedSearch.addEventListener('input', debounce(() => {
+            usedSearchQuery = usedSearch.value;
+            renderUsedPanel();
+          }, 120));
+        }
+
+        document.querySelectorAll('.used-filter-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.used-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            usedTypeFilter = btn.getAttribute('data-filter') || 'all';
+            renderUsedPanel();
+          });
+        });
+
+        document.getElementById('usedContent').addEventListener('click', (e) => {
+          const header = e.target.closest('.used-uni-header');
+          if (!header) return;
+          const block = header.closest('.used-uni-block');
+          if (!block) return;
+          const uni = block.getAttribute('data-uni');
+          if (usedCollapsedUnis.has(uni)) {
+            usedCollapsedUnis.delete(uni);
+            block.classList.remove('collapsed');
+            header.setAttribute('aria-expanded', 'true');
+          } else {
+            usedCollapsedUnis.add(uni);
+            block.classList.add('collapsed');
+            header.setAttribute('aria-expanded', 'false');
+          }
+        });
+
+        document.getElementById('usedContent').addEventListener('keydown', (e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.used-uni-header')) {
+            e.preventDefault();
+            e.target.closest('.used-uni-header').click();
+          }
+        });
+
+        const fileMenuBtn = document.getElementById('btnFileMenu');
+        const fileMenu = document.getElementById('fileMenu');
+        fileMenuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = fileMenu.classList.toggle('show');
+          fileMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+        document.getElementById('btnImport').addEventListener('click', () => {
+          fileMenu.classList.remove('show');
+          fileMenuBtn.setAttribute('aria-expanded', 'false');
+          document.getElementById('excelInput').click();
+        });
+        document.getElementById('btnExportExcel').addEventListener('click', exportExcel);
+        document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
+        document.getElementById('btnLoadSample').addEventListener('click', loadSample);
+        document.getElementById('excelInput').addEventListener('change', handleExcelImport);
+
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.dropdown')) {
+            fileMenu.classList.remove('show');
+            fileMenuBtn.setAttribute('aria-expanded', 'false');
+          }
+          if (!e.target.closest('.app-status-trigger') && !e.target.closest('#customSelectMenu')) {
+            closeCustomSelectMenu();
+          }
+        });
+
+        document.getElementById('customSelectMenu').addEventListener('click', (e) => {
+          const item = e.target.closest('.menu-item');
+          if (item) {
+            handleCustomSelect(item.getAttribute('data-value'));
+            return;
+          }
+          const customBtn = e.target.closest('.menu-use-custom');
+          if (customBtn) {
+            handleCustomSelect(customBtn.getAttribute('data-custom-value'));
+          }
+        });
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') closeCustomSelectMenu();
+        });
+
+        const tbody = document.getElementById('tableBody');
+        tbody.addEventListener('change', handleTableInteraction);
+        tbody.addEventListener('click', handleTableInteraction);
+        tbody.addEventListener('focusin', handleCellFocus);
+        tbody.addEventListener('focusout', handleCellBlur);
+        tbody.addEventListener('input', handleCellInput);
+
+        document.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            addRow();
+          }
+          if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            forceSave();
+          }
+        });
+
+        window.addEventListener('resize', () => {
+          if (customOpenId) closeCustomSelectMenu();
+        });
+
+        window.addEventListener('beforeunload', () => {
+          if (saveTimer) {
+            clearTimeout(saveTimer);
+            saveToStorage();
+          }
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
