@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Oneweb Student Records Management – fast, reliable, offline-capable student data tool" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+  <meta name="description" content="Oneweb Student Records Management – fast, reliable, offline-capable student data tool with encrypted storage" />
   <meta name="theme-color" content="#0a0a0a" />
   <title>Oneweb — Student Records</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -59,13 +59,231 @@
       overflow-x: hidden;
     }
 
+    /* ========== Auth Overlay ========== */
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: radial-gradient(ellipse at 50% 20%, #141414 0%, #0a0a0a 70%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+    .auth-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: linear-gradient(165deg, #161616 0%, #111111 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+      animation: authIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes authIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .auth-header {
+      padding: 32px 28px 20px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .auth-logo {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, #e8e8e8 0%, #a0a0a0 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0a0a0a;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .auth-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+      margin-bottom: 6px;
+    }
+    .auth-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    .auth-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 20px;
+      margin-top: -1px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 14px 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-faint);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s ease;
+    }
+    .auth-tab:hover { color: var(--text-muted); }
+    .auth-tab.active {
+      color: var(--text);
+    }
+    .auth-tab.active::after {
+      content: '';
+      position: absolute;
+      left: 20%;
+      right: 20%;
+      bottom: 0;
+      height: 2px;
+      background: var(--brand);
+      border-radius: 2px 2px 0 0;
+    }
+    .auth-body {
+      padding: 24px 28px 28px;
+    }
+    .auth-field {
+      margin-bottom: 16px;
+    }
+    .auth-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 7px;
+      letter-spacing: 0.02em;
+    }
+    .auth-input-wrap {
+      position: relative;
+    }
+    .auth-input-wrap i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      font-size: 14px;
+      pointer-events: none;
+      transition: color 0.2s ease;
+    }
+    .auth-input {
+      width: 100%;
+      height: 46px;
+      padding: 0 14px 0 42px;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      background: var(--input-bg);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .auth-input:focus {
+      border-color: #555;
+      box-shadow: 0 0 0 3px rgba(80,80,80,0.3);
+    }
+    .auth-input:focus + i,
+    .auth-input-wrap:focus-within i {
+      color: var(--text-muted);
+    }
+    .auth-toggle-pass {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-faint);
+      cursor: pointer;
+      padding: 6px;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .auth-toggle-pass:hover { color: var(--text); }
+    .auth-error {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #fca5a5;
+      font-size: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .auth-error.visible { display: flex; }
+    .auth-hint {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .auth-submit {
+      width: 100%;
+      height: 48px;
+      border: none;
+      border-radius: 12px;
+      background: #e8e8e8;
+      color: #0a0a0a;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s ease, transform 0.15s ease;
+      margin-top: 8px;
+    }
+    .auth-submit:hover { background: #d0d0d0; transform: translateY(-1px); }
+    .auth-submit:active { transform: translateY(0); }
+    .auth-submit:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .auth-footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-faint);
+      padding: 0 28px 24px;
+      line-height: 1.5;
+    }
+    .auth-footer i { color: var(--success); margin-right: 4px; }
+
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
+      gap: 16px;
       margin-bottom: 14px;
+      flex-wrap: nowrap;
     }
-
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
     .brand-logo {
       width: 42px;
       height: 42px;
@@ -81,9 +299,7 @@
       transition: transform 0.2s ease;
       flex-shrink: 0;
     }
-
     .brand-logo:hover { transform: scale(1.04); }
-
     .brand-name {
       font-size: 22px;
       font-weight: 700;
@@ -91,12 +307,35 @@
       letter-spacing: -0.3px;
       line-height: 1.2;
     }
-
     .brand-sub {
       font-size: 12px;
       color: var(--text-muted);
       margin-top: 1px;
     }
+    .header-lock-btn {
+      height: 40px;
+      padding: 0 16px;
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      background: var(--input-bg);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .header-lock-btn:hover {
+      background: var(--surface-alt);
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+    .header-lock-btn:active { transform: translateY(0); }
 
     /* ===== Premium Live Feed Ticker – Fully Responsive ===== */
     .live-feed {
@@ -113,11 +352,7 @@
       width: 100%;
       max-width: 100%;
     }
-
-    .live-feed.visible {
-      display: block;
-    }
-
+    .live-feed.visible { display: block; }
     .live-feed::before,
     .live-feed::after {
       content: '';
@@ -128,17 +363,14 @@
       z-index: 3;
       pointer-events: none;
     }
-
     .live-feed::before {
       left: 0;
       background: linear-gradient(90deg, #0f172a 0%, transparent 100%);
     }
-
     .live-feed::after {
       right: 0;
       background: linear-gradient(270deg, #0f172a 0%, transparent 100%);
     }
-
     .live-feed-badge {
       position: absolute;
       left: 0;
@@ -158,7 +390,6 @@
       white-space: nowrap;
       min-width: 0;
     }
-
     .live-feed-badge .dot {
       width: clamp(5px, 1.2vw, 7px);
       height: clamp(5px, 1.2vw, 7px);
@@ -168,7 +399,6 @@
       animation: feedPulse 2s ease-out infinite;
       flex-shrink: 0;
     }
-
     .live-feed-badge .ws {
       width: clamp(5px, 1.1vw, 6px);
       height: clamp(5px, 1.1vw, 6px);
@@ -177,18 +407,15 @@
       transition: all 0.3s ease;
       flex-shrink: 0;
     }
-
     .live-feed-badge .ws.on {
       background: #38bdf8;
       box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
     }
-
     @keyframes feedPulse {
       0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
       70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
       100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
-
     .live-feed-viewport {
       height: 100%;
       overflow: hidden;
@@ -196,7 +423,6 @@
       width: calc(100% - clamp(88px, 18vw, 118px));
       max-width: 100%;
     }
-
     .live-feed-track {
       display: flex;
       align-items: center;
@@ -208,16 +434,11 @@
       animation: feedScroll linear infinite;
       transform: translate3d(0, 0, 0);
     }
-
-    .live-feed-track:hover {
-      animation-play-state: paused;
-    }
-
+    .live-feed-track:hover { animation-play-state: paused; }
     @keyframes feedScroll {
       0%   { transform: translate3d(0, 0, 0); }
       100% { transform: translate3d(-50%, 0, 0); }
     }
-
     .feed-item {
       display: inline-flex;
       align-items: center;
@@ -231,7 +452,6 @@
       flex-shrink: 0;
       line-height: 1;
     }
-
     .feed-item .teams {
       display: inline-flex;
       align-items: center;
@@ -239,7 +459,6 @@
       font-weight: 500;
       font-size: inherit;
     }
-
     .feed-item .score {
       font-weight: 700;
       font-variant-numeric: tabular-nums;
@@ -249,7 +468,6 @@
       letter-spacing: 0.03em;
       font-size: inherit;
     }
-
     .feed-item .clock {
       font-size: clamp(9px, 1.9vw, 10px);
       font-weight: 600;
@@ -260,67 +478,12 @@
       padding: 2px clamp(5px, 1.2vw, 7px);
       line-height: 1.2;
     }
-
     .feed-item .league {
       font-size: clamp(9px, 1.9vw, 10px);
       font-weight: 600;
       color: #64748b;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-    }
-
-    @media (max-width: 380px) {
-      .live-feed {
-        --feed-h: 30px;
-        border-radius: 9px;
-      }
-      .live-feed-viewport {
-        margin-left: 82px;
-        width: calc(100% - 82px);
-      }
-      .live-feed-badge {
-        padding: 0 10px 0 10px;
-        font-size: 8.5px;
-        gap: 5px;
-      }
-      .feed-item {
-        font-size: 10.5px;
-        padding: 0 12px;
-        gap: 6px;
-      }
-      .feed-item .clock {
-        font-size: 8.5px;
-        padding: 1px 5px;
-      }
-    }
-
-    @media (min-width: 381px) and (max-width: 600px) {
-      .live-feed {
-        --feed-h: 34px;
-      }
-      .live-feed-viewport {
-        margin-left: 96px;
-        width: calc(100% - 96px);
-      }
-      .live-feed-badge {
-        font-size: 9px;
-        padding: 0 12px 0 12px;
-      }
-      .feed-item {
-        font-size: 12px;
-        padding: 0 16px;
-        gap: 8px;
-      }
-    }
-
-    @media (min-width: 1200px) {
-      .live-feed {
-        --feed-h: 40px;
-      }
-      .live-feed-viewport {
-        margin-left: 118px;
-        width: calc(100% - 118px);
-      }
     }
 
     .stats-bar {
@@ -332,19 +495,16 @@
       box-shadow: var(--shadow);
       transition: background 0.25s ease, border-color 0.25s ease;
     }
-
     .stat-item {
       flex: 1;
       text-align: center;
-      padding: 14px 10px;
+      padding: 14px 8px;
       border-right: 1px solid var(--border);
-      min-width: 80px;
+      min-width: 70px;
       transition: background 0.2s ease;
     }
-
     .stat-item:last-child { border-right: none; }
     .stat-item:hover { background: var(--surface); }
-
     .stat-label {
       font-size: 10px;
       font-weight: 600;
@@ -354,7 +514,6 @@
       margin-bottom: 4px;
       white-space: nowrap;
     }
-
     .stat-value {
       font-size: 20px;
       font-weight: 600;
@@ -370,9 +529,7 @@
       gap: 10px;
       margin: 16px 0 12px;
     }
-
-    .search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
-
+    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
     .search-input {
       width: 100%;
       height: 40px;
@@ -385,12 +542,10 @@
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
-
     .search-input:focus {
       border-color: #555;
       box-shadow: 0 0 0 3px rgba(80,80,80,0.3);
     }
-
     .search-wrap i {
       position: absolute;
       left: 14px;
@@ -401,7 +556,6 @@
       pointer-events: none;
       transition: color 0.2s ease;
     }
-
     .filter-select {
       height: 40px;
       padding: 0 32px 0 12px;
@@ -423,16 +577,13 @@
       max-height: 40px;
       color-scheme: dark;
     }
-
     .filter-select:focus { border-color: #555; }
-
     .filter-select option,
     select.cell-input option {
       background-color: #1c1c1c;
       color: #e8e8e8;
       padding: 8px 12px;
     }
-
     .tool-btn {
       height: 40px;
       padding: 0 14px;
@@ -450,40 +601,33 @@
       white-space: nowrap;
       user-select: none;
     }
-
     .tool-btn:hover {
       background: var(--surface-alt);
       border-color: var(--border);
       transform: translateY(-1px);
     }
-
     .tool-btn:active { transform: translateY(0); }
-
     .tool-btn.active {
       background: var(--brand);
       color: #0a0a0a;
       border-color: var(--brand);
     }
-
     .tool-btn.danger:hover {
       background: #2a1212;
       border-color: #5c2020;
       color: #f87171;
     }
-
     .tool-btn.save-btn {
       background: rgba(34, 197, 94, 0.15);
       border-color: rgba(34, 197, 94, 0.35);
       color: #86efac;
     }
-
     .tool-btn.save-btn:hover {
       background: rgba(34, 197, 94, 0.25);
       border-color: rgba(34, 197, 94, 0.5);
       color: #bbf7d0;
       transform: translateY(-1px);
     }
-
     .btn-add {
       height: 40px;
       padding: 0 16px;
@@ -500,7 +644,6 @@
       transition: background 0.2s ease, transform 0.15s ease;
       user-select: none;
     }
-
     .btn-add:hover { background: #d0d0d0; transform: translateY(-1px); }
     .btn-add:active { transform: translateY(0); }
 
@@ -518,12 +661,10 @@
                   border-color 0.25s ease,
                   box-shadow 0.25s ease;
     }
-
     .used-panel.visible {
       max-height: 640px;
       opacity: 1;
     }
-
     .used-panel-header {
       display: flex;
       align-items: center;
@@ -536,11 +677,9 @@
       transition: background 0.2s ease;
       gap: 12px;
     }
-
     .used-panel-header:hover {
       background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, transparent 100%);
     }
-
     .used-panel-title {
       font-size: 13px;
       font-weight: 600;
@@ -551,7 +690,6 @@
       flex: 1;
       min-width: 0;
     }
-
     .used-panel-title .title-icon {
       width: 28px;
       height: 28px;
@@ -565,33 +703,28 @@
       flex-shrink: 0;
       box-shadow: 0 2px 8px rgba(59,130,246,0.35);
     }
-
     .used-panel-title .title-text {
       display: flex;
       flex-direction: column;
       gap: 1px;
       min-width: 0;
     }
-
     .used-panel-title .title-main {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .used-panel-title .title-sub {
       font-size: 11px;
       font-weight: 400;
       color: var(--text-faint);
     }
-
     .used-header-right {
       display: flex;
       align-items: center;
       gap: 10px;
       flex-shrink: 0;
     }
-
     .used-badge {
       display: inline-flex;
       align-items: center;
@@ -605,15 +738,12 @@
       border: 1px solid rgba(59,130,246,0.25);
       font-variant-numeric: tabular-nums;
     }
-
     .used-badge i { font-size: 10px; opacity: 0.8; }
-
     #usedChevron {
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       color: var(--text-faint);
       font-size: 12px;
     }
-
     .used-panel-body {
       padding: 0;
       max-height: 480px;
@@ -624,7 +754,6 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-gutter: stable;
     }
-
     .used-toolbar {
       display: flex;
       align-items: center;
@@ -634,14 +763,12 @@
       background: rgba(0,0,0,0.2);
       flex-wrap: wrap;
     }
-
     .used-search-wrap {
       position: relative;
       flex: 1;
-      min-width: 160px;
+      min-width: 140px;
       max-width: 280px;
     }
-
     .used-search-input {
       width: 100%;
       height: 34px;
@@ -654,12 +781,10 @@
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-
     .used-search-input:focus {
       border-color: #555;
       box-shadow: 0 0 0 2px rgba(80,80,80,0.25);
     }
-
     .used-search-wrap i {
       position: absolute;
       left: 11px;
@@ -669,13 +794,11 @@
       font-size: 12px;
       pointer-events: none;
     }
-
     .used-filter-btns {
       display: flex;
       gap: 6px;
       flex-wrap: wrap;
     }
-
     .used-filter-btn {
       height: 30px;
       padding: 0 12px;
@@ -691,26 +814,21 @@
       gap: 5px;
       transition: all 0.18s ease;
     }
-
     .used-filter-btn:hover {
       background: var(--surface-alt);
       color: var(--text);
     }
-
     .used-filter-btn.active {
       background: rgba(59,130,246,0.18);
       border-color: rgba(59,130,246,0.4);
       color: #93c5fd;
     }
-
     .used-uni-block {
       padding: 0;
       border-bottom: 1px solid rgba(255,255,255,0.04);
       transition: background 0.2s ease;
     }
-
     .used-uni-block:last-child { border-bottom: none; }
-
     .used-uni-header {
       display: flex;
       align-items: center;
@@ -721,11 +839,7 @@
       gap: 10px;
       transition: background 0.18s ease;
     }
-
-    .used-uni-header:hover {
-      background: rgba(255,255,255,0.03);
-    }
-
+    .used-uni-header:hover { background: rgba(255,255,255,0.03); }
     .used-uni-left {
       display: flex;
       align-items: center;
@@ -733,7 +847,6 @@
       min-width: 0;
       flex: 1;
     }
-
     .used-uni-icon {
       width: 32px;
       height: 32px;
@@ -747,7 +860,6 @@
       font-size: 13px;
       flex-shrink: 0;
     }
-
     .used-uni-name {
       font-size: 13px;
       font-weight: 600;
@@ -756,14 +868,12 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .used-uni-meta {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
     }
-
     .used-count-pill {
       display: inline-flex;
       align-items: center;
@@ -774,29 +884,22 @@
       font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
-
     .used-count-pill.hs {
       background: rgba(245,158,11,0.12);
       color: #fbbf24;
       border: 1px solid rgba(245,158,11,0.2);
     }
-
     .used-count-pill.phone {
       background: rgba(59,130,246,0.12);
       color: #60a5fa;
       border: 1px solid rgba(59,130,246,0.2);
     }
-
     .used-uni-chevron {
       color: var(--text-faint);
       font-size: 11px;
       transition: transform 0.25s ease;
     }
-
-    .used-uni-block.collapsed .used-uni-chevron {
-      transform: rotate(-90deg);
-    }
-
+    .used-uni-block.collapsed .used-uni-chevron { transform: rotate(-90deg); }
     .used-uni-body {
       padding: 0 16px 14px 58px;
       max-height: 400px;
@@ -804,20 +907,14 @@
       transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease;
       opacity: 1;
     }
-
     .used-uni-block.collapsed .used-uni-body {
       max-height: 0;
       opacity: 0;
       padding-top: 0;
       padding-bottom: 0;
     }
-
-    .used-list-group {
-      margin-bottom: 12px;
-    }
-
+    .used-list-group { margin-bottom: 12px; }
     .used-list-group:last-child { margin-bottom: 0; }
-
     .used-list-label {
       font-size: 10px;
       font-weight: 600;
@@ -829,19 +926,16 @@
       align-items: center;
       gap: 6px;
     }
-
     .used-list-label .label-line {
       flex: 1;
       height: 1px;
       background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
     }
-
     .used-tags {
       display: flex;
       flex-wrap: wrap;
       gap: 7px;
     }
-
     .used-tag {
       display: inline-flex;
       align-items: center;
@@ -858,7 +952,6 @@
       position: relative;
       overflow: hidden;
     }
-
     .used-tag::before {
       content: '';
       position: absolute;
@@ -868,33 +961,27 @@
       width: 3px;
       border-radius: 9px 0 0 9px;
     }
-
     .used-tag.hs::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
     .used-tag.phone::before { background: linear-gradient(180deg, #3b82f6, #2563eb); }
-
     .used-tag:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.25);
       background: rgba(255,255,255,0.05);
       border-color: rgba(255,255,255,0.12);
     }
-
     .used-tag i {
       font-size: 11px;
       color: var(--text-faint);
       flex-shrink: 0;
     }
-
     .used-tag .tag-text {
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .used-empty {
       padding: 40px 20px;
       text-align: center;
     }
-
     .used-empty-icon {
       width: 52px;
       height: 52px;
@@ -908,14 +995,12 @@
       color: var(--text-faint);
       font-size: 20px;
     }
-
     .used-empty-title {
       font-size: 14px;
       font-weight: 600;
       color: var(--text-muted);
       margin-bottom: 4px;
     }
-
     .used-empty-sub {
       font-size: 12px;
       color: var(--text-faint);
@@ -923,7 +1008,6 @@
       margin: 0 auto;
       line-height: 1.5;
     }
-
     .used-no-results {
       padding: 24px 16px;
       text-align: center;
@@ -939,7 +1023,6 @@
       box-shadow: var(--shadow);
       transition: background 0.25s ease, border-color 0.25s ease;
     }
-
     .table-hint {
       padding: 10px 16px;
       font-size: 12px;
@@ -953,7 +1036,6 @@
       gap: 8px;
       border-radius: 12px 12px 0 0;
     }
-
     .legend {
       display: flex;
       align-items: center;
@@ -962,13 +1044,11 @@
       flex-wrap: wrap;
       color: var(--text-muted);
     }
-
     .legend-item {
       display: flex;
       align-items: center;
       gap: 5px;
     }
-
     .legend-dot {
       width: 10px;
       height: 10px;
@@ -976,15 +1056,12 @@
       transition: transform 0.15s ease;
       flex-shrink: 0;
     }
-
     .legend-item:hover .legend-dot { transform: scale(1.2); }
-
     .legend-dot.accepted { background: #22c55e; }
     .legend-dot.rejected { background: #ef4444; }
     .legend-dot.id { background: #6366f1; }
     .legend-dot.fee { background: #f59e0b; }
     .legend-dot.other { background: #64748b; }
-
     .table-scroll {
       overflow-x: auto;
       overflow-y: auto;
@@ -997,14 +1074,12 @@
       scrollbar-gutter: stable;
       border-radius: 0 0 12px 12px;
     }
-
     table {
       border-collapse: separate;
       border-spacing: 0;
       min-width: 2900px;
       width: 100%;
     }
-
     thead th {
       position: sticky;
       top: 0;
@@ -1020,7 +1095,6 @@
       white-space: nowrap;
       border-bottom: 2px solid #2a2a2a;
     }
-
     thead th:first-child {
       position: sticky;
       left: 0;
@@ -1029,18 +1103,13 @@
       min-width: 48px;
       text-align: center;
     }
-
-    tbody tr {
-      transition: background 0.15s ease;
-    }
-
+    tbody tr { transition: background 0.15s ease; }
     tbody tr.row-accepted { background: #14532d !important; }
     tbody tr.row-rejected { background: #7f1d1d !important; }
     tbody tr.row-id { background: #312e81 !important; }
     tbody tr.row-fee { background: #78350f !important; }
     tbody tr.row-other { background: #1e293b !important; }
     tbody tr.row-default { background: var(--surface) !important; }
-
     td {
       padding: 0;
       border-bottom: 1px solid var(--border-soft);
@@ -1048,7 +1117,6 @@
       white-space: nowrap;
       position: relative;
     }
-
     td:first-child {
       position: sticky;
       left: 0;
@@ -1061,7 +1129,6 @@
       min-width: 48px;
       padding: 0 8px;
     }
-
     .cell-input {
       width: 100%;
       min-width: 140px;
@@ -1076,15 +1143,12 @@
       overflow: visible;
       text-overflow: clip;
     }
-
     .cell-input:focus {
       background: var(--input-bg);
       box-shadow: inset 0 0 0 2px var(--brand);
       min-width: 180px;
     }
-
     .cell-input::placeholder { color: var(--text-faint); font-size: 12px; }
-
     .cell-input.duplicate,
     .app-status-trigger.duplicate {
       background: #7f1d1d !important;
@@ -1092,13 +1156,11 @@
       color: #fecaca;
       animation: duplicatePulse 0.45s ease;
     }
-
     @keyframes duplicatePulse {
       0% { box-shadow: inset 0 0 0 2px #ef4444; }
       50% { box-shadow: inset 0 0 0 4px #f87171; }
       100% { box-shadow: inset 0 0 0 2px #ef4444; }
     }
-
     select.cell-input {
       height: 42px;
       min-height: 42px;
@@ -1122,14 +1184,12 @@
       position: relative;
       z-index: 2;
     }
-
     select.cell-input:focus {
       background-color: var(--input-bg);
       box-shadow: inset 0 0 0 2px var(--brand);
       z-index: 50;
       min-width: 180px;
     }
-
     .app-status-trigger {
       width: 100%;
       min-width: 150px;
@@ -1147,28 +1207,19 @@
       transition: background 0.15s ease, box-shadow 0.15s ease;
       outline: none;
     }
-
-    .app-status-trigger:hover {
-      background: rgba(255,255,255,0.03);
-    }
-
+    .app-status-trigger:hover { background: rgba(255,255,255,0.03); }
     .app-status-trigger:focus,
     .app-status-trigger.open {
       background: var(--input-bg);
       box-shadow: inset 0 0 0 2px var(--brand);
     }
-
     .app-status-trigger .label {
       flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-
-    .app-status-trigger .label.placeholder {
-      color: var(--text-faint);
-    }
-
+    .app-status-trigger .label.placeholder { color: var(--text-faint); }
     .app-status-trigger .chevron {
       position: absolute;
       right: 10px;
@@ -1179,12 +1230,10 @@
       transition: transform 0.2s ease, color 0.2s ease;
       pointer-events: none;
     }
-
     .app-status-trigger.open .chevron {
       transform: translateY(-50%) rotate(180deg);
       color: var(--text);
     }
-
     #customSelectMenu {
       position: fixed;
       z-index: 99999;
@@ -1206,20 +1255,13 @@
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
-
-    #customSelectMenu::-webkit-scrollbar {
-      display: none;
-      width: 0;
-      height: 0;
-    }
-
+    #customSelectMenu::-webkit-scrollbar { display: none; width: 0; height: 0; }
     #customSelectMenu.visible {
       opacity: 1;
       visibility: visible;
       transform: translateY(0) scale(1);
       pointer-events: auto;
     }
-
     #customSelectMenu .menu-search-wrap {
       position: sticky;
       top: 0;
@@ -1232,7 +1274,6 @@
       background: #1a1a1a;
       border-bottom: 1px solid #2e2e2e;
     }
-
     #customSelectMenu .menu-search-wrap i {
       position: absolute;
       left: 14px;
@@ -1240,7 +1281,6 @@
       font-size: 12px;
       pointer-events: none;
     }
-
     #customSelectMenu .menu-search {
       width: 100%;
       height: 34px;
@@ -1253,12 +1293,10 @@
       outline: none;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
-
     #customSelectMenu .menu-search:focus {
       border-color: #555;
       box-shadow: 0 0 0 2px rgba(80,80,80,0.3);
     }
-
     #customSelectMenu .menu-list {
       display: flex;
       flex-direction: column;
@@ -1269,13 +1307,7 @@
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
-
-    #customSelectMenu .menu-list::-webkit-scrollbar {
-      display: none;
-      width: 0;
-      height: 0;
-    }
-
+    #customSelectMenu .menu-list::-webkit-scrollbar { display: none; width: 0; height: 0; }
     #customSelectMenu .menu-item {
       display: flex;
       align-items: center;
@@ -1292,45 +1324,38 @@
       transition: background 0.12s ease;
       flex-shrink: 0;
     }
-
     #customSelectMenu .menu-item:hover,
     #customSelectMenu .menu-item:focus {
       background: #2a2a2a;
       outline: none;
     }
-
     #customSelectMenu .menu-item.active {
       background: #2f2f2f;
       font-weight: 500;
     }
-
     #customSelectMenu .menu-item .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
-
     #customSelectMenu .menu-item .dot.accepted { background: #22c55e; }
     #customSelectMenu .menu-item .dot.rejected { background: #ef4444; }
     #customSelectMenu .menu-item .dot.id { background: #6366f1; }
     #customSelectMenu .menu-item .dot.fee { background: #f59e0b; }
     #customSelectMenu .menu-item .dot.other { background: #64748b; }
     #customSelectMenu .menu-item .dot.empty { background: transparent; border: 1px solid #555; }
-
     #customSelectMenu .menu-divider {
       height: 1px;
       background: #2e2e2e;
       margin: 4px 8px;
     }
-
     #customSelectMenu .menu-no-results {
       padding: 16px 12px;
       text-align: center;
       font-size: 12px;
       color: var(--text-faint);
     }
-
     #customSelectMenu .menu-use-custom {
       display: flex;
       align-items: center;
@@ -1348,20 +1373,16 @@
       margin-top: 4px;
       transition: background 0.12s ease;
     }
-
     #customSelectMenu .menu-use-custom:hover {
       background: rgba(59,130,246,0.22);
     }
-
     .masked { -webkit-text-security: disc; text-security: disc; letter-spacing: 1px; }
-
     .row-actions {
       display: flex;
       gap: 4px;
       padding: 6px 10px;
       justify-content: center;
     }
-
     .icon-btn {
       width: 30px;
       height: 30px;
@@ -1375,30 +1396,25 @@
       cursor: pointer;
       transition: all 0.18s ease;
     }
-
     .icon-btn:hover {
       background: #3a1515;
       color: #f87171;
       transform: scale(1.08);
     }
-
     .empty-state {
       text-align: center;
       padding: 64px 20px;
       color: var(--text-faint);
     }
-
     .table-scroll::-webkit-scrollbar,
     .used-panel-body::-webkit-scrollbar {
       width: 8px;
       height: 8px;
     }
-
     .table-scroll::-webkit-scrollbar-track,
     .used-panel-body::-webkit-scrollbar-track {
       background: transparent;
     }
-
     .table-scroll::-webkit-scrollbar-thumb,
     .used-panel-body::-webkit-scrollbar-thumb {
       background: var(--scroll-thumb);
@@ -1407,24 +1423,20 @@
       background-clip: padding-box;
       transition: background 0.2s ease;
     }
-
     .table-scroll::-webkit-scrollbar-thumb:hover,
     .used-panel-body::-webkit-scrollbar-thumb:hover {
       background: var(--scroll-thumb-hover);
       background-clip: padding-box;
     }
-
     .table-scroll,
     .used-panel-body {
       scrollbar-width: thin;
       scrollbar-color: var(--scroll-thumb) transparent;
     }
-
     .dropdown {
       position: relative;
       display: inline-block;
     }
-
     .dropdown-menu {
       display: none;
       position: absolute;
@@ -1442,19 +1454,16 @@
       transform: translateY(-6px) scale(0.98);
       transition: opacity 0.18s ease, transform 0.18s ease;
     }
-
     .dropdown-menu.show {
       display: block;
       opacity: 1;
       transform: translateY(0) scale(1);
       animation: menuIn 0.18s ease forwards;
     }
-
     @keyframes menuIn {
       from { opacity: 0; transform: translateY(-6px) scale(0.98); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
-
     .dropdown-item {
       display: flex;
       align-items: center;
@@ -1469,11 +1478,8 @@
       text-align: left;
       transition: background 0.15s ease;
     }
-
     .dropdown-item:hover { background: var(--surface-alt); }
-
     .file-input-hidden { display: none; }
-
     .footer-note {
       text-align: center;
       font-size: 12px;
@@ -1481,7 +1487,6 @@
       margin-top: 16px;
       padding-bottom: 24px;
     }
-
     .virtual-spacer td {
       padding: 0 !important;
       border: none !important;
@@ -1489,7 +1494,6 @@
       line-height: 0 !important;
       font-size: 0 !important;
     }
-
     .tool-btn:focus-visible,
     .btn-add:focus-visible,
     .icon-btn:focus-visible,
@@ -1497,11 +1501,14 @@
     .filter-select:focus-visible,
     .cell-input:focus-visible,
     .app-status-trigger:focus-visible,
-    .dropdown-item:focus-visible {
+    .dropdown-item:focus-visible,
+    .auth-input:focus-visible,
+    .auth-submit:focus-visible,
+    .auth-tab:focus-visible,
+    .header-lock-btn:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
     }
-
     .loading-overlay {
       position: fixed;
       inset: 0;
@@ -1514,12 +1521,10 @@
       visibility: hidden;
       transition: opacity 0.2s ease, visibility 0.2s ease;
     }
-
     .loading-overlay.visible {
       opacity: 1;
       visibility: visible;
     }
-
     .loading-spinner {
       width: 48px;
       height: 48px;
@@ -1528,11 +1533,7 @@
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
+    @keyframes spin { to { transform: rotate(360deg); } }
     .toast-container {
       position: fixed;
       bottom: 24px;
@@ -1544,7 +1545,6 @@
       gap: 8px;
       pointer-events: none;
     }
-
     .toast {
       background: var(--surface-alt);
       border: 1px solid var(--border);
@@ -1559,17 +1559,39 @@
       pointer-events: auto;
       max-width: 90vw;
     }
-
     .toast.show {
       opacity: 1;
       transform: translateY(0);
     }
-
     .toast.success { border-left: 3px solid var(--success); }
     .toast.error { border-left: 3px solid var(--danger); }
     .toast.info { border-left: 3px solid var(--info); }
     .toast.warning { border-left: 3px solid var(--warning); }
 
+    /* ========== Responsive Optimizations ========== */
+    @media (max-width: 380px) {
+      .live-feed { --feed-h: 30px; border-radius: 9px; }
+      .live-feed-viewport { margin-left: 82px; width: calc(100% - 82px); }
+      .live-feed-badge { padding: 0 10px; font-size: 8.5px; gap: 5px; }
+      .feed-item { font-size: 10.5px; padding: 0 12px; gap: 6px; }
+      .feed-item .clock { font-size: 8.5px; padding: 1px 5px; }
+      .auth-card { border-radius: 16px; }
+      .auth-header { padding: 24px 20px 16px; }
+      .auth-body { padding: 20px; }
+      .auth-title { font-size: 20px; }
+      .header-lock-btn span { display: none; }
+      .header-lock-btn { padding: 0 12px; min-width: 40px; justify-content: center; }
+    }
+    @media (min-width: 381px) and (max-width: 600px) {
+      .live-feed { --feed-h: 34px; }
+      .live-feed-viewport { margin-left: 96px; width: calc(100% - 96px); }
+      .live-feed-badge { font-size: 9px; padding: 0 12px; }
+      .feed-item { font-size: 12px; padding: 0 16px; gap: 8px; }
+    }
+    @media (min-width: 1200px) {
+      .live-feed { --feed-h: 40px; }
+      .live-feed-viewport { margin-left: 118px; width: calc(100% - 118px); }
+    }
     @media (max-width: 1100px) {
       .stats-bar { flex-wrap: wrap; }
       .stat-item {
@@ -1577,26 +1599,69 @@
         border-bottom: 1px solid var(--border);
       }
       .stat-item:nth-child(4n) { border-right: none; }
+      .stat-item:nth-last-child(-n+3) { border-bottom: none; }
     }
-
     @media (max-width: 900px) {
       .stat-item { min-width: 33.333%; }
       .stat-item:nth-child(3n) { border-right: none; }
-      .table-scroll { max-height: calc(100vh - 480px); max-height: calc(100dvh - 480px); }
+      .stat-item:nth-last-child(-n+3) { border-bottom: none; }
+      .table-scroll {
+        max-height: calc(100vh - 480px);
+        max-height: calc(100dvh - 480px);
+      }
       .toolbar { gap: 8px; }
       .search-wrap { min-width: 100%; max-width: 100%; }
+      .filter-select { flex: 1 1 auto; min-width: 120px; }
     }
-
-    @media (max-width: 600px) {
-      .stat-item { min-width: 50%; }
+    @media (max-width: 700px) {
+      .stats-bar { border-radius: 12px; }
+      .stat-item {
+        min-width: 50%;
+        padding: 12px 6px;
+      }
       .stat-item:nth-child(2n) { border-right: none; }
-      .brand-name { font-size: 18px; }
-      .tool-btn, .btn-add { padding: 0 12px; font-size: 12px; }
-      .table-hint { font-size: 11px; }
+      .stat-item:nth-last-child(-n+2) { border-bottom: none; }
       .stat-value { font-size: 18px; }
+      .brand-name { font-size: 18px; }
+      .brand-logo { width: 36px; height: 36px; font-size: 16px; }
+      .tool-btn, .btn-add { padding: 0 12px; font-size: 12px; height: 38px; }
+      .header-lock-btn { height: 38px; padding: 0 12px; font-size: 12px; }
+      .table-hint { font-size: 11px; padding: 8px 12px; }
       .used-uni-body { padding-left: 16px; }
+      .used-panel-title .title-main { font-size: 12px; }
+      .footer-note { font-size: 11px; padding: 0 8px 20px; }
     }
-
+    @media (max-width: 480px) {
+      body { padding: 12px !important; }
+      .stat-item { min-width: 50%; padding: 10px 4px; }
+      .stat-label { font-size: 9px; }
+      .stat-value { font-size: 16px; }
+      .toolbar {
+        gap: 6px;
+        margin: 12px 0 10px;
+      }
+      .tool-btn span, .btn-add span { display: none; }
+      .tool-btn, .btn-add {
+        padding: 0 11px;
+        min-width: 40px;
+        justify-content: center;
+      }
+      .header-lock-btn span { display: none; }
+      .header-lock-btn { padding: 0 11px; min-width: 40px; justify-content: center; }
+      .search-input { font-size: 16px; }
+      .filter-select { font-size: 13px; min-width: 100px; }
+      .table-scroll {
+        max-height: calc(100vh - 520px);
+        max-height: calc(100dvh - 520px);
+      }
+      .used-panel-header { padding: 12px 14px; }
+      .used-badge { padding: 3px 8px; font-size: 10px; }
+      .auth-logo { width: 48px; height: 48px; font-size: 18px; }
+    }
+    @media (max-width: 360px) {
+      .stat-item { min-width: 100%; border-right: none !important; }
+      .stat-item:not(:last-child) { border-bottom: 1px solid var(--border); }
+    }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       *, *::before, *::after {
@@ -1606,17 +1671,88 @@
       }
       .table-scroll, .used-panel-body { scroll-behavior: auto; }
       .live-feed-track { animation: none !important; }
+      .auth-card { animation: none; }
+    }
+    @media (hover: none) and (pointer: coarse) {
+      .tool-btn, .btn-add, .icon-btn, .auth-submit, .header-lock-btn {
+        min-height: 44px;
+      }
+      .cell-input, .app-status-trigger {
+        min-height: 44px;
+      }
+      .used-filter-btn { min-height: 36px; }
     }
   </style>
 </head>
 <body class="p-4 md:p-6">
-  <div class="max-w-[1600px] mx-auto" id="appRoot">
-    <header class="brand" role="banner">
-      <div class="brand-logo" aria-hidden="true">Ow</div>
-      <div>
-        <div class="brand-name">Oneweb</div>
-        <div class="brand-sub">Student Records Management</div>
+  <!-- ========== Auth Overlay ========== -->
+  <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo" aria-hidden="true">Ow</div>
+        <h1 class="auth-title" id="authTitle">Oneweb</h1>
+        <p class="auth-sub" id="authSub">Encrypted student records · Data stays on your device</p>
       </div>
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" id="tabLogin" role="tab" aria-selected="true" data-mode="login">Log In</button>
+        <button type="button" class="auth-tab" id="tabSignup" role="tab" aria-selected="false" data-mode="signup">Create Account</button>
+      </div>
+      <div class="auth-body">
+        <div class="auth-error" id="authError" role="alert">
+          <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+          <span id="authErrorText"></span>
+        </div>
+        <form id="authForm" autocomplete="on" novalidate>
+          <div class="auth-field" id="emailField" style="display:none">
+            <label class="auth-label" for="authEmail">Email (optional)</label>
+            <div class="auth-input-wrap">
+              <input type="email" class="auth-input" id="authEmail" name="email" placeholder="you@example.com" autocomplete="email" />
+              <i class="fas fa-envelope" aria-hidden="true"></i>
+            </div>
+          </div>
+          <div class="auth-field">
+            <label class="auth-label" for="authPassword">Master Password</label>
+            <div class="auth-input-wrap">
+              <input type="password" class="auth-input" id="authPassword" name="password" placeholder="Enter a strong password" required autocomplete="current-password" minlength="8" />
+              <i class="fas fa-lock" aria-hidden="true"></i>
+              <button type="button" class="auth-toggle-pass" id="togglePass" aria-label="Show password" tabindex="-1">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p class="auth-hint" id="passHint">Minimum 8 characters. This password encrypts all records on this device.</p>
+          </div>
+          <div class="auth-field" id="confirmField" style="display:none">
+            <label class="auth-label" for="authConfirm">Confirm Password</label>
+            <div class="auth-input-wrap">
+              <input type="password" class="auth-input" id="authConfirm" name="confirm" placeholder="Re-enter password" autocomplete="new-password" minlength="8" />
+              <i class="fas fa-lock" aria-hidden="true"></i>
+            </div>
+          </div>
+          <button type="submit" class="auth-submit" id="authSubmit">
+            <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
+            <span id="authSubmitText">Unlock Records</span>
+          </button>
+        </form>
+      </div>
+      <div class="auth-footer">
+        <i class="fas fa-shield-halved" aria-hidden="true"></i>
+        AES-256-GCM encryption · Password never leaves this device · No server storage
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-[1600px] mx-auto" id="appRoot" style="display:none">
+    <header class="brand" role="banner">
+      <div class="brand-left">
+        <div class="brand-logo" aria-hidden="true">Ow</div>
+        <div>
+          <div class="brand-name">Oneweb</div>
+          <div class="brand-sub">Student Records Management · Encrypted</div>
+        </div>
+      </div>
+      <button type="button" class="header-lock-btn" id="btnLock" title="Lock & encrypt data">
+        <i class="fas fa-lock" aria-hidden="true"></i> <span>Lock</span>
+      </button>
     </header>
 
     <!-- Premium Live Feed -->
@@ -1690,16 +1826,16 @@
       </select>
 
       <button type="button" class="tool-btn" id="btnRevealSSN" title="Reveal / hide SSN" aria-pressed="false">
-        <i class="fas fa-eye" aria-hidden="true"></i> Reveal SSN
+        <i class="fas fa-eye" aria-hidden="true"></i> <span>Reveal SSN</span>
       </button>
 
       <button type="button" class="tool-btn" id="btnUsedPanel" aria-expanded="false" aria-controls="usedPanel">
-        <i class="fas fa-list-ul" aria-hidden="true"></i> Already Used
+        <i class="fas fa-list-ul" aria-hidden="true"></i> <span>Already Used</span>
       </button>
 
       <div class="dropdown">
         <button type="button" class="tool-btn" id="btnFileMenu" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu">
-          <i class="fas fa-file" aria-hidden="true"></i> File
+          <i class="fas fa-file" aria-hidden="true"></i> <span>File</span>
         </button>
         <div class="dropdown-menu" id="fileMenu" role="menu" aria-labelledby="btnFileMenu">
           <button type="button" class="dropdown-item" role="menuitem" id="btnImport">
@@ -1719,16 +1855,16 @@
 
       <input type="file" id="excelInput" class="file-input-hidden" accept=".xlsx,.xls,.csv" aria-hidden="true" />
 
-      <button type="button" class="tool-btn save-btn" id="btnSave" title="Save all data to browser storage">
-        <i class="fas fa-save" aria-hidden="true"></i> Save
+      <button type="button" class="tool-btn save-btn" id="btnSave" title="Save all data (encrypted)">
+        <i class="fas fa-save" aria-hidden="true"></i> <span>Save</span>
       </button>
 
       <button type="button" class="tool-btn danger" id="btnClear" title="Clear all records">
-        <i class="fas fa-trash-alt" aria-hidden="true"></i> Clear
+        <i class="fas fa-trash-alt" aria-hidden="true"></i> <span>Clear</span>
       </button>
 
       <button type="button" class="btn-add" id="btnAdd" title="Add new student (Ctrl/Cmd+N)">
-        <i class="fas fa-plus" aria-hidden="true"></i> Add
+        <i class="fas fa-plus" aria-hidden="true"></i> <span>Add</span>
       </button>
     </div>
 
@@ -1778,7 +1914,7 @@
 
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing · Live Premier League feed above when matches are in progress</span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · Data encrypted with your master password</span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -1825,7 +1961,7 @@
     </div>
 
     <p class="footer-note">
-      Oneweb · Data auto-saves to browser local storage · Use Save button to force-save · Live Premier League feed via WebSocket + ESPN · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save
+      Oneweb · Data encrypted with AES-256-GCM &amp; auto-saved · Use Save or Lock · Live Premier League feed via WebSocket + ESPN · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save
     </p>
   </div>
 
@@ -2031,13 +2167,15 @@
         'transcript status': 'transcriptStatus', 'transcriptstatus': 'transcriptStatus', 'transcript_status': 'transcriptStatus'
       };
 
-      const STORAGE_KEY = 'oneweb_studentRecords_v6';
+      const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
+      const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
       const ROW_HEIGHT = 46;
       const BUFFER_ROWS = 20;
       const VIRTUAL_THRESHOLD = 40;
       const FEED_REFRESH_MS = 40000;
       const WS_RECONNECT_BASE = 2000;
       const WS_RECONNECT_MAX = 30000;
+      const PBKDF2_ITERATIONS = 120000;
 
       let data = [];
       let filteredData = [];
@@ -2066,6 +2204,204 @@
       let customMenuKey = null;
 
       let audioCtx = null;
+      let sessionPassword = null;
+      let authMode = 'login';
+      let isUnlocked = false;
+
+      /* ========== Encryption Helpers (Web Crypto AES-GCM) ========== */
+      function bufToBase64(buf) {
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
+      function base64ToBuf(b64) {
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+      }
+
+      async function deriveKey(password, salt) {
+        const enc = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+        );
+        return crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        );
+      }
+
+      async function encryptPayload(plainObj, password) {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await deriveKey(password, salt);
+        const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
+        const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+        return {
+          v: 1,
+          salt: bufToBase64(salt),
+          iv: bufToBase64(iv),
+          ct: bufToBase64(ciphertext)
+        };
+      }
+
+      async function decryptPayload(payload, password) {
+        if (!payload || !payload.salt || !payload.iv || !payload.ct) throw new Error('Invalid encrypted payload');
+        const salt = new Uint8Array(base64ToBuf(payload.salt));
+        const iv = new Uint8Array(base64ToBuf(payload.iv));
+        const ct = base64ToBuf(payload.ct);
+        const key = await deriveKey(password, salt);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+        return JSON.parse(new TextDecoder().decode(decrypted));
+      }
+
+      function hasEncryptedData() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return false;
+          const parsed = JSON.parse(raw);
+          return !!(parsed && parsed.ct);
+        } catch { return false; }
+      }
+
+      /* ========== Auth UI ========== */
+      function showAuthError(msg) {
+        const el = document.getElementById('authError');
+        const txt = document.getElementById('authErrorText');
+        if (!el || !txt) return;
+        txt.textContent = msg;
+        el.classList.add('visible');
+      }
+      function clearAuthError() {
+        const el = document.getElementById('authError');
+        if (el) el.classList.remove('visible');
+      }
+
+      function setAuthMode(mode) {
+        authMode = mode;
+        const isSignup = mode === 'signup';
+        document.getElementById('tabLogin').classList.toggle('active', !isSignup);
+        document.getElementById('tabSignup').classList.toggle('active', isSignup);
+        document.getElementById('tabLogin').setAttribute('aria-selected', !isSignup ? 'true' : 'false');
+        document.getElementById('tabSignup').setAttribute('aria-selected', isSignup ? 'true' : 'false');
+        document.getElementById('confirmField').style.display = isSignup ? 'block' : 'none';
+        document.getElementById('emailField').style.display = isSignup ? 'block' : 'none';
+        document.getElementById('authSubmitText').textContent = isSignup ? 'Create Encrypted Vault' : 'Unlock Records';
+        document.getElementById('authSubmit').innerHTML = isSignup
+          ? '<i class="fas fa-user-plus" aria-hidden="true"></i><span id="authSubmitText">Create Encrypted Vault</span>'
+          : '<i class="fas fa-right-to-bracket" aria-hidden="true"></i><span id="authSubmitText">Unlock Records</span>';
+        document.getElementById('authPassword').autocomplete = isSignup ? 'new-password' : 'current-password';
+        document.getElementById('passHint').textContent = isSignup
+          ? 'Choose a strong password (min 8 chars). It encrypts all data on this device only.'
+          : 'Enter the master password used to encrypt your records.';
+        clearAuthError();
+      }
+
+      function showApp() {
+        document.getElementById('authOverlay').classList.add('hidden');
+        document.getElementById('appRoot').style.display = 'block';
+        isUnlocked = true;
+      }
+
+      function lockApp() {
+        if (sessionPassword && data) {
+          scheduleSave(true);
+        }
+        sessionPassword = null;
+        data = [];
+        filteredData = [];
+        isUnlocked = false;
+        document.getElementById('appRoot').style.display = 'none';
+        document.getElementById('authOverlay').classList.remove('hidden');
+        document.getElementById('authPassword').value = '';
+        document.getElementById('authConfirm').value = '';
+        clearAuthError();
+        setAuthMode(hasEncryptedData() ? 'login' : 'signup');
+        renderTable();
+        updateStats();
+        showToast('Vault locked. Data remains encrypted on this device.', 'info');
+      }
+
+      async function handleAuthSubmit(e) {
+        e.preventDefault();
+        clearAuthError();
+        const password = document.getElementById('authPassword').value;
+        const confirm = document.getElementById('authConfirm').value;
+        const submitBtn = document.getElementById('authSubmit');
+
+        if (!password || password.length < 8) {
+          showAuthError('Password must be at least 8 characters.');
+          return;
+        }
+
+        submitBtn.disabled = true;
+        showLoading(true);
+
+        try {
+          if (authMode === 'signup') {
+            if (password !== confirm) {
+              showAuthError('Passwords do not match.');
+              return;
+            }
+            if (hasEncryptedData() && !confirm('An encrypted vault already exists. Creating a new one will overwrite it. Continue?')) {
+              return;
+            }
+            let initial = [];
+            for (const k of LEGACY_KEYS) {
+              const legacy = localStorage.getItem(k);
+              if (legacy) {
+                try {
+                  const parsed = JSON.parse(legacy);
+                  if (Array.isArray(parsed) && parsed.length) {
+                    initial = parsed;
+                    break;
+                  }
+                } catch {}
+              }
+            }
+            const payload = await encryptPayload(initial, password);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
+            sessionPassword = password;
+            data = initial;
+            applyFilters();
+            showApp();
+            showToast('Encrypted vault created successfully', 'success');
+          } else {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) {
+              showAuthError('No encrypted vault found. Create an account first.');
+              setAuthMode('signup');
+              return;
+            }
+            const payload = JSON.parse(raw);
+            const decrypted = await decryptPayload(payload, password);
+            if (!Array.isArray(decrypted)) throw new Error('Invalid data');
+            sessionPassword = password;
+            data = decrypted;
+            data.forEach(r => {
+              if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+              if (!r.createdAt) r.createdAt = Date.now();
+              if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+              if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+            });
+            applyFilters();
+            showApp();
+            showToast('Vault unlocked', 'success');
+          }
+        } catch (err) {
+          console.warn(err);
+          showAuthError(authMode === 'login' ? 'Incorrect password or corrupted vault.' : 'Failed to create vault. Try again.');
+        } finally {
+          submitBtn.disabled = false;
+          showLoading(false);
+        }
+      }
 
       /* ========== Premium Live Feed ========== */
       function setWsStatus(connected) {
@@ -2995,7 +3331,6 @@
           }
         }
 
-        // Auto-fill SSN, DOB, Email, Gender from previous record with same name
         let nameAutofilled = false;
         if (key === 'name' && value && value.trim()) {
           const matched = data
@@ -3089,8 +3424,8 @@
         btn.classList.toggle('active', revealSSN);
         btn.setAttribute('aria-pressed', revealSSN ? 'true' : 'false');
         btn.innerHTML = revealSSN
-          ? '<i class="fas fa-eye-slash" aria-hidden="true"></i> Hide SSN'
-          : '<i class="fas fa-eye" aria-hidden="true"></i> Reveal SSN';
+          ? '<i class="fas fa-eye-slash" aria-hidden="true"></i> <span>Hide SSN</span>'
+          : '<i class="fas fa-eye" aria-hidden="true"></i> <span>Reveal SSN</span>';
         renderTable();
       }
 
@@ -3136,17 +3471,21 @@
         showToast('All records cleared', 'info');
       }
 
-      function forceSave() {
+      async function forceSave() {
         if (saveTimer) {
           clearTimeout(saveTimer);
           saveTimer = null;
         }
+        if (!sessionPassword) {
+          showToast('Vault is locked. Unlock first.', 'error');
+          return;
+        }
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          localStorage.setItem('oneweb_studentRecords', JSON.stringify(data));
-          showToast(`Saved ${data.length} record(s) successfully`, 'success', 2500);
+          const payload = await encryptPayload(data, sessionPassword);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+          showToast(`Encrypted & saved ${data.length} record(s)`, 'success', 2500);
         } catch (e) {
-          console.warn('localStorage save failed', e);
+          console.warn('save failed', e);
           showToast('Could not save (storage full or blocked). Try exporting instead.', 'error', 4000);
         }
       }
@@ -3429,46 +3768,23 @@
       }
 
       function scheduleSave(immediate) {
+        if (!sessionPassword) return;
         if (saveTimer) clearTimeout(saveTimer);
         if (immediate) {
           saveToStorage();
           return;
         }
-        saveTimer = setTimeout(saveToStorage, 180);
+        saveTimer = setTimeout(saveToStorage, 280);
       }
 
-      function saveToStorage() {
+      async function saveToStorage() {
+        if (!sessionPassword) return;
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          localStorage.setItem('oneweb_studentRecords', JSON.stringify(data));
+          const payload = await encryptPayload(data, sessionPassword);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         } catch (e) {
           console.warn('localStorage save failed', e);
           showToast('Could not save to local storage (quota exceeded?)', 'error');
-        }
-      }
-
-      function loadFromStorage() {
-        try {
-          let saved = localStorage.getItem(STORAGE_KEY);
-          if (!saved) {
-            saved = localStorage.getItem('oneweb_studentRecords_v5') ||
-                    localStorage.getItem('oneweb_studentRecords_v4') ||
-                    localStorage.getItem('oneweb_studentRecords_v3') ||
-                    localStorage.getItem('oneweb_studentRecords_v2') ||
-                    localStorage.getItem('oneweb_studentRecords');
-          }
-          if (saved) {
-            data = JSON.parse(saved);
-            if (!Array.isArray(data)) data = [];
-            data.forEach(r => {
-              if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-              if (!r.createdAt) r.createdAt = Date.now();
-              if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
-              if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
-            });
-          }
-        } catch {
-          data = [];
         }
       }
 
@@ -3564,8 +3880,28 @@
         const dl = document.getElementById('usUniversities');
         dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
 
-        loadFromStorage();
-        applyFilters();
+        const hasVault = hasEncryptedData();
+        setAuthMode(hasVault ? 'login' : 'signup');
+        document.getElementById('tabLogin').addEventListener('click', () => setAuthMode('login'));
+        document.getElementById('tabSignup').addEventListener('click', () => setAuthMode('signup'));
+        document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
+        document.getElementById('togglePass').addEventListener('click', () => {
+          const input = document.getElementById('authPassword');
+          const icon = document.getElementById('togglePass').querySelector('i');
+          if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+          } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+          }
+        });
+        document.getElementById('btnLock').addEventListener('click', () => {
+          if (confirm('Lock the vault? You will need your master password to unlock again.')) {
+            lockApp();
+          }
+        });
+
         startLiveFeed();
 
         const scrollEl = document.getElementById('tableScroll');
@@ -3680,6 +4016,7 @@
         tbody.addEventListener('input', handleCellInput);
 
         document.addEventListener('keydown', (e) => {
+          if (!isUnlocked) return;
           if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
             e.preventDefault();
             addRow();
@@ -3704,14 +4041,18 @@
         });
 
         window.addEventListener('beforeunload', () => {
-          if (saveTimer) {
+          if (saveTimer && sessionPassword) {
             clearTimeout(saveTimer);
-            saveToStorage();
           }
           if (feedWs) {
             try { feedWs.close(); } catch (_) {}
           }
         });
+
+        setTimeout(() => {
+          const pw = document.getElementById('authPassword');
+          if (pw) pw.focus();
+        }, 100);
       }
 
       if (document.readyState === 'loading') {
