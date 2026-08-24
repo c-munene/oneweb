@@ -269,7 +269,6 @@
       text-transform: uppercase;
     }
 
-    /* Extra-small phones */
     @media (max-width: 380px) {
       .live-feed {
         --feed-h: 30px;
@@ -1779,7 +1778,7 @@
 
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing · Live Premier League feed above when matches are in progress</span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing · Live Premier League feed above when matches are in progress</span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -2147,12 +2146,10 @@
             `;
           }).join('');
 
-          // Perfect seamless loop
           track.innerHTML = items + items;
 
           requestAnimationFrame(() => {
             const half = track.scrollWidth / 2;
-            // Adaptive speed: slightly slower on small screens for readability
             const pxPerSec = window.innerWidth < 600 ? 32 : 40;
             const seconds = Math.max(14, Math.min(52, half / pxPerSec));
             restartFeedAnimation(track, seconds);
@@ -2998,6 +2995,35 @@
           }
         }
 
+        // Auto-fill SSN, DOB, Email, Gender from previous record with same name
+        let nameAutofilled = false;
+        if (key === 'name' && value && value.trim()) {
+          const matched = data
+            .filter(r => r.id !== id && normalize(r.name) === normalize(value))
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+          if (matched) {
+            if ((!row.ssn || row.ssn === '') && matched.ssn) {
+              row.ssn = matched.ssn;
+              nameAutofilled = true;
+            }
+            if ((!row.dob || row.dob === '') && matched.dob) {
+              row.dob = matched.dob;
+              nameAutofilled = true;
+            }
+            if ((!row.email || row.email === '') && matched.email) {
+              row.email = matched.email;
+              nameAutofilled = true;
+            }
+            if ((!row.gender || row.gender === '') && matched.gender) {
+              row.gender = matched.gender;
+              nameAutofilled = true;
+            }
+            if (nameAutofilled) {
+              showToast('Auto-filled SSN, DOB, email & gender from previous record with same name', 'info', 3000);
+            }
+          }
+        }
+
         if (key === 'highSchool' || key === 'phone' || key === 'university') {
           const isHsDup = isDuplicateHighSchool(row.university, row.highSchool, row.id);
           const isPhoneDup = isDuplicatePhone(row.university, row.phone, row.id);
@@ -3024,7 +3050,7 @@
           const tr = document.querySelector(`tr[data-id="${id}"]`);
           if (tr) tr.className = getRowClass(value);
           renderTable();
-        } else if (key === 'highSchool' || key === 'phone' || key === 'university' || key === 'gpa' || key === 'program') {
+        } else if (key === 'highSchool' || key === 'phone' || key === 'university' || key === 'gpa' || key === 'program' || nameAutofilled) {
           renderTable();
         }
 
@@ -3666,7 +3692,6 @@
 
         window.addEventListener('resize', () => {
           if (customOpenId) closeCustomSelectMenu();
-          // Re-calculate feed speed on resize for perfect responsiveness
           const track = document.getElementById('liveFeedTrack');
           if (track && track.children.length) {
             requestAnimationFrame(() => {
