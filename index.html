@@ -56,6 +56,7 @@
       color: var(--text);
       transition: background 0.25s ease, color 0.25s ease;
       overscroll-behavior-y: contain;
+      overflow-x: hidden;
     }
 
     .brand {
@@ -97,149 +98,230 @@
       margin-top: 1px;
     }
 
-    /* ===== Live EPL Ticker ===== */
-    .epl-ticker {
+    /* ===== Premium Live Feed Ticker – Fully Responsive ===== */
+    .live-feed {
       display: none;
-      height: 34px;
+      --feed-h: clamp(32px, 5.2vw, 40px);
+      height: var(--feed-h);
       margin-bottom: 14px;
-      border-radius: 10px;
-      border: 1px solid rgba(34, 197, 94, 0.25);
-      background: linear-gradient(90deg, #0c1a12 0%, #0f172a 40%, #0c1a12 100%);
+      border-radius: clamp(10px, 2vw, 14px);
+      border: 1px solid rgba(255,255,255,0.07);
+      background: linear-gradient(90deg, #0f172a 0%, #111827 40%, #0f172a 100%);
       overflow: hidden;
       position: relative;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+      width: 100%;
+      max-width: 100%;
     }
 
-    .epl-ticker.visible {
+    .live-feed.visible {
       display: block;
     }
 
-    .epl-ticker::before,
-    .epl-ticker::after {
+    .live-feed::before,
+    .live-feed::after {
       content: '';
       position: absolute;
       top: 0;
       bottom: 0;
-      width: 48px;
-      z-index: 2;
+      width: clamp(36px, 8vw, 72px);
+      z-index: 3;
       pointer-events: none;
     }
 
-    .epl-ticker::before {
+    .live-feed::before {
       left: 0;
-      background: linear-gradient(90deg, #0c1a12 0%, transparent 100%);
+      background: linear-gradient(90deg, #0f172a 0%, transparent 100%);
     }
 
-    .epl-ticker::after {
+    .live-feed::after {
       right: 0;
-      background: linear-gradient(270deg, #0c1a12 0%, transparent 100%);
+      background: linear-gradient(270deg, #0f172a 0%, transparent 100%);
     }
 
-    .epl-ticker-label {
+    .live-feed-badge {
       position: absolute;
       left: 0;
       top: 0;
       bottom: 0;
-      z-index: 3;
+      z-index: 4;
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 0 12px 0 10px;
-      background: linear-gradient(90deg, #14532d 0%, #166534 70%, transparent 100%);
-      font-size: 10px;
+      gap: clamp(5px, 1.2vw, 8px);
+      padding: 0 clamp(10px, 2.5vw, 16px) 0 clamp(10px, 2.2vw, 14px);
+      background: linear-gradient(90deg, #1e293b 0%, #1e293b 72%, transparent 100%);
+      font-size: clamp(9px, 1.8vw, 10px);
       font-weight: 700;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #86efac;
+      color: #94a3b8;
       white-space: nowrap;
+      min-width: 0;
     }
 
-    .epl-ticker-label .pulse {
-      width: 7px;
-      height: 7px;
+    .live-feed-badge .dot {
+      width: clamp(5px, 1.2vw, 7px);
+      height: clamp(5px, 1.2vw, 7px);
       border-radius: 50%;
       background: #22c55e;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
-      animation: livePulse 1.6s ease-out infinite;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+      animation: feedPulse 2s ease-out infinite;
+      flex-shrink: 0;
     }
 
-    @keyframes livePulse {
-      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+    .live-feed-badge .ws {
+      width: clamp(5px, 1.1vw, 6px);
+      height: clamp(5px, 1.1vw, 6px);
+      border-radius: 50%;
+      background: #475569;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .live-feed-badge .ws.on {
+      background: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+    }
+
+    @keyframes feedPulse {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
       70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
       100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
 
-    .epl-ticker-viewport {
+    .live-feed-viewport {
       height: 100%;
       overflow: hidden;
-      margin-left: 78px;
+      margin-left: clamp(88px, 18vw, 118px);
+      width: calc(100% - clamp(88px, 18vw, 118px));
+      max-width: 100%;
     }
 
-    .epl-ticker-track {
+    .live-feed-track {
       display: flex;
       align-items: center;
       height: 100%;
       width: max-content;
       will-change: transform;
-      animation: eplScroll linear infinite;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      animation: feedScroll linear infinite;
+      transform: translate3d(0, 0, 0);
     }
 
-    .epl-ticker-track:hover {
+    .live-feed-track:hover {
       animation-play-state: paused;
     }
 
-    @keyframes eplScroll {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
+    @keyframes feedScroll {
+      0%   { transform: translate3d(0, 0, 0); }
+      100% { transform: translate3d(-50%, 0, 0); }
     }
 
-    .epl-match {
+    .feed-item {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 0 18px;
+      gap: clamp(6px, 1.5vw, 10px);
+      padding: 0 clamp(12px, 3.2vw, 22px);
       height: 100%;
       white-space: nowrap;
-      font-size: 12px;
-      color: var(--text);
-      border-right: 1px solid rgba(255,255,255,0.06);
+      font-size: clamp(11px, 2.4vw, 13px);
+      color: #e2e8f0;
+      border-right: 1px solid rgba(255,255,255,0.05);
+      flex-shrink: 0;
+      line-height: 1;
     }
 
-    .epl-match .teams {
+    .feed-item .teams {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: clamp(5px, 1.2vw, 8px);
       font-weight: 500;
+      font-size: inherit;
     }
 
-    .epl-match .score {
+    .feed-item .score {
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       color: #f8fafc;
-      min-width: 28px;
+      min-width: clamp(26px, 5vw, 34px);
       text-align: center;
+      letter-spacing: 0.03em;
+      font-size: inherit;
     }
 
-    .epl-match .minute {
-      font-size: 10px;
+    .feed-item .clock {
+      font-size: clamp(9px, 1.9vw, 10px);
       font-weight: 600;
       color: #4ade80;
-      background: rgba(34, 197, 94, 0.15);
-      border: 1px solid rgba(34, 197, 94, 0.25);
-      border-radius: 4px;
-      padding: 1px 5px;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.22);
+      border-radius: 6px;
+      padding: 2px clamp(5px, 1.2vw, 7px);
+      line-height: 1.2;
     }
 
-    .epl-match .vs {
-      color: var(--text-faint);
-      font-size: 11px;
+    .feed-item .league {
+      font-size: clamp(9px, 1.9vw, 10px);
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
-    @media (max-width: 600px) {
-      .epl-ticker { height: 30px; }
-      .epl-ticker-viewport { margin-left: 68px; }
-      .epl-ticker-label { font-size: 9px; padding: 0 8px 0 8px; }
-      .epl-match { font-size: 11px; padding: 0 12px; gap: 6px; }
+    /* Extra-small phones */
+    @media (max-width: 380px) {
+      .live-feed {
+        --feed-h: 30px;
+        border-radius: 9px;
+      }
+      .live-feed-viewport {
+        margin-left: 82px;
+        width: calc(100% - 82px);
+      }
+      .live-feed-badge {
+        padding: 0 10px 0 10px;
+        font-size: 8.5px;
+        gap: 5px;
+      }
+      .feed-item {
+        font-size: 10.5px;
+        padding: 0 12px;
+        gap: 6px;
+      }
+      .feed-item .clock {
+        font-size: 8.5px;
+        padding: 1px 5px;
+      }
+    }
+
+    @media (min-width: 381px) and (max-width: 600px) {
+      .live-feed {
+        --feed-h: 34px;
+      }
+      .live-feed-viewport {
+        margin-left: 96px;
+        width: calc(100% - 96px);
+      }
+      .live-feed-badge {
+        font-size: 9px;
+        padding: 0 12px 0 12px;
+      }
+      .feed-item {
+        font-size: 12px;
+        padding: 0 16px;
+        gap: 8px;
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .live-feed {
+        --feed-h: 40px;
+      }
+      .live-feed-viewport {
+        margin-left: 118px;
+        width: calc(100% - 118px);
+      }
     }
 
     .stats-bar {
@@ -1524,7 +1606,7 @@
         transition-duration: 0.01ms !important;
       }
       .table-scroll, .used-panel-body { scroll-behavior: auto; }
-      .epl-ticker-track { animation: none !important; }
+      .live-feed-track { animation: none !important; }
     }
   </style>
 </head>
@@ -1538,14 +1620,15 @@
       </div>
     </header>
 
-    <!-- Live EPL Match Ticker (hidden when no live matches) -->
-    <div class="epl-ticker" id="eplTicker" aria-live="polite" aria-label="Live Premier League scores">
-      <div class="epl-ticker-label">
-        <span class="pulse" aria-hidden="true"></span>
-        EPL Live
+    <!-- Premium Live Feed -->
+    <div class="live-feed" id="liveFeed" aria-live="polite" aria-label="Live Premier League scores">
+      <div class="live-feed-badge">
+        <span class="dot" aria-hidden="true"></span>
+        Live
+        <span class="ws" id="wsStatusDot" title="WebSocket status" aria-hidden="true"></span>
       </div>
-      <div class="epl-ticker-viewport">
-        <div class="epl-ticker-track" id="eplTickerTrack"></div>
+      <div class="live-feed-viewport">
+        <div class="live-feed-track" id="liveFeedTrack"></div>
       </div>
     </div>
 
@@ -1696,7 +1779,7 @@
 
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing · Live EPL ticker above when matches are in progress</span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Grad Period = MM/DD/YYYY – MM/DD/YYYY · University &amp; Program support free typing · Live Premier League feed above when matches are in progress</span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -1743,7 +1826,7 @@
     </div>
 
     <p class="footer-note">
-      Oneweb · Data auto-saves to browser local storage · Use Save button to force-save · Live EPL scores when matches are in progress · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save
+      Oneweb · Data auto-saves to browser local storage · Use Save button to force-save · Live Premier League feed via WebSocket + ESPN · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save
     </p>
   </div>
 
@@ -1953,7 +2036,9 @@
       const ROW_HEIGHT = 46;
       const BUFFER_ROWS = 20;
       const VIRTUAL_THRESHOLD = 40;
-      const EPL_REFRESH_MS = 60000;
+      const FEED_REFRESH_MS = 40000;
+      const WS_RECONNECT_BASE = 2000;
+      const WS_RECONNECT_MAX = 30000;
 
       let data = [];
       let filteredData = [];
@@ -1968,7 +2053,12 @@
       let usedTypeFilter = 'all';
       let usedCollapsedUnis = new Set();
       let lastBeepAt = 0;
-      let eplTimer = null;
+      let feedTimer = null;
+      let feedWs = null;
+      let feedWsReconnectTimer = null;
+      let feedWsRetries = 0;
+      let lastWsTriggeredFetch = 0;
+      let feedFetchInFlight = false;
 
       let customOpenId = null;
       let customTriggerEl = null;
@@ -1978,31 +2068,50 @@
 
       let audioCtx = null;
 
-      /* ========== Live EPL Ticker ========== */
-      async function fetchLiveEPL() {
-        const ticker = document.getElementById('eplTicker');
-        const track = document.getElementById('eplTickerTrack');
-        if (!ticker || !track) return;
+      /* ========== Premium Live Feed ========== */
+      function setWsStatus(connected) {
+        const dot = document.getElementById('wsStatusDot');
+        if (!dot) return;
+        dot.classList.toggle('on', !!connected);
+        dot.title = connected ? 'WebSocket connected' : 'WebSocket offline — polling';
+      }
+
+      function restartFeedAnimation(track, seconds) {
+        track.style.animation = 'none';
+        void track.offsetWidth;
+        track.style.animation = '';
+        track.style.animationDuration = seconds + 's';
+      }
+
+      async function fetchLiveScores() {
+        if (feedFetchInFlight) return;
+        feedFetchInFlight = true;
+        const feed = document.getElementById('liveFeed');
+        const track = document.getElementById('liveFeedTrack');
+        if (!feed || !track) {
+          feedFetchInFlight = false;
+          return;
+        }
 
         try {
           const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard', {
             cache: 'no-store'
           });
-          if (!res.ok) throw new Error('EPL fetch failed');
+          if (!res.ok) throw new Error('fetch failed');
           const json = await res.json();
           const events = Array.isArray(json.events) ? json.events : [];
 
           const live = events.filter(ev => {
             const state = (ev.status && ev.status.type && ev.status.type.state) || '';
             const detail = (ev.status && ev.status.type && ev.status.type.detail) || '';
-            // in = in progress; also accept status that look live
             return state === 'in' || /live|half|minute|HT|1st|2nd/i.test(detail);
           });
 
           if (!live.length) {
-            ticker.classList.remove('visible');
+            feed.classList.remove('visible');
             track.innerHTML = '';
             track.style.animationDuration = '';
+            feedFetchInFlight = false;
             return;
           }
 
@@ -2015,50 +2124,127 @@
             const awayName = (away.team && (away.team.shortDisplayName || away.team.abbreviation || away.team.displayName)) || 'Away';
             const homeScore = home.score != null ? home.score : '–';
             const awayScore = away.score != null ? away.score : '–';
-            let minute = '';
+            let clock = '';
             if (ev.status && ev.status.displayClock) {
-              minute = String(ev.status.displayClock).replace("'", '') + "'";
+              clock = String(ev.status.displayClock).replace("'", '') + "'";
             } else if (ev.status && ev.status.type && ev.status.type.shortDetail) {
-              minute = ev.status.type.shortDetail;
+              clock = ev.status.type.shortDetail;
             } else if (ev.status && ev.status.type && ev.status.type.detail) {
-              minute = ev.status.type.detail;
+              clock = ev.status.type.detail;
             }
-            if (!minute) minute = 'LIVE';
+            if (!clock) clock = 'LIVE';
 
             return `
-              <span class="epl-match">
+              <span class="feed-item">
+                <span class="league">EPL</span>
                 <span class="teams">
                   <span>${escapeHtml(homeName)}</span>
                   <span class="score">${escapeHtml(String(homeScore))}–${escapeHtml(String(awayScore))}</span>
                   <span>${escapeHtml(awayName)}</span>
                 </span>
-                <span class="minute">${escapeHtml(minute)}</span>
+                <span class="clock">${escapeHtml(clock)}</span>
               </span>
             `;
           }).join('');
 
-          // Duplicate for seamless loop
+          // Perfect seamless loop
           track.innerHTML = items + items;
 
-          // Speed based on content width (~40px per second feel)
           requestAnimationFrame(() => {
             const half = track.scrollWidth / 2;
-            const seconds = Math.max(18, Math.min(55, half / 45));
-            track.style.animationDuration = seconds + 's';
+            // Adaptive speed: slightly slower on small screens for readability
+            const pxPerSec = window.innerWidth < 600 ? 32 : 40;
+            const seconds = Math.max(14, Math.min(52, half / pxPerSec));
+            restartFeedAnimation(track, seconds);
           });
 
-          ticker.classList.add('visible');
+          feed.classList.add('visible');
         } catch (err) {
-          // Network / CORS / offline → hide feed
-          ticker.classList.remove('visible');
+          feed.classList.remove('visible');
           track.innerHTML = '';
+        } finally {
+          feedFetchInFlight = false;
         }
       }
 
-      function startEplTicker() {
-        fetchLiveEPL();
-        if (eplTimer) clearInterval(eplTimer);
-        eplTimer = setInterval(fetchLiveEPL, EPL_REFRESH_MS);
+      function triggerFeedFromWs() {
+        const now = Date.now();
+        if (now - lastWsTriggeredFetch < 2200) return;
+        lastWsTriggeredFetch = now;
+        fetchLiveScores();
+      }
+
+      function isSoccerLiveMessage(msg) {
+        if (!msg || typeof msg !== 'object') return false;
+        const league = String(msg.leagueAbbreviation || msg.league || msg.slug || '').toLowerCase();
+        const status = String(msg.status || '').toLowerCase();
+        const liveFlag = msg.live === true;
+        const soccerHints = /soccer|football|epl|premier|eng\.1|premier-league|la-liga|bundesliga|serie-a|ligue-1|mls|uefa|champions|europa/i;
+        const liveStatuses = /inprogress|in progress|firsthalf|secondhalf|halftime|break|extratime|penaltyshootout|live|1st|2nd/i;
+        const isSoccer = soccerHints.test(league) || soccerHints.test(String(msg.sport || ''));
+        const isLive = liveFlag || liveStatuses.test(status);
+        return isSoccer && isLive;
+      }
+
+      function connectFeedWebSocket() {
+        if (feedWs && (feedWs.readyState === WebSocket.OPEN || feedWs.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+
+        try {
+          feedWs = new WebSocket('wss://sports-api.polymarket.com/ws');
+        } catch (e) {
+          setWsStatus(false);
+          scheduleWsReconnect();
+          return;
+        }
+
+        feedWs.onopen = () => {
+          feedWsRetries = 0;
+          setWsStatus(true);
+          fetchLiveScores();
+        };
+
+        feedWs.onmessage = (event) => {
+          const raw = event.data;
+          if (raw === 'ping') {
+            try { feedWs.send('pong'); } catch (_) {}
+            return;
+          }
+          try {
+            const msg = JSON.parse(raw);
+            const payload = msg.type === 'sport_result' ? msg : (msg.payload || msg);
+            if (isSoccerLiveMessage(payload) || isSoccerLiveMessage(msg)) {
+              triggerFeedFromWs();
+            }
+          } catch (_) {}
+        };
+
+        feedWs.onclose = () => {
+          setWsStatus(false);
+          scheduleWsReconnect();
+        };
+
+        feedWs.onerror = () => {
+          setWsStatus(false);
+          try { feedWs.close(); } catch (_) {}
+        };
+      }
+
+      function scheduleWsReconnect() {
+        if (feedWsReconnectTimer) clearTimeout(feedWsReconnectTimer);
+        const delay = Math.min(WS_RECONNECT_MAX, WS_RECONNECT_BASE * Math.pow(1.6, feedWsRetries));
+        feedWsRetries += 1;
+        feedWsReconnectTimer = setTimeout(() => {
+          connectFeedWebSocket();
+        }, delay);
+      }
+
+      function startLiveFeed() {
+        fetchLiveScores();
+        connectFeedWebSocket();
+        if (feedTimer) clearInterval(feedTimer);
+        feedTimer = setInterval(fetchLiveScores, FEED_REFRESH_MS);
       }
 
       function playBeep() {
@@ -3354,7 +3540,7 @@
 
         loadFromStorage();
         applyFilters();
-        startEplTicker();
+        startLiveFeed();
 
         const scrollEl = document.getElementById('tableScroll');
         scrollEl.addEventListener('scroll', onTableScroll, { passive: true });
@@ -3480,12 +3666,25 @@
 
         window.addEventListener('resize', () => {
           if (customOpenId) closeCustomSelectMenu();
+          // Re-calculate feed speed on resize for perfect responsiveness
+          const track = document.getElementById('liveFeedTrack');
+          if (track && track.children.length) {
+            requestAnimationFrame(() => {
+              const half = track.scrollWidth / 2;
+              const pxPerSec = window.innerWidth < 600 ? 32 : 40;
+              const seconds = Math.max(14, Math.min(52, half / pxPerSec));
+              restartFeedAnimation(track, seconds);
+            });
+          }
         });
 
         window.addEventListener('beforeunload', () => {
           if (saveTimer) {
             clearTimeout(saveTimer);
             saveToStorage();
+          }
+          if (feedWs) {
+            try { feedWs.close(); } catch (_) {}
           }
         });
       }
