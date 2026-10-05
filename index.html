@@ -2074,7 +2074,8 @@
         { value: 'Northville High School', label: 'Northville High School', gpa: '3.53', dot: 'empty' },
         { value: 'Wales High School', label: 'Wales High School', dot: 'empty' },
         { value: 'Dutton High School', label: 'Dutton High School', dot: 'empty' },
-        { value: 'Milford High School', label: 'Milford High School', dot: 'empty' }
+        { value: 'Milford High School', label: 'Milford High School', dot: 'empty' },
+        { value: 'Other', label: 'Other…', dot: 'other' }
       ];
       const HS_GPA_MAP = {
         'william p. clements high school': '3.48',
@@ -2671,6 +2672,11 @@
         return list.some(p => normalize(p) === normalize(val));
       }
 
+      function isFixedHighSchool(val) {
+        if (!val) return true;
+        return HIGH_SCHOOL_OPTIONS.some(o => o.value && o.value !== 'Other' && normalize(o.value) === normalize(val));
+      }
+
       function isDuplicateHighSchool(university, highSchool, excludeId) {
         if (!university || !highSchool) return false;
         const u = normalize(university);
@@ -2855,7 +2861,7 @@
         customMenuKey = key;
 
         const isLong = options.length > 15;
-        const allowsCustom = (key === 'university' || key === 'program' || key === 'appStatus');
+        const allowsCustom = (key === 'university' || key === 'program' || key === 'appStatus' || key === 'highSchool');
         menu.innerHTML = '';
 
         if (isLong || allowsCustom) {
@@ -2883,7 +2889,7 @@
             matchCount++;
             const isActive = (opt.value === currentValue) ||
               (key === 'appStatus' && opt.value === 'Other' && currentValue && !isFixedAppStatus(currentValue)) ||
-              ((key === 'university' || key === 'program') && opt.value === 'Other' && currentValue && !(key === 'university' ? isFixedUniversity(currentValue) : isFixedProgram(currentValue)));
+              ((key === 'university' || key === 'program' || key === 'highSchool') && opt.value === 'Other' && currentValue && !(key === 'university' ? isFixedUniversity(currentValue) : (key === 'program' ? isFixedProgram(currentValue) : isFixedHighSchool(currentValue))));
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'menu-item' + (isActive ? ' active' : '');
@@ -3046,7 +3052,7 @@
               renderTable();
             }
           }
-        } else if ((key === 'university' || key === 'program') && value === 'Other') {
+        } else if ((key === 'university' || key === 'program' || key === 'highSchool') && value === 'Other') {
           updateCell(id, key, 'Other');
           setTimeout(() => {
             const input = document.querySelector(`tr[data-id="${id}"] input.cell-input[data-key="${key}"]`);
@@ -3065,7 +3071,8 @@
           }
           const isCustomUni = key === 'university' && value && !isFixedUniversity(value);
           const isCustomProg = key === 'program' && value && !isFixedProgram(value);
-          if (isCustomUni || isCustomProg) {
+          const isCustomHs = key === 'highSchool' && value && !isFixedHighSchool(value);
+          if (isCustomUni || isCustomProg || isCustomHs) {
             renderTable();
             setTimeout(() => {
               const input = document.querySelector(`tr[data-id="${id}"] input.cell-input[data-key="${key}"]`);
@@ -3123,13 +3130,13 @@
             const isUni = col.key === 'university';
             const isProg = col.key === 'program';
             const isHS = col.key === 'highSchool';
-            const isFixed = isUni ? isFixedUniversity(val) : (isProg ? isFixedProgram(val) : true);
+            const isFixed = isUni ? isFixedUniversity(val) : (isProg ? isFixedProgram(val) : (isHS ? isFixedHighSchool(val) : true));
 
-            if ((isUni || isProg) && !isFixed) {
+            if ((isUni || isProg || isHS) && !isFixed) {
               return `<td role="gridcell">
                 <input type="text" class="cell-input" data-id="${row.id}" data-key="${col.key}"
                   value="${escapeHtml(val)}" data-real="${escapeHtml(val)}"
-                  placeholder="Type custom ${isUni ? 'university' : 'program'}..." aria-label="Custom ${col.key}" />
+                  placeholder="Type custom ${isUni ? 'university' : (isProg ? 'program' : 'high school')}..." aria-label="Custom ${col.key}" />
               </td>`;
             }
 
