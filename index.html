@@ -2356,7 +2356,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
               showAuthError('Passwords do not match.');
               return;
             }
-            if (hasEncryptedData() && !confirm('An encrypted vault already exists. Creating a new one will overwrite it. Continue?')) {
+            if (hasEncryptedData() && !window.confirm('An encrypted vault already exists. Creating a new one will overwrite it. Continue?')) {
               return;
             }
             let initial = [];
