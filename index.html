@@ -1066,8 +1066,8 @@
     .table-scroll {
       overflow-x: auto;
       overflow-y: auto;
-      max-height: calc(100vh - 420px);
-      max-height: calc(100dvh - 420px);
+      max-height: calc(100vh - 380px);
+      max-height: calc(100dvh - 380px);
       overscroll-behavior: contain;
       scroll-behavior: auto;
       -webkit-overflow-scrolling: touch;
@@ -1569,6 +1569,68 @@
     .toast.info { border-left: 3px solid var(--info); }
     .toast.warning { border-left: 3px solid var(--warning); }
 
+    /* ========== Pagination ========== */
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-top: 12px;
+      box-shadow: var(--shadow);
+    }
+    .pagination-bar.hidden { display: none; }
+    .pagination-info {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .pagination-info strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .page-btn {
+      height: 36px;
+      min-width: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.18s ease;
+      user-select: none;
+    }
+    .page-btn:hover:not(:disabled) {
+      background: var(--surface);
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .page-btn.active {
+      background: var(--brand);
+      color: #0a0a0a;
+      border-color: var(--brand);
+    }
+
     /* ========== Responsive Optimizations ========== */
     @media (max-width: 380px) {
       .live-feed { --feed-h: 30px; border-radius: 9px; }
@@ -1607,8 +1669,8 @@
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
       .table-scroll {
-        max-height: calc(100vh - 480px);
-        max-height: calc(100dvh - 480px);
+        max-height: calc(100vh - 440px);
+        max-height: calc(100dvh - 440px);
       }
       .toolbar { gap: 8px; }
       .search-wrap { min-width: 100%; max-width: 100%; }
@@ -1652,12 +1714,14 @@
       .search-input { font-size: 16px; }
       .filter-select { font-size: 13px; min-width: 100px; }
       .table-scroll {
-        max-height: calc(100vh - 520px);
-        max-height: calc(100dvh - 520px);
+        max-height: calc(100vh - 480px);
+        max-height: calc(100dvh - 480px);
       }
       .used-panel-header { padding: 12px 14px; }
       .used-badge { padding: 3px 8px; font-size: 10px; }
       .auth-logo { width: 48px; height: 48px; font-size: 18px; }
+      .pagination-bar { flex-direction: column; align-items: stretch; }
+      .pagination-controls { justify-content: center; }
     }
     @media (max-width: 360px) {
       .stat-item { min-width: 100%; border-right: none !important; }
@@ -1682,6 +1746,7 @@
         min-height: 44px;
       }
       .used-filter-btn { min-height: 36px; }
+      .page-btn { min-height: 40px; }
     }
   </style>
 </head>
@@ -1915,7 +1980,7 @@
 
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · Data encrypted with your master password</span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · Data encrypted with your master password · <strong>100 records per page</strong></span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -1961,8 +2026,27 @@
       </div>
     </div>
 
+    <!-- Pagination Bar -->
+    <div class="pagination-bar hidden" id="paginationBar" role="navigation" aria-label="Pagination">
+      <div class="pagination-info" id="pageInfo">Page <strong>1</strong> of <strong>1</strong> · Showing <strong>0</strong>–<strong>0</strong> of <strong>0</strong></div>
+      <div class="pagination-controls">
+        <button type="button" class="page-btn" id="btnFirstPage" title="First page" disabled>
+          <i class="fas fa-angles-left" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="page-btn" id="btnPrevPage" title="Previous page" disabled>
+          <i class="fas fa-chevron-left" aria-hidden="true"></i> Prev
+        </button>
+        <button type="button" class="page-btn" id="btnNextPage" title="Next page" disabled>
+          Next <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="page-btn" id="btnLastPage" title="Last page" disabled>
+          <i class="fas fa-angles-right" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+
     <p class="footer-note">
-      Oneweb · Data encrypted with AES-256-GCM &amp; auto-saved · Use Save or Lock · Live Premier League feed via WebSocket + ESPN · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save
+      Oneweb · Data encrypted with AES-256-GCM &amp; auto-saved · Use Save or Lock · Live Premier League feed via WebSocket + ESPN · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save · 100 records per page
     </p>
   </div>
 
@@ -2174,12 +2258,13 @@
 
       const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
       const SUPABASE_URL = 'https://wqmgciavxiteqwtxavqc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxbWdjaWF2eGl0ZXF3dHhhdnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MjU4NjYsImV4cCI6MjEwNzIwMTg2Nn0.3dhkxq20fbZfXpVO6-3CEjf7q4lUTLDHeit7rXLFB1o';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxbWdjaWF2eGl0ZXF3dHhhdnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MjU4NjYsImV4cCI6MjEwNzIwMTg2Nn0.3dhkxq20fbZfXpVO6-3CEjf7q4lUTLDHeit7rXLFB1o';
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
       const ROW_HEIGHT = 46;
       const BUFFER_ROWS = 20;
-      const VIRTUAL_THRESHOLD = 40;
+      const VIRTUAL_THRESHOLD = 150;
+      const PAGE_SIZE = 100;
       const FEED_REFRESH_MS = 40000;
       const WS_RECONNECT_BASE = 2000;
       const WS_RECONNECT_MAX = 30000;
@@ -2187,6 +2272,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
       let data = [];
       let filteredData = [];
+      let currentPage = 1;
       let revealSSN = false;
       let usedPanelOpen = false;
       let usedBodyCollapsed = false;
@@ -2269,18 +2355,18 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       }
 
       async function hasEncryptedData() {
-  try {
-    const { data, error } = await supabase
-      .from('vault')
-      .select('id')
-      .eq('id', 'main')
-      .maybeSingle();
-    if (error) return false;
-    return !!(data && data.id);
-  } catch {
-    return false;
-  }
-}
+        try {
+          const { data, error } = await supabase
+            .from('vault')
+            .select('id')
+            .eq('id', 'main')
+            .maybeSingle();
+          if (error) return false;
+          return !!(data && data.id);
+        } catch {
+          return false;
+        }
+      }
 
       /* ========== Auth UI ========== */
       function showAuthError(msg) {
@@ -2328,6 +2414,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         sessionPassword = null;
         data = [];
         filteredData = [];
+        currentPage = 1;
         isUnlocked = false;
         document.getElementById('appRoot').style.display = 'none';
         document.getElementById('authOverlay').classList.remove('hidden');
@@ -2337,6 +2424,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         setAuthMode(hasEncryptedData() ? 'login' : 'signup');
         renderTable();
         updateStats();
+        updatePagination();
         showToast('Vault locked. Data remains encrypted on this device.', 'info');
       }
 
@@ -2362,7 +2450,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
               return;
             }
             const alreadyExists = await hasEncryptedData();
-if (alreadyExists && !window.confirm('A vault already exists. Creating a new one will overwrite all data. Continue?')) {
+            if (alreadyExists && !window.confirm('A vault already exists. Creating a new one will overwrite all data. Continue?')) {
               return;
             }
             let initial = [];
@@ -2379,10 +2467,10 @@ if (alreadyExists && !window.confirm('A vault already exists. Creating a new one
               }
             }
             const payload = await encryptPayload(initial, password);
-const { error } = await supabase
-  .from('vault')
-  .upsert({ id: 'main', payload: payload });
-if (error) throw error;
+            const { error } = await supabase
+              .from('vault')
+              .upsert({ id: 'main', payload: payload });
+            if (error) throw error;
             LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
             sessionPassword = password;
             data = initial;
@@ -2390,26 +2478,25 @@ if (error) throw error;
             showApp();
             showToast('Encrypted vault created successfully', 'success');
           } else {
-  // Load from Supabase cloud
-  const { data: rows, error } = await supabase
-    .from('vault')
-    .select('payload')
-    .eq('id', 'main')
-    .maybeSingle();
+            const { data: rows, error } = await supabase
+              .from('vault')
+              .select('payload')
+              .eq('id', 'main')
+              .maybeSingle();
 
-  if (error) {
-    showAuthError('Could not reach the cloud. Check your internet.');
-    return;
-  }
+            if (error) {
+              showAuthError('Could not reach the cloud. Check your internet.');
+              return;
+            }
 
-  if (!rows || !rows.payload) {
-    showAuthError('No encrypted vault found. Create an account first.');
-    setAuthMode('signup');
-    return;
-  }
+            if (!rows || !rows.payload) {
+              showAuthError('No encrypted vault found. Create an account first.');
+              setAuthMode('signup');
+              return;
+            }
 
-  const payload = rows.payload;
-  const decrypted = await decryptPayload(payload, password);
+            const payload = rows.payload;
+            const decrypted = await decryptPayload(payload, password);
             if (!Array.isArray(decrypted)) throw new Error('Invalid data');
             sessionPassword = password;
             data = decrypted;
@@ -3126,7 +3213,61 @@ if (error) throw error;
         }
       }
 
-      function buildRowHtml(row, idx) {
+      function getPagedData() {
+        const start = (currentPage - 1) * PAGE_SIZE;
+        return filteredData.slice(start, start + PAGE_SIZE);
+      }
+
+      function getTotalPages() {
+        return Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+      }
+
+      function updatePagination() {
+        const bar = document.getElementById('paginationBar');
+        const info = document.getElementById('pageInfo');
+        const btnFirst = document.getElementById('btnFirstPage');
+        const btnPrev = document.getElementById('btnPrevPage');
+        const btnNext = document.getElementById('btnNextPage');
+        const btnLast = document.getElementById('btnLastPage');
+
+        if (!bar || !info) return;
+
+        const total = filteredData.length;
+        const totalPages = getTotalPages();
+
+        if (total === 0) {
+          bar.classList.add('hidden');
+          return;
+        }
+
+        bar.classList.remove('hidden');
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const start = (currentPage - 1) * PAGE_SIZE + 1;
+        const end = Math.min(currentPage * PAGE_SIZE, total);
+
+        info.innerHTML = `Page <strong>${currentPage}</strong> of <strong>${totalPages}</strong> · Showing <strong>${start}</strong>–<strong>${end}</strong> of <strong>${total}</strong>`;
+
+        btnFirst.disabled = currentPage <= 1;
+        btnPrev.disabled = currentPage <= 1;
+        btnNext.disabled = currentPage >= totalPages;
+        btnLast.disabled = currentPage >= totalPages;
+      }
+
+      function goToPage(page) {
+        const totalPages = getTotalPages();
+        currentPage = Math.max(1, Math.min(page, totalPages));
+        virtualStart = -1;
+        virtualEnd = -1;
+        renderTable();
+        updatePagination();
+        const scrollEl = document.getElementById('tableScroll');
+        if (scrollEl) scrollEl.scrollTop = 0;
+      }
+
+      function buildRowHtml(row, absoluteIdx) {
         const rowClass = getRowClass(row.appStatus);
         const cells = columns.map(col => {
           if (col.key === 'appStatus') {
@@ -3221,8 +3362,8 @@ if (error) throw error;
           </td>`;
         }).join('');
 
-        return `<tr class="${rowClass}" data-id="${row.id}" data-idx="${idx}" style="height:${ROW_HEIGHT}px" role="row">
-          <td role="gridcell">${idx + 1}</td>
+        return `<tr class="${rowClass}" data-id="${row.id}" data-idx="${absoluteIdx}" style="height:${ROW_HEIGHT}px" role="row">
+          <td role="gridcell">${absoluteIdx + 1}</td>
           ${cells}
           <td role="gridcell">
             <div class="row-actions">
@@ -3234,19 +3375,19 @@ if (error) throw error;
         </tr>`;
       }
 
-      function computeVirtualRange() {
+      function computeVirtualRange(pageData) {
         const scrollEl = document.getElementById('tableScroll');
         const scrollTop = scrollEl.scrollTop;
         const viewHeight = scrollEl.clientHeight || 400;
-        const total = filteredData.length;
+        const total = pageData.length;
         const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
         const visibleCount = Math.ceil(viewHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
         const end = Math.min(total, start + visibleCount);
         return { start, end, total };
       }
 
-      function renderVirtualRows() {
-        const { start, end, total } = computeVirtualRange();
+      function renderVirtualRows(pageData, pageOffset) {
+        const { start, end, total } = computeVirtualRange(pageData);
         if (start === virtualStart && end === virtualEnd && document.getElementById('tableBody').children.length > 0) {
           return;
         }
@@ -3262,7 +3403,7 @@ if (error) throw error;
           html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="21" style="height:${topPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
         }
         for (let i = start; i < end; i++) {
-          html += buildRowHtml(filteredData[i], i);
+          html += buildRowHtml(pageData[i], pageOffset + i);
         }
         if (bottomPad > 0) {
           html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="21" style="height:${bottomPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
@@ -3275,23 +3416,27 @@ if (error) throw error;
         closeCustomSelectMenu();
         const tbody = document.getElementById('tableBody');
         const empty = document.getElementById('emptyState');
+        const pageData = getPagedData();
+        const pageOffset = (currentPage - 1) * PAGE_SIZE;
 
         if (filteredData.length === 0) {
           tbody.innerHTML = '';
           empty.classList.remove('hidden');
           document.getElementById('dataTable').setAttribute('aria-rowcount', '0');
+          updatePagination();
           return;
         }
         empty.classList.add('hidden');
 
-        if (filteredData.length >= VIRTUAL_THRESHOLD) {
+        if (pageData.length >= VIRTUAL_THRESHOLD) {
           virtualStart = -1;
           virtualEnd = -1;
-          renderVirtualRows();
+          renderVirtualRows(pageData, pageOffset);
         } else {
-          tbody.innerHTML = filteredData.map((row, idx) => buildRowHtml(row, idx)).join('');
-          document.getElementById('dataTable').setAttribute('aria-rowcount', String(filteredData.length));
+          tbody.innerHTML = pageData.map((row, idx) => buildRowHtml(row, pageOffset + idx)).join('');
+          document.getElementById('dataTable').setAttribute('aria-rowcount', String(pageData.length));
         }
+        updatePagination();
       }
 
       function updateStats() {
@@ -3343,6 +3488,7 @@ if (error) throw error;
           filteredData.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
         }
 
+        currentPage = 1;
         virtualStart = -1;
         virtualEnd = -1;
         renderTable();
@@ -3813,25 +3959,26 @@ if (error) throw error;
       }
 
       async function saveToStorage() {
-  if (!sessionPassword) return;
-  try {
-    const payload = await encryptPayload(data, sessionPassword);
-    const { error } = await supabase
-      .from('vault')
-      .upsert({ id: 'main', payload: payload });
-    if (error) throw error;
-  } catch (e) {
-    console.warn('Cloud save failed', e);
-    showToast('Could not save to cloud. Check your internet.', 'error');
-  }
-}
+        if (!sessionPassword) return;
+        try {
+          const payload = await encryptPayload(data, sessionPassword);
+          const { error } = await supabase
+            .from('vault')
+            .upsert({ id: 'main', payload: payload });
+          if (error) throw error;
+        } catch (e) {
+          console.warn('Cloud save failed', e);
+          showToast('Could not save to cloud. Check your internet.', 'error');
+        }
+      }
 
       function onTableScroll() {
         if (scrollRaf) return;
         scrollRaf = requestAnimationFrame(() => {
           scrollRaf = null;
-          if (filteredData.length >= VIRTUAL_THRESHOLD) {
-            renderVirtualRows();
+          const pageData = getPagedData();
+          if (pageData.length >= VIRTUAL_THRESHOLD) {
+            renderVirtualRows(pageData, (currentPage - 1) * PAGE_SIZE);
           }
           if (customOpenId) closeCustomSelectMenu();
         });
@@ -3918,15 +4065,13 @@ if (error) throw error;
         const dl = document.getElementById('usUniversities');
         dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
 
-        // Check if vault already exists in the cloud
-hasEncryptedData().then(hasVault => {
-  setAuthMode(hasVault ? 'login' : 'signup');
-  if (hasVault) {
-    // Hide the Create Account tab completely
-    const tabSignup = document.getElementById('tabSignup');
-    if (tabSignup) tabSignup.style.display = 'none';
-  }
-});
+        hasEncryptedData().then(hasVault => {
+          setAuthMode(hasVault ? 'login' : 'signup');
+          if (hasVault) {
+            const tabSignup = document.getElementById('tabSignup');
+            if (tabSignup) tabSignup.style.display = 'none';
+          }
+        });
         document.getElementById('tabLogin').addEventListener('click', () => setAuthMode('login'));
         document.getElementById('tabSignup').addEventListener('click', () => setAuthMode('signup'));
         document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
@@ -3968,6 +4113,11 @@ hasEncryptedData().then(hasVault => {
         document.getElementById('btnClear').addEventListener('click', clearAll);
         document.getElementById('btnAdd').addEventListener('click', addRow);
         document.getElementById('btnSave').addEventListener('click', forceSave);
+
+        document.getElementById('btnFirstPage').addEventListener('click', () => goToPage(1));
+        document.getElementById('btnPrevPage').addEventListener('click', () => goToPage(currentPage - 1));
+        document.getElementById('btnNextPage').addEventListener('click', () => goToPage(currentPage + 1));
+        document.getElementById('btnLastPage').addEventListener('click', () => goToPage(getTotalPages()));
 
         const usedSearch = document.getElementById('usedSearchInput');
         if (usedSearch) {
