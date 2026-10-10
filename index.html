@@ -8,6 +8,7 @@
   <title>Oneweb — Student Records</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2172,6 +2173,9 @@
       };
 
       const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
+      const SUPABASE_URL = 'https://wqmgciavxiteqwtxavqc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxbWdjaWF2eGl0ZXF3dHhhdnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MjU4NjYsImV4cCI6MjEwNzIwMTg2Nn0.3dhkxq20fbZfXpVO6-3CEjf7q4lUTLDHeit7rXLFB1o';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
       const ROW_HEIGHT = 46;
       const BUFFER_ROWS = 20;
@@ -2369,7 +2373,10 @@
               }
             }
             const payload = await encryptPayload(initial, password);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+const { error } = await supabase
+  .from('vault')
+  .upsert({ id: 'main', payload: payload });
+if (error) throw error;
             LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
             sessionPassword = password;
             data = initial;
@@ -2377,14 +2384,26 @@
             showApp();
             showToast('Encrypted vault created successfully', 'success');
           } else {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) {
-              showAuthError('No encrypted vault found. Create an account first.');
-              setAuthMode('signup');
-              return;
-            }
-            const payload = JSON.parse(raw);
-            const decrypted = await decryptPayload(payload, password);
+  // Load from Supabase cloud
+  const { data: rows, error } = await supabase
+    .from('vault')
+    .select('payload')
+    .eq('id', 'main')
+    .maybeSingle();
+
+  if (error) {
+    showAuthError('Could not reach the cloud. Check your internet.');
+    return;
+  }
+
+  if (!rows || !rows.payload) {
+    showAuthError('No encrypted vault found. Create an account first.');
+    setAuthMode('signup');
+    return;
+  }
+
+  const payload = rows.payload;
+  const decrypted = await decryptPayload(payload, password);
             if (!Array.isArray(decrypted)) throw new Error('Invalid data');
             sessionPassword = password;
             data = decrypted;
@@ -3788,15 +3807,18 @@
       }
 
       async function saveToStorage() {
-        if (!sessionPassword) return;
-        try {
-          const payload = await encryptPayload(data, sessionPassword);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-        } catch (e) {
-          console.warn('localStorage save failed', e);
-          showToast('Could not save to local storage (quota exceeded?)', 'error');
-        }
-      }
+  if (!sessionPassword) return;
+  try {
+    const payload = await encryptPayload(data, sessionPassword);
+    const { error } = await supabase
+      .from('vault')
+      .upsert({ id: 'main', payload: payload });
+    if (error) throw error;
+  } catch (e) {
+    console.warn('Cloud save failed', e);
+    showToast('Could not save to cloud. Check your internet.', 'error');
+  }
+}
 
       function onTableScroll() {
         if (scrollRaf) return;
