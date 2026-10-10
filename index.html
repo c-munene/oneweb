@@ -2268,14 +2268,19 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         return JSON.parse(new TextDecoder().decode(decrypted));
       }
 
-      function hasEncryptedData() {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return false;
-          const parsed = JSON.parse(raw);
-          return !!(parsed && parsed.ct);
-        } catch { return false; }
-      }
+      async function hasEncryptedData() {
+  try {
+    const { data, error } = await supabase
+      .from('vault')
+      .select('id')
+      .eq('id', 'main')
+      .maybeSingle();
+    if (error) return false;
+    return !!(data && data.id);
+  } catch {
+    return false;
+  }
+}
 
       /* ========== Auth UI ========== */
       function showAuthError(msg) {
@@ -2356,7 +2361,8 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
               showAuthError('Passwords do not match.');
               return;
             }
-            if (hasEncryptedData() && !window.confirm('An encrypted vault already exists. Creating a new one will overwrite it. Continue?')) {
+            const alreadyExists = await hasEncryptedData();
+if (alreadyExists && !window.confirm('A vault already exists. Creating a new one will overwrite all data. Continue?')) {
               return;
             }
             let initial = [];
@@ -3912,8 +3918,15 @@ if (error) throw error;
         const dl = document.getElementById('usUniversities');
         dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
 
-        const hasVault = hasEncryptedData();
-        setAuthMode(hasVault ? 'login' : 'signup');
+        // Check if vault already exists in the cloud
+hasEncryptedData().then(hasVault => {
+  setAuthMode(hasVault ? 'login' : 'signup');
+  if (hasVault) {
+    // Hide the Create Account tab completely
+    const tabSignup = document.getElementById('tabSignup');
+    if (tabSignup) tabSignup.style.display = 'none';
+  }
+});
         document.getElementById('tabLogin').addEventListener('click', () => setAuthMode('login'));
         document.getElementById('tabSignup').addEventListener('click', () => setAuthMode('signup'));
         document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
