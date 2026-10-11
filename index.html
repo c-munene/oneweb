@@ -60,12 +60,12 @@
       overflow-x: hidden;
     }
 
-    /* ========== Auth Overlay (Improved) ========== */
+    /* ========== Auth Overlay (Refined) ========== */
     .auth-overlay {
       position: fixed;
       inset: 0;
       z-index: 2000;
-      background: radial-gradient(ellipse at 50% 15%, #1a1a1a 0%, #0a0a0a 65%);
+      background: radial-gradient(ellipse at 50% 12%, #1c1c1c 0%, #0a0a0a 68%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -81,67 +81,67 @@
     }
     .auth-card {
       width: 100%;
-      max-width: 440px;
-      background: linear-gradient(165deg, #181818 0%, #111111 100%);
-      border: 1px solid rgba(255,255,255,0.09);
-      border-radius: 22px;
-      box-shadow: 0 28px 72px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+      max-width: 420px;
+      background: linear-gradient(165deg, #191919 0%, #111 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06);
       overflow: hidden;
-      animation: authIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: authIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
     @keyframes authIn {
-      from { opacity: 0; transform: translateY(20px) scale(0.96); }
+      from { opacity: 0; transform: translateY(24px) scale(0.96); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .auth-header {
-      padding: 36px 32px 22px;
+      padding: 40px 32px 24px;
       text-align: center;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
     }
     .auth-logo {
-      width: 60px;
-      height: 60px;
-      margin: 0 auto 18px;
-      background: linear-gradient(135deg, #f0f0f0 0%, #b0b0b0 100%);
-      border-radius: 18px;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, #f5f5f5 0%, #b8b8b8 100%);
+      border-radius: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #0a0a0a;
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 700;
-      letter-spacing: -0.5px;
-      box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+      letter-spacing: -0.6px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
     }
     .auth-title {
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 700;
       color: var(--text);
-      letter-spacing: -0.4px;
+      letter-spacing: -0.5px;
       margin-bottom: 8px;
     }
     .auth-sub {
-      font-size: 13.5px;
+      font-size: 14px;
       color: var(--text-muted);
       line-height: 1.5;
-      max-width: 320px;
+      max-width: 300px;
       margin: 0 auto;
     }
     .auth-tabs {
       display: flex;
       gap: 0;
-      padding: 0 24px;
+      padding: 0 28px;
       margin-top: -1px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
     .auth-tab {
       flex: 1;
-      padding: 15px 8px;
+      padding: 16px 8px;
       border: none;
       background: transparent;
       color: var(--text-faint);
-      font-size: 13.5px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       position: relative;
@@ -152,18 +152,18 @@
     .auth-tab.active::after {
       content: '';
       position: absolute;
-      left: 18%;
-      right: 18%;
+      left: 20%;
+      right: 20%;
       bottom: 0;
       height: 2.5px;
       background: var(--brand);
       border-radius: 2px 2px 0 0;
     }
-    .auth-body { padding: 28px 32px 30px; }
+    .auth-body { padding: 28px 32px 32px; }
     .auth-field { margin-bottom: 18px; }
     .auth-label {
       display: block;
-      font-size: 12.5px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--text-muted);
       margin-bottom: 8px;
@@ -172,85 +172,85 @@
     .auth-input-wrap { position: relative; }
     .auth-input-wrap i {
       position: absolute;
-      left: 15px;
+      left: 16px;
       top: 50%;
       transform: translateY(-50%);
       color: var(--text-faint);
-      font-size: 14px;
+      font-size: 15px;
       pointer-events: none;
       transition: color 0.2s ease;
     }
     .auth-input {
       width: 100%;
-      height: 48px;
-      padding: 0 14px 0 44px;
+      height: 50px;
+      padding: 0 16px 0 46px;
       border: 1px solid var(--border-soft);
-      border-radius: 13px;
+      border-radius: 14px;
       background: var(--input-bg);
-      font-size: 14.5px;
+      font-size: 15px;
       color: var(--text);
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
     .auth-input:focus {
       border-color: #666;
-      box-shadow: 0 0 0 3px rgba(100,100,100,0.25);
+      box-shadow: 0 0 0 3px rgba(100,100,100,0.28);
     }
     .auth-input-wrap:focus-within i { color: var(--text-muted); }
     .auth-toggle-pass {
       position: absolute;
-      right: 13px;
+      right: 14px;
       top: 50%;
       transform: translateY(-50%);
       background: none;
       border: none;
       color: var(--text-faint);
       cursor: pointer;
-      padding: 6px;
-      font-size: 14px;
+      padding: 8px;
+      font-size: 15px;
       transition: color 0.2s;
     }
     .auth-toggle-pass:hover { color: var(--text); }
     .auth-error {
       background: rgba(239,68,68,0.12);
-      border: 1px solid rgba(239,68,68,0.28);
+      border: 1px solid rgba(239,68,68,0.3);
       color: #fca5a5;
-      font-size: 12.5px;
-      padding: 11px 14px;
-      border-radius: 11px;
+      font-size: 13px;
+      padding: 12px 14px;
+      border-radius: 12px;
       margin-bottom: 18px;
       display: none;
       align-items: center;
-      gap: 9px;
+      gap: 10px;
     }
     .auth-error.visible { display: flex; }
     .auth-hint {
-      font-size: 11.5px;
+      font-size: 12px;
       color: var(--text-faint);
-      margin-top: 7px;
+      margin-top: 8px;
       line-height: 1.45;
     }
     .auth-submit {
       width: 100%;
-      height: 50px;
+      height: 52px;
       border: none;
-      border-radius: 13px;
+      border-radius: 14px;
       background: #e8e8e8;
       color: #0a0a0a;
-      font-size: 14.5px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 9px;
+      gap: 10px;
       transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-      margin-top: 10px;
+      margin-top: 12px;
     }
     .auth-submit:hover {
       background: #d4d4d4;
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
     .auth-submit:active { transform: translateY(0); }
     .auth-submit:disabled {
@@ -261,12 +261,97 @@
     }
     .auth-footer {
       text-align: center;
-      font-size: 11.5px;
+      font-size: 12px;
       color: var(--text-faint);
-      padding: 0 32px 26px;
+      padding: 0 32px 28px;
       line-height: 1.55;
     }
     .auth-footer i { color: var(--success); margin-right: 5px; }
+
+    /* ========== Admin Password Modal ========== */
+    .admin-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .admin-modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .admin-modal {
+      width: 100%;
+      max-width: 380px;
+      background: linear-gradient(165deg, #1a1a1a 0%, #121212 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      padding: 28px;
+      transform: translateY(12px) scale(0.97);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .admin-modal-overlay.visible .admin-modal {
+      transform: translateY(0) scale(1);
+    }
+    .admin-modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .admin-modal-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.45;
+    }
+    .admin-modal-error {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #fca5a5;
+      font-size: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .admin-modal-error.visible { display: block; }
+    .admin-modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .admin-modal-btn {
+      flex: 1;
+      height: 44px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.18s ease;
+    }
+    .admin-modal-btn.cancel {
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--border-soft);
+    }
+    .admin-modal-btn.cancel:hover { background: var(--surface-alt); }
+    .admin-modal-btn.confirm {
+      background: #e8e8e8;
+      color: #0a0a0a;
+    }
+    .admin-modal-btn.confirm:hover { background: #d0d0d0; }
 
     .brand {
       display: flex;
@@ -340,12 +425,29 @@
     }
     .header-edit-btn.active {
       background: rgba(34, 197, 94, 0.18);
-      border-color: rgba(34, 197, 94, 0.4);
+      border-color: rgba(34, 197, 94, 0.45);
       color: #86efac;
     }
-    .header-edit-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    .mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: all 0.25s ease;
+    }
+    .mode-badge.view {
+      background: rgba(100,116,139,0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(100,116,139,0.25);
+    }
+    .mode-badge.edit {
+      background: rgba(34,197,94,0.15);
+      color: #86efac;
+      border: 1px solid rgba(34,197,94,0.3);
     }
 
     .stats-bar {
@@ -463,18 +565,18 @@
       white-space: nowrap;
       user-select: none;
     }
-    .tool-btn:hover {
+    .tool-btn:hover:not(:disabled) {
       background: var(--surface-alt);
       border-color: var(--border);
       transform: translateY(-1px);
     }
-    .tool-btn:active { transform: translateY(0); }
+    .tool-btn:active:not(:disabled) { transform: translateY(0); }
     .tool-btn.active {
       background: var(--brand);
       color: #0a0a0a;
       border-color: var(--brand);
     }
-    .tool-btn.danger:hover {
+    .tool-btn.danger:hover:not(:disabled) {
       background: #2a1212;
       border-color: #5c2020;
       color: #f87171;
@@ -484,14 +586,14 @@
       border-color: rgba(34, 197, 94, 0.35);
       color: #86efac;
     }
-    .tool-btn.save-btn:hover {
+    .tool-btn.save-btn:hover:not(:disabled) {
       background: rgba(34, 197, 94, 0.25);
       border-color: rgba(34, 197, 94, 0.5);
       color: #bbf7d0;
       transform: translateY(-1px);
     }
     .tool-btn:disabled, .btn-add:disabled {
-      opacity: 0.45;
+      opacity: 0.4;
       cursor: not-allowed;
       transform: none !important;
     }
@@ -1016,7 +1118,7 @@
       min-width: 180px;
     }
     .cell-input:disabled, .cell-input[readonly] {
-      opacity: 0.85;
+      opacity: 0.9;
       cursor: default;
     }
     .cell-input.duplicate,
@@ -1276,7 +1378,7 @@
       transform: scale(1.08);
     }
     .icon-btn:disabled {
-      opacity: 0.4;
+      opacity: 0.35;
       cursor: not-allowed;
     }
     .empty-state {
@@ -1447,7 +1549,6 @@
     .toast.info { border-left: 3px solid var(--info); }
     .toast.warning { border-left: 3px solid var(--warning); }
 
-    /* ========== Pagination ========== */
     .pagination-bar {
       display: flex;
       align-items: center;
@@ -1503,20 +1604,15 @@
       opacity: 0.4;
       cursor: not-allowed;
     }
-    .page-btn.active {
-      background: var(--brand);
-      color: #0a0a0a;
-      border-color: var(--brand);
-    }
 
-    /* ========== Responsive ========== */
     @media (max-width: 380px) {
-      .auth-card { border-radius: 16px; }
-      .auth-header { padding: 24px 20px 16px; }
-      .auth-body { padding: 20px; }
-      .auth-title { font-size: 20px; }
+      .auth-card { border-radius: 18px; }
+      .auth-header { padding: 28px 22px 18px; }
+      .auth-body { padding: 22px; }
+      .auth-title { font-size: 22px; }
       .header-lock-btn span, .header-edit-btn span { display: none; }
       .header-lock-btn, .header-edit-btn { padding: 0 12px; min-width: 40px; justify-content: center; }
+      .mode-badge span { display: none; }
     }
     @media (max-width: 1100px) {
       .stats-bar { flex-wrap: wrap; }
@@ -1582,7 +1678,7 @@
       }
       .used-panel-header { padding: 12px 14px; }
       .used-badge { padding: 3px 8px; font-size: 10px; }
-      .auth-logo { width: 48px; height: 48px; font-size: 18px; }
+      .auth-logo { width: 52px; height: 52px; font-size: 20px; }
       .pagination-bar { flex-direction: column; align-items: stretch; }
       .pagination-controls { justify-content: center; }
     }
@@ -1613,13 +1709,13 @@
   </style>
 </head>
 <body class="p-4 md:p-6">
-  <!-- ========== Auth Overlay ========== -->
+  <!-- Auth Overlay -->
   <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <div class="auth-card">
       <div class="auth-header">
         <div class="auth-logo" aria-hidden="true">Ow</div>
         <h1 class="auth-title" id="authTitle">Oneweb</h1>
-        <p class="auth-sub" id="authSub">Encrypted student records · Data stays protected with your master password</p>
+        <p class="auth-sub" id="authSub">Encrypted student records · Protected by your master password</p>
       </div>
       <div class="auth-tabs" role="tablist">
         <button type="button" class="auth-tab active" id="tabLogin" role="tab" aria-selected="true" data-mode="login">Log In</button>
@@ -1669,6 +1765,28 @@
     </div>
   </div>
 
+  <!-- Admin Password Modal -->
+  <div class="admin-modal-overlay" id="adminModalOverlay" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+    <div class="admin-modal">
+      <div class="admin-modal-title" id="adminModalTitle">
+        <i class="fas fa-shield-halved" style="color:var(--accent)"></i>
+        Admin Access
+      </div>
+      <p class="admin-modal-sub" id="adminModalSub">Enter the admin password to enable editing.</p>
+      <div class="admin-modal-error" id="adminModalError">Incorrect password. Please try again.</div>
+      <div class="auth-field" style="margin-bottom:0">
+        <div class="auth-input-wrap">
+          <input type="password" class="auth-input" id="adminPasswordInput" placeholder="Admin password" autocomplete="off" />
+          <i class="fas fa-key" aria-hidden="true"></i>
+        </div>
+      </div>
+      <div class="admin-modal-actions">
+        <button type="button" class="admin-modal-btn cancel" id="adminModalCancel">Cancel</button>
+        <button type="button" class="admin-modal-btn confirm" id="adminModalConfirm">Unlock Editing</button>
+      </div>
+    </div>
+  </div>
+
   <div class="max-w-[1600px] mx-auto" id="appRoot" style="display:none">
     <header class="brand" role="banner">
       <div class="brand-left">
@@ -1679,7 +1797,11 @@
         </div>
       </div>
       <div class="header-actions">
-        <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing (admin password required)">
+        <span class="mode-badge view" id="modeBadge">
+          <i class="fas fa-eye" aria-hidden="true"></i>
+          <span>View Only</span>
+        </span>
+        <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing">
           <i class="fas fa-pen-to-square" aria-hidden="true"></i> <span>Enable Editing</span>
         </button>
         <button type="button" class="header-lock-btn" id="btnLock" title="Lock & encrypt data">
@@ -1835,7 +1957,7 @@
 
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · Data encrypted · <strong>100 records per page</strong> · <span id="editModeHint">View-only — click Enable Editing to make changes</span></span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · <strong>100 records per page</strong> · <span id="editModeHint">View-only mode</span></span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -1876,12 +1998,11 @@
         <div id="emptyState" class="empty-state hidden" role="status">
           <i class="fas fa-table text-4xl mb-3 opacity-40" aria-hidden="true"></i>
           <p class="text-base font-medium" style="color:var(--text-muted)">No student records yet</p>
-          <p class="text-sm mt-1" style="color:var(--text-faint)">Click “Add” or import an Excel file to get started (admin password required)</p>
+          <p class="text-sm mt-1" style="color:var(--text-faint)">Click “Enable Editing” then “Add”, or import an Excel file</p>
         </div>
       </div>
     </div>
 
-    <!-- Pagination Bar -->
     <div class="pagination-bar hidden" id="paginationBar" role="navigation" aria-label="Pagination">
       <div class="pagination-info" id="pageInfo">Page <strong>1</strong> of <strong>1</strong> · Showing <strong>0</strong>–<strong>0</strong> of <strong>0</strong></div>
       <div class="pagination-controls">
@@ -1901,7 +2022,7 @@
     </div>
 
     <p class="footer-note">
-      Oneweb · Data encrypted with AES-256-GCM &amp; auto-saved · Use Save or Lock · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save · 100 records per page · Editing requires admin password
+      Oneweb · AES-256-GCM encrypted · Auto-saves to cloud · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save · 100 records per page
     </p>
   </div>
 
@@ -2150,7 +2271,8 @@
       let sessionPassword = null;
       let authMode = 'login';
       let isUnlocked = false;
-      let isAdmin = false; // editing unlocked only after admin password
+      let isAdmin = false;
+      let adminResolve = null;
 
       /* ========== Encryption Helpers ========== */
       function bufToBase64(buf) {
@@ -2218,34 +2340,62 @@
         }
       }
 
-      /* ========== Admin gate ========== */
-      function requireAdmin(actionName) {
-        if (isAdmin) return true;
-        const pw = prompt(`Admin password required to ${actionName || 'edit'}:`);
-        if (pw === null) return false;
-        if (pw === ADMIN_PASSWORD) {
-          isAdmin = true;
-          updateEditUI();
-          showToast('Editing unlocked for this session', 'success');
-          return true;
+      /* ========== Admin Modal (seamless) ========== */
+      function showAdminModal(reason) {
+        return new Promise((resolve) => {
+          if (isAdmin) {
+            resolve(true);
+            return;
+          }
+          adminResolve = resolve;
+          const overlay = document.getElementById('adminModalOverlay');
+          const sub = document.getElementById('adminModalSub');
+          const err = document.getElementById('adminModalError');
+          const input = document.getElementById('adminPasswordInput');
+          sub.textContent = reason ? `Enter the admin password to ${reason}.` : 'Enter the admin password to enable editing.';
+          err.classList.remove('visible');
+          input.value = '';
+          overlay.classList.add('visible');
+          setTimeout(() => input.focus(), 50);
+        });
+      }
+
+      function closeAdminModal(success) {
+        const overlay = document.getElementById('adminModalOverlay');
+        overlay.classList.remove('visible');
+        if (adminResolve) {
+          adminResolve(!!success);
+          adminResolve = null;
         }
-        showToast('Incorrect admin password', 'error');
-        return false;
+      }
+
+      function requireAdmin(actionName) {
+        if (isAdmin) return Promise.resolve(true);
+        return showAdminModal(actionName || 'edit');
+      }
+
+      function unlockAdmin() {
+        isAdmin = true;
+        updateEditUI();
+        showToast('Editing unlocked for this session', 'success');
       }
 
       function updateEditUI() {
         const btn = document.getElementById('btnEnableEdit');
+        const badge = document.getElementById('modeBadge');
         const hint = document.getElementById('editModeHint');
         const addBtn = document.getElementById('btnAdd');
         const clearBtn = document.getElementById('btnClear');
-        const importBtn = document.getElementById('btnImport');
-        const sampleBtn = document.getElementById('btnLoadSample');
 
         if (isAdmin) {
           if (btn) {
             btn.classList.add('active');
             btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span>Editing On</span>';
             btn.title = 'Editing is unlocked';
+          }
+          if (badge) {
+            badge.className = 'mode-badge edit';
+            badge.innerHTML = '<i class="fas fa-pen" aria-hidden="true"></i> <span>Editing</span>';
           }
           if (hint) hint.textContent = 'Editing enabled';
         } else {
@@ -2254,11 +2404,14 @@
             btn.innerHTML = '<i class="fas fa-pen-to-square" aria-hidden="true"></i> <span>Enable Editing</span>';
             btn.title = 'Unlock editing (admin password required)';
           }
-          if (hint) hint.textContent = 'View-only — click Enable Editing to make changes';
+          if (badge) {
+            badge.className = 'mode-badge view';
+            badge.innerHTML = '<i class="fas fa-eye" aria-hidden="true"></i> <span>View Only</span>';
+          }
+          if (hint) hint.textContent = 'View-only mode';
         }
         if (addBtn) addBtn.disabled = !isAdmin;
         if (clearBtn) clearBtn.disabled = !isAdmin;
-        // import & sample are gated inside their handlers
         renderTable();
       }
 
@@ -2685,8 +2838,9 @@
         customMenuKey = null;
       }
 
-      function openCustomSelectMenu(trigger, rowId, key, currentValue, options) {
-        if (!requireAdmin('change this field')) return;
+      async function openCustomSelectMenu(trigger, rowId, key, currentValue, options) {
+        const ok = await requireAdmin('change this field');
+        if (!ok) return;
 
         const menu = document.getElementById('customSelectMenu');
         if (!menu) return;
@@ -3222,8 +3376,11 @@
 
       const debouncedApplyFilters = debounce(applyFilters, 140);
 
-      function updateCell(id, key, value) {
-        if (!isAdmin && !requireAdmin('edit records')) return;
+      async function updateCell(id, key, value) {
+        if (!isAdmin) {
+          const ok = await requireAdmin('edit records');
+          if (!ok) return;
+        }
         const row = data.find(r => r.id === id);
         if (!row) return;
 
@@ -3299,8 +3456,9 @@
         }
       }
 
-      function addRow() {
-        if (!requireAdmin('add a record')) return;
+      async function addRow() {
+        const ok = await requireAdmin('add a record');
+        if (!ok) return;
         const newRow = createEmptyRow();
         data.unshift(newRow);
         scheduleSave();
@@ -3316,8 +3474,9 @@
         showToast('New student added and saved', 'success', 2000);
       }
 
-      function deleteRow(id) {
-        if (!requireAdmin('delete a record')) return;
+      async function deleteRow(id) {
+        const ok = await requireAdmin('delete a record');
+        if (!ok) return;
         if (!confirm('Delete this student record?')) return;
         data = data.filter(r => r.id !== id);
         scheduleSave();
@@ -3370,8 +3529,9 @@
         }
       }
 
-      function clearAll() {
-        if (!requireAdmin('clear all records')) return;
+      async function clearAll() {
+        const ok = await requireAdmin('clear all records');
+        if (!ok) return;
         if (!confirm('Permanently delete ALL records? This cannot be undone.')) return;
         data = [];
         scheduleSave(true);
@@ -3452,8 +3612,9 @@
         return val;
       }
 
-      function handleExcelImport(event) {
-        if (!requireAdmin('import data')) {
+      async function handleExcelImport(event) {
+        const ok = await requireAdmin('import data');
+        if (!ok) {
           event.target.value = '';
           return;
         }
@@ -3626,8 +3787,9 @@
         showToast('CSV exported', 'success');
       }
 
-      function loadSample() {
-        if (!requireAdmin('load sample data')) return;
+      async function loadSample() {
+        const ok = await requireAdmin('load sample data');
+        if (!ok) return;
         document.getElementById('fileMenu').classList.remove('show');
         if (data.length && !confirm('Replace current data with sample records?')) return;
 
@@ -3838,12 +4000,39 @@
           }
         });
 
-        document.getElementById('btnEnableEdit').addEventListener('click', () => {
+        // Admin modal handlers
+        document.getElementById('btnEnableEdit').addEventListener('click', async () => {
           if (isAdmin) {
             showToast('Editing is already unlocked', 'info');
             return;
           }
-          requireAdmin('enable editing');
+          const ok = await showAdminModal('enable editing');
+          if (ok) unlockAdmin();
+        });
+        document.getElementById('adminModalCancel').addEventListener('click', () => closeAdminModal(false));
+        document.getElementById('adminModalConfirm').addEventListener('click', () => {
+          const pw = document.getElementById('adminPasswordInput').value;
+          const err = document.getElementById('adminModalError');
+          if (pw === ADMIN_PASSWORD) {
+            err.classList.remove('visible');
+            closeAdminModal(true);
+            unlockAdmin();
+          } else {
+            err.classList.add('visible');
+            document.getElementById('adminPasswordInput').focus();
+            document.getElementById('adminPasswordInput').select();
+          }
+        });
+        document.getElementById('adminPasswordInput').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('adminModalConfirm').click();
+          } else if (e.key === 'Escape') {
+            closeAdminModal(false);
+          }
+        });
+        document.getElementById('adminModalOverlay').addEventListener('click', (e) => {
+          if (e.target === document.getElementById('adminModalOverlay')) closeAdminModal(false);
         });
 
         const scrollEl = document.getElementById('tableScroll');
@@ -3952,7 +4141,10 @@
         });
 
         document.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') closeCustomSelectMenu();
+          if (e.key === 'Escape') {
+            closeCustomSelectMenu();
+            closeAdminModal(false);
+          }
         });
 
         const tbody = document.getElementById('tableBody');
