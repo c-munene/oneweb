@@ -2141,6 +2141,16 @@
         { value: 'Milford High School', label: 'Milford High School', dot: 'empty' },
         { value: 'Other', label: 'Other…', dot: 'other' }
       ];
+      const PHONE_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        { value: '8436383251', label: '8436383251', dot: 'empty' },
+        { value: '7049515271', label: '7049515271', dot: 'empty' },
+        { value: '2313357528', label: '2313357528', dot: 'empty' },
+        { value: '3134979378', label: '3134979378', dot: 'empty' },
+        { value: '8035998685', label: '8035998685', dot: 'empty' },
+        { value: '6469822453', label: '6469822453', dot: 'empty' },
+        { value: 'Other', label: 'Other…', dot: 'other' }
+      ];
       const HS_GPA_MAP = {
         'william p. clements high school': '3.48',
         'blue valley high school': '3.51',
@@ -2188,7 +2198,7 @@
         { key: 'highSchool', type: 'customSelect', options: HIGH_SCHOOL_OPTIONS },
         { key: 'gradYear', type: 'text', placeholder: 'MM/DD/YYYY – MM/DD/YYYY' },
         { key: 'gpa', type: 'number', placeholder: '0.00', step: '0.01' },
-        { key: 'phone', type: 'tel', placeholder: '+1 234 567 8900' },
+        { key: 'phone', type: 'customSelect', options: PHONE_OPTIONS },
         { key: 'startDate', type: 'text', placeholder: 'Fall / Spring / or date' },
         { key: 'transcriptMail', type: 'email', placeholder: 'transcript@uni.edu' },
         { key: 'ethnicity', type: 'customSelect', options: ETHNICITY_OPTIONS },
@@ -2662,6 +2672,11 @@
         return HIGH_SCHOOL_OPTIONS.some(o => o.value && o.value !== 'Other' && normalize(o.value) === normalize(val));
       }
 
+      function isFixedPhone(val) {
+        if (!val) return true;
+        return PHONE_OPTIONS.some(o => o.value && o.value !== 'Other' && normalize(o.value) === normalize(val));
+      }
+
       function isDuplicateHighSchool(university, highSchool, excludeId) {
         if (!university || !highSchool) return false;
         const u = normalize(university);
@@ -2849,7 +2864,7 @@
         customMenuKey = key;
 
         const isLong = options.length > 15;
-        const allowsCustom = (key === 'university' || key === 'program' || key === 'appStatus' || key === 'highSchool');
+        const allowsCustom = (key === 'university' || key === 'program' || key === 'appStatus' || key === 'highSchool' || key === 'phone');
         menu.innerHTML = '';
 
         if (isLong || allowsCustom) {
@@ -2877,7 +2892,7 @@
             matchCount++;
             const isActive = (opt.value === currentValue) ||
               (key === 'appStatus' && opt.value === 'Other' && currentValue && !isFixedAppStatus(currentValue)) ||
-              ((key === 'university' || key === 'program' || key === 'highSchool') && opt.value === 'Other' && currentValue && !(key === 'university' ? isFixedUniversity(currentValue) : (key === 'program' ? isFixedProgram(currentValue) : isFixedHighSchool(currentValue))));
+              ((key === 'university' || key === 'program' || key === 'highSchool' || key === 'phone') && opt.value === 'Other' && currentValue && !(key === 'university' ? isFixedUniversity(currentValue) : (key === 'program' ? isFixedProgram(currentValue) : (key === 'highSchool' ? isFixedHighSchool(currentValue) : isFixedPhone(currentValue))));
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'menu-item' + (isActive ? ' active' : '');
@@ -3040,7 +3055,7 @@
               renderTable();
             }
           }
-        } else if ((key === 'university' || key === 'program' || key === 'highSchool') && value === 'Other') {
+        } else if ((key === 'university' || key === 'program' || key === 'highSchool' || key === 'phone') && value === 'Other') {
           updateCell(id, key, 'Other');
           setTimeout(() => {
             const input = document.querySelector(`tr[data-id="${id}"] input.cell-input[data-key="${key}"]`);
@@ -3060,7 +3075,8 @@
           const isCustomUni = key === 'university' && value && !isFixedUniversity(value);
           const isCustomProg = key === 'program' && value && !isFixedProgram(value);
           const isCustomHs = key === 'highSchool' && value && !isFixedHighSchool(value);
-          if (isCustomUni || isCustomProg || isCustomHs) {
+          const isCustomPhone = key === 'phone' && value && !isFixedPhone(value);
+          if (isCustomUni || isCustomProg || isCustomHs || isCustomPhone) {
             renderTable();
             setTimeout(() => {
               const input = document.querySelector(`tr[data-id="${id}"] input.cell-input[data-key="${key}"]`);
@@ -3173,13 +3189,14 @@
             const isUni = col.key === 'university';
             const isProg = col.key === 'program';
             const isHS = col.key === 'highSchool';
-            const isFixed = isUni ? isFixedUniversity(val) : (isProg ? isFixedProgram(val) : (isHS ? isFixedHighSchool(val) : true));
+            const isPhone = col.key === 'phone';
+            const isFixed = isUni ? isFixedUniversity(val) : (isProg ? isFixedProgram(val) : (isHS ? isFixedHighSchool(val) : (isPhone ? isFixedPhone(val) : true)));
 
-            if ((isUni || isProg || isHS) && !isFixed) {
+            if ((isUni || isProg || isHS || isPhone) && !isFixed) {
               return `<td role="gridcell">
                 <input type="text" class="cell-input" data-id="${row.id}" data-key="${col.key}"
                   value="${escapeHtml(val)}" data-real="${escapeHtml(val)}"
-                  placeholder="Type custom ${isUni ? 'university' : (isProg ? 'program' : 'high school')}..." aria-label="Custom ${col.key}" ${!canEdit ? 'readonly' : ''} />
+                  placeholder="Type custom ${isUni ? 'university' : (isProg ? 'program' : (isHS ? 'high school' : 'phone'))}..." aria-label="Custom ${col.key}" ${!canEdit ? 'readonly' : ''} />
               </td>`;
             }
 
@@ -3187,6 +3204,9 @@
             const isPlaceholder = !val;
             let extraClass = '';
             if (isHS && isDuplicateHighSchool(row.university, row.highSchool, row.id)) {
+              extraClass = ' duplicate';
+            }
+            if (isPhone && isDuplicatePhone(row.university, row.phone, row.id)) {
               extraClass = ' duplicate';
             }
             return `<td role="gridcell">
@@ -3914,6 +3934,7 @@
             else if (key === 'ethnicity') options = ETHNICITY_OPTIONS;
             else if (key === 'program') options = PROGRAM_OPTIONS;
             else if (key === 'transcriptStatus') options = TRANSCRIPT_STATUS_OPTIONS;
+            else if (key === 'phone') options = PHONE_OPTIONS;
             openCustomSelectMenu(trigger, id, key, current, options);
           }
           return;
