@@ -1046,7 +1046,7 @@
     table {
       border-collapse: separate;
       border-spacing: 0;
-      min-width: 2900px;
+      min-width: 3100px;
       width: 100%;
     }
     thead th {
@@ -1605,6 +1605,84 @@
       cursor: not-allowed;
     }
 
+    /* Transcript file cell */
+    .transcript-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      min-width: 180px;
+      max-width: 260px;
+    }
+    .transcript-upload-btn {
+      height: 32px;
+      padding: 0 12px;
+      border: 1px dashed var(--border-soft);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+    .transcript-upload-btn:hover:not(:disabled) {
+      background: rgba(59,130,246,0.12);
+      border-color: rgba(59,130,246,0.4);
+      color: #93c5fd;
+    }
+    .transcript-upload-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .transcript-file-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .transcript-file-name {
+      font-size: 12px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 120px;
+    }
+    .transcript-dl-btn,
+    .transcript-rm-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-faint);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .transcript-dl-btn:hover {
+      background: rgba(59,130,246,0.18);
+      color: #93c5fd;
+    }
+    .transcript-rm-btn:hover {
+      background: #3a1515;
+      color: #f87171;
+    }
+    .transcript-rm-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
     @media (max-width: 380px) {
       .auth-card { border-radius: 18px; }
       .auth-header { padding: 28px 22px 18px; }
@@ -1957,7 +2035,7 @@
 
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · <strong>100 records per page</strong> · <span id="editModeHint">View-only mode</span></span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · <strong>100 records per page</strong> · Transcript upload (PDF/image, max 5 MB) · <span id="editModeHint">View-only mode</span></span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -1990,6 +2068,7 @@
               <th scope="col" role="columnheader" style="min-width:200px">Program</th>
               <th scope="col" role="columnheader" style="min-width:180px">Transcript Status</th>
               <th scope="col" role="columnheader" style="min-width:160px">App Status</th>
+              <th scope="col" role="columnheader" style="min-width:200px">Transcript File</th>
               <th scope="col" role="columnheader" style="text-align:center;min-width:80px">Actions</th>
             </tr>
           </thead>
@@ -2035,6 +2114,9 @@
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
   <datalist id="usUniversities"></datalist>
+
+  <!-- Hidden file input for transcript uploads (reused) -->
+  <input type="file" id="transcriptFileInput" class="file-input-hidden" accept=".pdf,image/*,.jpg,.jpeg,.png,.webp" aria-hidden="true" />
 
   <script>
     (function () {
@@ -2194,7 +2276,8 @@
         { key: 'ethnicity', type: 'customSelect', options: ETHNICITY_OPTIONS },
         { key: 'program', type: 'customSelect', options: PROGRAM_OPTIONS },
         { key: 'transcriptStatus', type: 'customSelect', options: TRANSCRIPT_STATUS_OPTIONS },
-        { key: 'appStatus', type: 'appStatus' }
+        { key: 'appStatus', type: 'appStatus' },
+        { key: 'transcriptFile', type: 'file' }
       ];
 
       const headerMap = {
@@ -2245,6 +2328,7 @@
       const VIRTUAL_THRESHOLD = 150;
       const PAGE_SIZE = 100;
       const PBKDF2_ITERATIONS = 120000;
+      const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
 
       let data = [];
       let filteredData = [];
@@ -2273,6 +2357,7 @@
       let isUnlocked = false;
       let isAdmin = false;
       let adminResolve = null;
+      let pendingTranscriptRowId = null;
 
       /* ========== Encryption Helpers ========== */
       function bufToBase64(buf) {
@@ -2636,7 +2721,10 @@
 
       function createEmptyRow() {
         const row = {};
-        columns.forEach(col => { row[col.key] = ''; });
+        columns.forEach(col => {
+          if (col.key === 'transcriptFile') row[col.key] = null;
+          else row[col.key] = '';
+        });
         row.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
         row.createdAt = Date.now();
         return row;
@@ -3147,6 +3235,33 @@
         const rowClass = getRowClass(row.appStatus);
         const canEdit = isAdmin;
         const cells = columns.map(col => {
+          if (col.key === 'transcriptFile') {
+            const file = row.transcriptFile;
+            if (file && file.data) {
+              return `<td role="gridcell">
+                <div class="transcript-cell">
+                  <div class="transcript-file-info">
+                    <i class="fas fa-file-pdf" style="color:#ef4444;font-size:13px" aria-hidden="true"></i>
+                    <span class="transcript-file-name" title="${escapeHtml(file.name || 'transcript')}">${escapeHtml(file.name || 'Transcript')}</span>
+                  </div>
+                  <button type="button" class="transcript-dl-btn" data-download-transcript="${row.id}" title="Download transcript" aria-label="Download transcript">
+                    <i class="fas fa-download" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="transcript-rm-btn" data-remove-transcript="${row.id}" title="Remove transcript" aria-label="Remove transcript" ${!canEdit ? 'disabled' : ''}>
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>`;
+            }
+            return `<td role="gridcell">
+              <div class="transcript-cell">
+                <button type="button" class="transcript-upload-btn" data-upload-transcript="${row.id}" ${!canEdit ? 'disabled' : ''} title="Upload transcript (PDF or image, max 5 MB)">
+                  <i class="fas fa-upload" aria-hidden="true"></i> Upload
+                </button>
+              </div>
+            </td>`;
+          }
+
           if (col.key === 'appStatus') {
             const val = row.appStatus || '';
             if (isFixedAppStatus(val)) {
@@ -3277,13 +3392,13 @@
 
         let html = '';
         if (topPad > 0) {
-          html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="21" style="height:${topPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
+          html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="22" style="height:${topPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
         }
         for (let i = start; i < end; i++) {
           html += buildRowHtml(pageData[i], pageOffset + i);
         }
         if (bottomPad > 0) {
-          html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="21" style="height:${bottomPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
+          html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="22" style="height:${bottomPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
         }
         tbody.innerHTML = html;
         document.getElementById('dataTable').setAttribute('aria-rowcount', String(total));
@@ -3342,7 +3457,10 @@
         const sort = document.getElementById('sortSelect').value;
 
         filteredData = data.filter(row => {
-          const matchSearch = !search || Object.values(row).some(v => String(v).toLowerCase().includes(search));
+          const matchSearch = !search || Object.values(row).some(v => {
+            if (v && typeof v === 'object' && v.name) return String(v.name).toLowerCase().includes(search);
+            return String(v).toLowerCase().includes(search);
+          });
           let matchStatus = true;
           if (status) {
             if (status === 'Other') {
@@ -3453,6 +3571,84 @@
 
         if (usedPanelOpen && (key === 'university' || key === 'highSchool' || key === 'phone')) {
           renderUsedPanel();
+        }
+      }
+
+      async function handleTranscriptUpload(rowId) {
+        const ok = await requireAdmin('upload a transcript');
+        if (!ok) return;
+        pendingTranscriptRowId = rowId;
+        const input = document.getElementById('transcriptFileInput');
+        input.value = '';
+        input.click();
+      }
+
+      function processTranscriptFile(file) {
+        if (!pendingTranscriptRowId || !file) return;
+        if (file.size > MAX_TRANSCRIPT_SIZE) {
+          showToast('File too large. Maximum size is 5 MB.', 'error');
+          pendingTranscriptRowId = null;
+          return;
+        }
+        const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+        if (!allowed.includes(file.type) && !/\.(pdf|jpe?g|png|webp)$/i.test(file.name)) {
+          showToast('Please upload a PDF or image file (JPG, PNG, WebP).', 'error');
+          pendingTranscriptRowId = null;
+          return;
+        }
+
+        showLoading(true);
+        const reader = new FileReader();
+        reader.onload = () => {
+          const row = data.find(r => r.id === pendingTranscriptRowId);
+          if (row) {
+            row.transcriptFile = {
+              name: file.name,
+              type: file.type || 'application/octet-stream',
+              data: reader.result,
+              size: file.size
+            };
+            scheduleSave();
+            renderTable();
+            showToast(`Transcript uploaded: ${file.name}`, 'success');
+          }
+          pendingTranscriptRowId = null;
+          showLoading(false);
+        };
+        reader.onerror = () => {
+          showToast('Failed to read file.', 'error');
+          pendingTranscriptRowId = null;
+          showLoading(false);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function downloadTranscript(rowId) {
+        const row = data.find(r => r.id === rowId);
+        if (!row || !row.transcriptFile || !row.transcriptFile.data) {
+          showToast('No transcript file found.', 'info');
+          return;
+        }
+        const f = row.transcriptFile;
+        const a = document.createElement('a');
+        a.href = f.data;
+        a.download = f.name || 'transcript.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('Download started', 'success', 1800);
+      }
+
+      async function removeTranscript(rowId) {
+        const ok = await requireAdmin('remove a transcript');
+        if (!ok) return;
+        if (!confirm('Remove the uploaded transcript for this student?')) return;
+        const row = data.find(r => r.id === rowId);
+        if (row) {
+          row.transcriptFile = null;
+          scheduleSave();
+          renderTable();
+          showToast('Transcript removed', 'info');
         }
       }
 
@@ -3740,11 +3936,19 @@
           'Student Name', 'University', 'SSN', 'DOB', 'Email', 'Gender',
           'Username', 'Password', 'Address', 'High School', 'Grad Period',
           'GPA', 'Phone', 'Start Date', 'Transcript Mail', 'Ethnicity',
-          'Program', 'Transcript Status', 'App Status'
+          'Program', 'Transcript Status', 'App Status', 'Transcript Filename'
         ];
-        const keys = columns.map(c => c.key);
+        const keys = columns.map(c => c.key).filter(k => k !== 'transcriptFile');
+        keys.push('transcriptFile');
 
-        const aoa = [headers, ...data.map(row => keys.map(k => row[k] || ''))];
+        const aoa = [headers, ...data.map(row => {
+          return keys.map(k => {
+            if (k === 'transcriptFile') {
+              return (row.transcriptFile && row.transcriptFile.name) ? row.transcriptFile.name : '';
+            }
+            return row[k] || '';
+          });
+        })];
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Students');
@@ -3763,14 +3967,20 @@
           'Student Name', 'University', 'SSN', 'DOB', 'Email', 'Gender',
           'Username', 'Password', 'Address', 'High School', 'Grad Period',
           'GPA', 'Phone', 'Start Date', 'Transcript Mail', 'Ethnicity',
-          'Program', 'Transcript Status', 'App Status'
+          'Program', 'Transcript Status', 'App Status', 'Transcript Filename'
         ];
-        const keys = columns.map(c => c.key);
+        const keys = columns.map(c => c.key).filter(k => k !== 'transcriptFile');
+        keys.push('transcriptFile');
 
         const csv = [
           headers.join(','),
           ...data.map(row => keys.map(k => {
-            let v = String(row[k] || '');
+            let v = '';
+            if (k === 'transcriptFile') {
+              v = (row.transcriptFile && row.transcriptFile.name) ? row.transcriptFile.name : '';
+            } else {
+              v = String(row[k] || '');
+            }
             if (v.includes(',') || v.includes('"') || v.includes('\n')) {
               v = `"${v.replace(/"/g, '""')}"`;
             }
@@ -3801,6 +4011,7 @@
             highSchool: 'William P. Clements High School', gradYear: '08/15/2021 – 06/05/2025', gpa: '3.48', phone: '+1 650 555 0101',
             startDate: 'Fall', transcriptMail: 'transcripts@stanford.edu',
             appStatus: 'Accepted', ethnicity: 'Asian', program: 'Computer Science', transcriptStatus: 'Sent (Received)',
+            transcriptFile: null,
             createdAt: Date.now() - 50000
           },
           {
@@ -3810,6 +4021,7 @@
             highSchool: 'Blue Valley High School', gradYear: '08/20/2020 – 06/01/2024', gpa: '3.51', phone: '+1 734 555 0198',
             startDate: 'Fall', transcriptMail: 'registrar@umich.edu',
             appStatus: 'ID', ethnicity: 'White', program: 'Business Administration', transcriptStatus: 'Sent (Not Received)',
+            transcriptFile: null,
             createdAt: Date.now() - 40000
           },
           {
@@ -3819,6 +4031,7 @@
             highSchool: 'Northville High School', gradYear: '08/10/2021 – 06/12/2025', gpa: '3.53', phone: '+1 310 555 0144',
             startDate: 'Spring', transcriptMail: 'transcripts@ucla.edu',
             appStatus: 'Application Fee', ethnicity: 'Hispanic / Latino', program: 'Psychology', transcriptStatus: 'Not Sent',
+            transcriptFile: null,
             createdAt: Date.now() - 30000
           },
           {
@@ -3828,6 +4041,7 @@
             highSchool: 'William P. Clements High School', gradYear: '09/01/2020 – 05/28/2024', gpa: '3.48', phone: '+1 617 555 0177',
             startDate: 'Fall', transcriptMail: 'registrar@mit.edu',
             appStatus: 'Rejected', ethnicity: 'Black / African American', program: 'Electrical Engineering', transcriptStatus: 'Sent (Received)',
+            transcriptFile: null,
             createdAt: Date.now() - 20000
           },
           {
@@ -3837,6 +4051,7 @@
             highSchool: 'Blue Valley High School', gradYear: '08/15/2021 – 06/05/2025', gpa: '3.51', phone: '+1 510 555 0133',
             startDate: 'Fall 2025', transcriptMail: 'transcripts@berkeley.edu',
             appStatus: 'Other - Pending Review', ethnicity: 'Asian', program: 'Data Science', transcriptStatus: 'Not Sent',
+            transcriptFile: null,
             createdAt: Date.now() - 10000
           }
         ];
@@ -3889,6 +4104,35 @@
         if (delBtn) {
           e.preventDefault();
           deleteRow(delBtn.getAttribute('data-delete'));
+          return;
+        }
+
+        const uploadBtn = target.closest('[data-upload-transcript]');
+        if (uploadBtn) {
+          e.preventDefault();
+          if (uploadBtn.disabled) {
+            requireAdmin('upload a transcript');
+            return;
+          }
+          handleTranscriptUpload(uploadBtn.getAttribute('data-upload-transcript'));
+          return;
+        }
+
+        const dlBtn = target.closest('[data-download-transcript]');
+        if (dlBtn) {
+          e.preventDefault();
+          downloadTranscript(dlBtn.getAttribute('data-download-transcript'));
+          return;
+        }
+
+        const rmBtn = target.closest('[data-remove-transcript]');
+        if (rmBtn) {
+          e.preventDefault();
+          if (rmBtn.disabled) {
+            requireAdmin('remove a transcript');
+            return;
+          }
+          removeTranscript(rmBtn.getAttribute('data-remove-transcript'));
           return;
         }
 
@@ -4117,6 +4361,13 @@
         document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
         document.getElementById('btnLoadSample').addEventListener('click', loadSample);
         document.getElementById('excelInput').addEventListener('change', handleExcelImport);
+
+        // Transcript file input
+        document.getElementById('transcriptFileInput').addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (file) processTranscriptFile(file);
+          e.target.value = '';
+        });
 
         document.addEventListener('click', (e) => {
           if (!e.target.closest('.dropdown')) {
