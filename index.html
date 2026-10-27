@@ -6,12 +6,17 @@
   <meta name="description" content="Oneweb Student Records Management – fast, reliable, offline-capable student data tool with encrypted storage" />
   <meta name="theme-color" content="#0a0a0a" />
   <title>Oneweb — Student Records</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://wqmgciavxiteqwtxavqc.supabase.co" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" /></noscript>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -712,6 +717,7 @@
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
       scrollbar-gutter: stable;
+      contain: content;
     }
     .used-toolbar {
       display: flex;
@@ -981,6 +987,7 @@
       overflow: visible;
       box-shadow: var(--shadow);
       transition: background 0.25s ease, border-color 0.25s ease;
+      contain: layout style;
     }
     .table-hint {
       padding: 10px 16px;
@@ -1029,6 +1036,8 @@
       overscroll-behavior: contain;
       scroll-behavior: auto;
       -webkit-overflow-scrolling: touch;
+      contain: strict;
+      content-visibility: auto;
       position: relative;
       scrollbar-gutter: stable;
       border-radius: 0 0 12px 12px;
@@ -2467,19 +2476,23 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
       const ROW_HEIGHT = 46;
-      const BUFFER_ROWS = 20;
-      const VIRTUAL_THRESHOLD = 150;
+      const BUFFER_ROWS = 8;
+      const VIRTUAL_THRESHOLD = 60;
       const PAGE_SIZE = 100;
       const PBKDF2_ITERATIONS = 120000;
       const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
+      const SAVE_DEBOUNCE_MS = 450;
+      const FILTER_DEBOUNCE_MS = 160;
 
       let data = [];
       let filteredData = [];
+      let dataById = new Map(); // O(1) row lookup
       let currentPage = 1;
       let revealSSN = false;
       let usedPanelOpen = false;
       let usedBodyCollapsed = false;
       let saveTimer = null;
+      let isSaving = false;
       let scrollRaf = null;
       let virtualStart = -1;
       let virtualEnd = -1;
@@ -2487,6 +2500,11 @@
       let usedTypeFilter = 'all';
       let usedCollapsedUnis = new Set();
       let lastBeepAt = 0;
+      let lastProgramOptionsKey = '';
+      let usedPanelRaf = null;
+
+      // Cached DOM refs (filled in init)
+      const $ = {};
 
       let customOpenId = null;
       let customTriggerEl = null;
@@ -2721,6 +2739,7 @@
         }
         sessionPassword = null;
         data = [];
+        dataById.clear();
         filteredData = [];
         currentPage = 1;
         isUnlocked = false;
@@ -2783,6 +2802,7 @@
             LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
             sessionPassword = password;
             data = initial;
+            rebuildDataIndex();
             applyFilters();
             showApp();
             showToast('Encrypted vault created successfully', 'success');
@@ -2815,6 +2835,7 @@
               if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
               if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
             });
+            rebuildDataIndex();
             applyFilters();
             showApp();
             showToast('Vault unlocked', 'success');
@@ -2902,6 +2923,18 @@
         row.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
         row.createdAt = Date.now();
         return row;
+      }
+
+      function rebuildDataIndex() {
+        dataById.clear();
+        for (let i = 0; i < data.length; i++) {
+          const r = data[i];
+          if (r && r.id) dataById.set(r.id, r);
+        }
+      }
+
+      function getRowById(id) {
+        return dataById.get(id) || data.find(r => r.id === id);
       }
 
       function isFixedAppStatus(val) {
@@ -3624,23 +3657,46 @@
       }
 
       function updateStats() {
+        let accepted = 0, rejected = 0, idCount = 0, fee = 0, notSent = 0;
+        for (let i = 0; i < data.length; i++) {
+          const s = data[i].appStatus;
+          if (s === 'Accepted') accepted++;
+          else if (s === 'Rejected') rejected++;
+          else if (s === 'ID') idCount++;
+          else if (s === 'Application Fee') fee++;
+          if (data[i].transcriptStatus === 'Not Sent') notSent++;
+        }
         document.getElementById('statRoster').textContent = data.length;
         document.getElementById('statShowing').textContent = filteredData.length;
-        document.getElementById('statAccepted').textContent = data.filter(r => r.appStatus === 'Accepted').length;
-        document.getElementById('statRejected').textContent = data.filter(r => r.appStatus === 'Rejected').length;
-        document.getElementById('statID').textContent = data.filter(r => r.appStatus === 'ID').length;
-        document.getElementById('statFee').textContent = data.filter(r => r.appStatus === 'Application Fee').length;
-        document.getElementById('statNotSent').textContent = data.filter(r => r.transcriptStatus === 'Not Sent').length;
+        document.getElementById('statAccepted').textContent = accepted;
+        document.getElementById('statRejected').textContent = rejected;
+        document.getElementById('statID').textContent = idCount;
+        document.getElementById('statFee').textContent = fee;
+        document.getElementById('statNotSent').textContent = notSent;
       }
 
       function updateProgramFilter() {
         const select = document.getElementById('programFilter');
         const current = select.value;
-        const fromData = data.map(r => r.program).filter(Boolean);
+        const fromData = [];
+        for (let i = 0; i < data.length; i++) {
+          const p = data[i].program;
+          if (p) fromData.push(p);
+        }
         const all = [...new Set([...PROGRAM_LIST.filter(Boolean), ...fromData])].sort();
+        const key = all.join('\0');
+        if (key === lastProgramOptionsKey) {
+          // Options unchanged — only sync selected value if needed
+          if (select.value !== current) select.value = current;
+          return;
+        }
+        lastProgramOptionsKey = key;
         select.innerHTML = '<option value="">All programs</option>' +
           all.map(p => `<option value="${escapeHtml(p)}" ${p === current ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
       }
+
+      // Searchable keys only — never scan base64 transcript blobs
+      const SEARCH_KEYS = ['name', 'university', 'email', 'highSchool', 'phone', 'program', 'ssn', 'username', 'address', 'ethnicity', 'appStatus', 'transcriptStatus', 'gender', 'gradYear', 'gpa', 'startDate', 'transcriptMail'];
 
       function applyFilters() {
         const search = document.getElementById('searchInput').value.toLowerCase().trim();
@@ -3649,10 +3705,16 @@
         const sort = document.getElementById('sortSelect').value;
 
         filteredData = data.filter(row => {
-          const matchSearch = !search || Object.values(row).some(v => {
-            if (v && typeof v === 'object' && v.name) return String(v.name).toLowerCase().includes(search);
-            return String(v).toLowerCase().includes(search);
-          });
+          let matchSearch = !search;
+          if (search) {
+            for (let k = 0; k < SEARCH_KEYS.length; k++) {
+              const v = row[SEARCH_KEYS[k]];
+              if (v != null && String(v).toLowerCase().includes(search)) {
+                matchSearch = true;
+                break;
+              }
+            }
+          }
           let matchStatus = true;
           if (status) {
             if (status === 'Other') {
@@ -3681,19 +3743,29 @@
         renderTable();
         updateStats();
         updateProgramFilter();
-        if (usedPanelOpen) renderUsedPanel();
+        if (usedPanelOpen) scheduleUsedPanelRender();
       }
 
-      const debouncedApplyFilters = debounce(applyFilters, 140);
+      const debouncedApplyFilters = debounce(applyFilters, FILTER_DEBOUNCE_MS);
+
+      function scheduleUsedPanelRender() {
+        if (usedPanelRaf) return;
+        usedPanelRaf = requestAnimationFrame(() => {
+          usedPanelRaf = null;
+          if (usedPanelOpen) renderUsedPanel();
+        });
+      }
 
       async function updateCell(id, key, value) {
         if (!isAdmin) {
           const ok = await requireAdmin('edit records');
           if (!ok) return;
         }
-        const row = data.find(r => r.id === id);
+        const row = getRowById(id);
         if (!row) return;
 
+        const prev = row[key];
+        if (prev === value) return; // no-op if unchanged
         row[key] = value;
 
         if (key === 'highSchool' && value) {
@@ -3705,9 +3777,14 @@
 
         let nameAutofilled = false;
         if (key === 'name' && value && value.trim()) {
-          const matched = data
-            .filter(r => r.id !== id && normalize(r.name) === normalize(value))
-            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+          const normName = normalize(value);
+          let matched = null;
+          for (let i = 0; i < data.length; i++) {
+            const r = data[i];
+            if (r.id !== id && normalize(r.name) === normName) {
+              if (!matched || (r.createdAt || 0) > (matched.createdAt || 0)) matched = r;
+            }
+          }
           if (matched) {
             if ((!row.ssn || row.ssn === '') && matched.ssn) {
               row.ssn = matched.ssn;
@@ -3751,18 +3828,20 @@
 
         scheduleSave();
         updateStats();
-        updateProgramFilter();
+        if (key === 'program') updateProgramFilter();
 
+        // Prefer cheap in-place updates over full table rebuilds
         if (key === 'appStatus') {
           const tr = document.querySelector(`tr[data-id="${id}"]`);
           if (tr) tr.className = getRowClass(value);
-          renderTable();
-        } else if (key === 'highSchool' || key === 'phone' || key === 'university' || key === 'gpa' || key === 'program' || nameAutofilled) {
+          // No full render — row color is enough
+        } else if (nameAutofilled || key === 'highSchool' || key === 'phone' || key === 'university' || key === 'gpa') {
+          // These affect duplicate highlights / related cells → refresh visible rows only
           renderTable();
         }
 
         if (usedPanelOpen && (key === 'university' || key === 'highSchool' || key === 'phone')) {
-          renderUsedPanel();
+          scheduleUsedPanelRender();
         }
       }
 
@@ -3792,7 +3871,7 @@
         showLoading(true);
         const reader = new FileReader();
         reader.onload = () => {
-          const row = data.find(r => r.id === pendingTranscriptRowId);
+          const row = getRowById(pendingTranscriptRowId);
           if (row) {
             row.transcriptFile = {
               name: file.name,
@@ -3816,7 +3895,7 @@
       }
 
       function downloadTranscript(rowId) {
-        const row = data.find(r => r.id === rowId);
+        const row = getRowById(rowId);
         if (!row || !row.transcriptFile || !row.transcriptFile.data) {
           showToast('No transcript file found.', 'info');
           return;
@@ -3835,7 +3914,7 @@
         const ok = await requireAdmin('remove a transcript');
         if (!ok) return;
         if (!confirm('Remove the uploaded transcript for this student?')) return;
-        const row = data.find(r => r.id === rowId);
+        const row = getRowById(rowId);
         if (row) {
           row.transcriptFile = null;
           scheduleSave();
@@ -3849,9 +3928,10 @@
         if (!ok) return;
         const newRow = createEmptyRow();
         data.unshift(newRow);
+        dataById.set(newRow.id, newRow);
         scheduleSave();
         applyFilters();
-        if (usedPanelOpen) renderUsedPanel();
+        if (usedPanelOpen) scheduleUsedPanelRender();
         setTimeout(() => {
           const first = document.querySelector('#tableBody tr:first-child .cell-input, #tableBody tr:first-child .app-status-trigger');
           if (first) {
@@ -3867,6 +3947,7 @@
         if (!ok) return;
         if (!confirm('Delete this student record?')) return;
         data = data.filter(r => r.id !== id);
+        dataById.delete(id);
         scheduleSave();
         applyFilters();
         if (usedPanelOpen) renderUsedPanel();
@@ -3922,9 +4003,10 @@
         if (!ok) return;
         if (!confirm('Permanently delete ALL records? This cannot be undone.')) return;
         data = [];
+        dataById.clear();
         scheduleSave(true);
         applyFilters();
-        if (usedPanelOpen) renderUsedPanel();
+        if (usedPanelOpen) scheduleUsedPanelRender();
         showToast('All records cleared', 'info');
       }
 
@@ -4094,6 +4176,7 @@
             } else {
               data = imported;
             }
+            rebuildDataIndex();
             scheduleSave(true);
             applyFilters();
             showToast(`Successfully imported ${imported.length} record(s).`, 'success');
@@ -4247,9 +4330,10 @@
             createdAt: Date.now() - 10000
           }
         ];
+        rebuildDataIndex();
         scheduleSave(true);
         applyFilters();
-        if (usedPanelOpen) renderUsedPanel();
+        if (usedPanelOpen) scheduleUsedPanelRender();
         showToast('Sample data loaded', 'success');
       }
 
@@ -4260,12 +4344,15 @@
           saveToStorage();
           return;
         }
-        saveTimer = setTimeout(saveToStorage, 280);
+        saveTimer = setTimeout(saveToStorage, SAVE_DEBOUNCE_MS);
       }
 
       async function saveToStorage() {
-        if (!sessionPassword) return;
+        if (!sessionPassword || isSaving) return;
+        isSaving = true;
         try {
+          // Yield to UI thread before heavy crypto so inputs stay responsive
+          await new Promise(r => setTimeout(r, 0));
           const payload = await encryptPayload(data, sessionPassword);
           const { error } = await supabase
             .from('vault')
@@ -4274,6 +4361,8 @@
         } catch (e) {
           console.warn('Cloud save failed', e);
           showToast('Could not save to cloud. Check your internet.', 'error');
+        } finally {
+          isSaving = false;
         }
       }
 
@@ -4338,7 +4427,7 @@
           }
           const id = trigger.getAttribute('data-id');
           const key = trigger.getAttribute('data-key');
-          const row = data.find(r => r.id === id);
+          const row = getRowById(id);
           const current = row ? (row[key] || '') : '';
           if (customOpenId === id && customOpenKey === key) {
             closeCustomSelectMenu();
