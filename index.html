@@ -1,4 +1,34 @@
 <!DOCTYPE html>
+<!--
+  ============================================================
+  Oneweb Student Records – Setup Notes (Supabase)
+  ============================================================
+  1. Create a free project at https://supabase.com
+  2. In SQL Editor run:
+
+     create table if not exists public.vault (
+       id text primary key,
+       payload jsonb not null,
+       updated_at timestamptz default now()
+     );
+
+     -- Optional: allow anon key full access (simple single-tenant vault)
+     alter table public.vault enable row level security;
+     create policy "Allow all for anon" on public.vault
+       for all using (true) with check (true);
+
+  3. Project Settings → API → copy:
+       - Project URL
+       - anon / public key
+  4. In this file search for:
+       const SUPABASE_URL = '...'
+       const SUPABASE_ANON_KEY = '...'
+     and paste your values.
+  5. The vault is encrypted client-side with AES-256-GCM.
+     The master password never leaves the browser.
+  ============================================================
+-->
+
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -84,6 +114,75 @@
       visibility: hidden;
       pointer-events: none;
     }
+
+    /* Lock / unlock animations */
+    @keyframes lockPulse {
+      0%   { transform: scale(1) rotate(0deg); }
+      30%  { transform: scale(1.12) rotate(-8deg); }
+      55%  { transform: scale(0.96) rotate(6deg); }
+      80%  { transform: scale(1.06) rotate(-3deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    @keyframes lockShimmer {
+      0%   { box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 0 0 rgba(232,232,232,0.25); }
+      50%  { box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 12px rgba(232,232,232,0); }
+      100% { box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 0 0 rgba(232,232,232,0); }
+    }
+    .auth-logo.locking {
+      animation: lockPulse 0.7s cubic-bezier(0.34, 1.4, 0.64, 1), lockShimmer 0.7s ease;
+    }
+    .auth-logo {
+      transition: transform 0.3s cubic-bezier(0.34, 1.3, 0.64, 1), box-shadow 0.3s ease;
+    }
+    .stat-item {
+      transition: background 0.2s ease, transform 0.18s ease;
+    }
+    .stat-item:hover {
+      transform: translateY(-1px);
+    }
+    .stat-value {
+      transition: color 0.25s ease, transform 0.2s ease;
+    }
+    /* Subtle entrance for stats when values change */
+    .stat-value.bump {
+      animation: valueBump 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+    @keyframes valueBump {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+    /* Smoother auth card */
+    .auth-card {
+      transition: box-shadow 0.3s ease;
+    }
+    /* Improve used-panel open feel */
+    .used-panel {
+      transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.35s ease,
+                  border-color 0.25s ease,
+                  box-shadow 0.25s ease,
+                  transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .used-panel.visible {
+      transform: translateY(0);
+    }
+    /* Table row hover polish */
+    tbody tr {
+      transition: background 0.18s ease, filter 0.18s ease;
+    }
+    tbody tr:hover {
+      filter: brightness(1.06);
+    }
+    /* Soft fade for loading */
+    .loading-overlay {
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .loading-spinner {
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
+    }
+
     .auth-card {
       width: 100%;
       max-width: 420px;
@@ -1689,22 +1788,22 @@
       .header-lock-btn, .header-edit-btn { padding: 0 12px; min-width: 40px; justify-content: center; }
       .mode-badge span { display: none; }
     }
-    @media (max-width: 1100px) {
+    @media (max-width: 1200px) {
       .stats-bar { flex-wrap: wrap; }
       .stat-item {
-        min-width: 25%;
+        min-width: 20%;
         border-bottom: 1px solid var(--border);
       }
-      .stat-item:nth-child(4n) { border-right: none; }
-      .stat-item:nth-last-child(-n+3) { border-bottom: none; }
+      .stat-item:nth-child(5n) { border-right: none; }
+      .stat-item:nth-last-child(-n+4) { border-bottom: none; }
     }
     @media (max-width: 900px) {
       .stat-item { min-width: 33.333%; }
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
       .table-scroll {
-        max-height: calc(100vh - 440px);
-        max-height: calc(100dvh - 440px);
+        max-height: calc(100vh - 460px);
+        max-height: calc(100dvh - 460px);
       }
       .toolbar { gap: 8px; }
       .search-wrap { min-width: 100%; max-width: 100%; }
@@ -1713,12 +1812,12 @@
     @media (max-width: 700px) {
       .stats-bar { border-radius: 12px; }
       .stat-item {
-        min-width: 50%;
+        min-width: 33.333%;
         padding: 12px 6px;
       }
-      .stat-item:nth-child(2n) { border-right: none; }
-      .stat-item:nth-last-child(-n+2) { border-bottom: none; }
-      .stat-value { font-size: 18px; }
+      .stat-item:nth-child(3n) { border-right: none; }
+      .stat-item:nth-last-child(-n+3) { border-bottom: none; }
+      .stat-value { font-size: 17px; }
       .brand-name { font-size: 18px; }
       .brand-logo { width: 36px; height: 36px; font-size: 16px; }
       .tool-btn, .btn-add { padding: 0 12px; font-size: 12px; height: 38px; }
@@ -1914,6 +2013,11 @@
       pointer-events: none;
       transition: opacity 0.15s ease;
     }
+
+    #statReceived { color: #86efac; }
+    #statSentNR { color: #fcd34d; }
+    #statNotSent { color: #fca5a5; }
+
   </style>
 </head>
 <body class="p-4 md:p-6">
@@ -1931,7 +2035,7 @@
   <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <div class="auth-card">
       <div class="auth-header">
-        <div class="auth-logo" aria-hidden="true">Ow</div>
+        <div class="auth-logo" id="lockAnimIcon" aria-hidden="true">Ow</div>
         <h1 class="auth-title" id="authTitle">Oneweb</h1>
         <p class="auth-sub" id="authSub">Encrypted student records · Protected by your master password</p>
       </div>
@@ -2052,6 +2156,14 @@
       <div class="stat-item">
         <div class="stat-label">App Fee</div>
         <div class="stat-value" id="statFee" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Received</div>
+        <div class="stat-value" id="statReceived" aria-live="polite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Sent (NR)</div>
+        <div class="stat-value" id="statSentNR" aria-live="polite">0</div>
       </div>
       <div class="stat-item">
         <div class="stat-label">Not Sent</div>
@@ -2704,8 +2816,22 @@
       }
 
       function showApp() {
-        document.getElementById('authOverlay').classList.add('hidden');
-        document.getElementById('appRoot').style.display = 'block';
+        const overlay = document.getElementById('authOverlay');
+        const appRoot = document.getElementById('appRoot');
+        overlay.classList.add('hidden');
+        appRoot.style.display = 'block';
+        appRoot.style.opacity = '0';
+        appRoot.style.transform = 'scale(0.985)';
+        requestAnimationFrame(() => {
+          appRoot.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+          appRoot.style.opacity = '1';
+          appRoot.style.transform = 'scale(1)';
+          setTimeout(() => {
+            appRoot.style.transition = '';
+            appRoot.style.opacity = '';
+            appRoot.style.transform = '';
+          }, 420);
+        });
         isUnlocked = true;
         isAdmin = false;
         updateEditUI();
@@ -2731,10 +2857,34 @@
         }, 2400);
       }
 
-      function lockApp() {
-        if (sessionPassword && data) {
-          scheduleSave(true);
+      async function lockApp() {
+        // Ensure any pending edits are flushed BEFORE we clear the session password
+        if (sessionPassword && data && data.length >= 0) {
+          try {
+            if (saveTimer) {
+              clearTimeout(saveTimer);
+              saveTimer = null;
+            }
+            // Force a final encrypted write while we still have the password
+            await saveToStorage(true);
+          } catch (e) {
+            console.warn('Final save on lock failed', e);
+          }
         }
+
+        // Lock animation
+        const overlay = document.getElementById('authOverlay');
+        const appRoot = document.getElementById('appRoot');
+        const lockIcon = document.getElementById('lockAnimIcon');
+        if (lockIcon) {
+          lockIcon.classList.add('locking');
+        }
+        appRoot.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+        appRoot.style.opacity = '0';
+        appRoot.style.transform = 'scale(0.98)';
+
+        await new Promise(r => setTimeout(r, 320));
+
         sessionPassword = null;
         data = [];
         dataById.clear();
@@ -2742,16 +2892,34 @@
         currentPage = 1;
         isUnlocked = false;
         isAdmin = false;
-        document.getElementById('appRoot').style.display = 'none';
-        document.getElementById('authOverlay').classList.remove('hidden');
+        revealSSN = false;
+
+        appRoot.style.display = 'none';
+        appRoot.style.opacity = '';
+        appRoot.style.transform = '';
+        appRoot.style.transition = '';
+
         document.getElementById('authPassword').value = '';
         document.getElementById('authConfirm').value = '';
         clearAuthError();
-        setAuthMode(hasEncryptedData() ? 'login' : 'signup');
+
+        // Correctly await the vault existence check
+        const hasVault = await hasEncryptedData();
+        setAuthMode(hasVault ? 'login' : 'signup');
+
+        overlay.classList.remove('hidden');
+        // Trigger entrance animation
+        overlay.style.opacity = '0';
+        requestAnimationFrame(() => {
+          overlay.style.transition = 'opacity 0.4s ease';
+          overlay.style.opacity = '1';
+        });
+
         renderTable();
         updateStats();
         updatePagination();
-        showToast('Vault locked. Data remains encrypted.', 'info');
+        showToast('Vault locked. Data remains encrypted in the cloud.', 'info', 2800);
+        if (lockIcon) lockIcon.classList.remove('locking');
       }
 
       async function handleAuthSubmit(e) {
@@ -3655,14 +3823,19 @@
       }
 
       function updateStats() {
-        let accepted = 0, rejected = 0, idCount = 0, fee = 0, notSent = 0;
+        let accepted = 0, rejected = 0, idCount = 0, fee = 0;
+        let received = 0, sentNR = 0, notSent = 0;
         for (let i = 0; i < data.length; i++) {
           const s = data[i].appStatus;
           if (s === 'Accepted') accepted++;
           else if (s === 'Rejected') rejected++;
           else if (s === 'ID') idCount++;
           else if (s === 'Application Fee') fee++;
-          if (data[i].transcriptStatus === 'Not Sent') notSent++;
+
+          const ts = data[i].transcriptStatus || '';
+          if (ts === 'Sent (Received)') received++;
+          else if (ts === 'Sent (Not Received)') sentNR++;
+          else if (ts === 'Not Sent') notSent++;
         }
         document.getElementById('statRoster').textContent = data.length;
         document.getElementById('statShowing').textContent = filteredData.length;
@@ -3670,6 +3843,10 @@
         document.getElementById('statRejected').textContent = rejected;
         document.getElementById('statID').textContent = idCount;
         document.getElementById('statFee').textContent = fee;
+        const elRec = document.getElementById('statReceived');
+        const elSNR = document.getElementById('statSentNR');
+        if (elRec) elRec.textContent = received;
+        if (elSNR) elSNR.textContent = sentNR;
         document.getElementById('statNotSent').textContent = notSent;
       }
 
@@ -4345,8 +4522,19 @@
         saveTimer = setTimeout(saveToStorage, SAVE_DEBOUNCE_MS);
       }
 
-      async function saveToStorage() {
-        if (!sessionPassword || isSaving) return;
+      async function saveToStorage(force = false) {
+        if (!sessionPassword) return;
+        // If a save is already in flight and this is not a forced final write, skip
+        if (isSaving && !force) return;
+        // Wait briefly for any in-flight save to finish when forcing
+        if (isSaving && force) {
+          let waited = 0;
+          while (isSaving && waited < 4000) {
+            await new Promise(r => setTimeout(r, 80));
+            waited += 80;
+          }
+        }
+        if (!sessionPassword) return; // may have been cleared while waiting
         isSaving = true;
         try {
           // Yield to UI thread before heavy crypto so inputs stay responsive
@@ -4520,9 +4708,9 @@
           // Keep focus on the password field for better keyboard flow
           input.focus();
         });
-        document.getElementById('btnLock').addEventListener('click', () => {
+        document.getElementById('btnLock').addEventListener('click', async () => {
           if (confirm('Lock the vault? You will need your master password to unlock again.')) {
-            lockApp();
+            await lockApp();
           }
         });
 
