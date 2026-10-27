@@ -1021,6 +1021,12 @@
       transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, border-color 0.2s ease;
       position: relative;
       overflow: hidden;
+      cursor: pointer;
+      user-select: text;
+    }
+    .used-tag[title]::after { content: none; }
+    .used-tag:active {
+      transform: scale(0.97);
     }
     .used-tag::before {
       content: '';
@@ -2406,6 +2412,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
   <datalist id="usUniversities"></datalist>
+  <datalist id="phoneOptions"></datalist>
 
   <!-- Hidden file input for transcript uploads (reused) -->
   <input type="file" id="transcriptFileInput" class="file-input-hidden" accept=".pdf,image/*,.jpg,.jpeg,.png,.webp" aria-hidden="true" />
@@ -2510,15 +2517,32 @@
         { value: 'William P. Clements High School', label: 'William P. Clements High School', gpa: '3.48', dot: 'empty' },
         { value: 'Blue Valley High School', label: 'Blue Valley High School', gpa: '3.51', dot: 'empty' },
         { value: 'Northville High School', label: 'Northville High School', gpa: '3.53', dot: 'empty' },
-        { value: 'Lake Wales High School, FL', label: 'Lake Wales High School, FL', dot: 'empty' },
-        { value: 'Dutton Brandy Public School, MT', label: 'Dutton Brandy Public School, MT', dot: 'empty' },
-        { value: 'Milford High School, OH', label: 'Milford High School, OH', dot: 'empty' },
+        { value: 'Lake Wales High School, FL', label: 'Lake Wales High School, FL', gpa: '', dot: 'empty' },
+        { value: 'Dutton/Brady Public School, MT', label: 'Dutton/Brady Public School, MT', gpa: '', dot: 'empty' },
+        { value: 'Milford High School, OH', label: 'Milford High School, OH', gpa: '', dot: 'empty' },
         { value: 'Other', label: 'Other…', dot: 'other' }
       ];
-      const HS_GPA_MAP = {
+      // Static GPAs + aliases (keys are lowercase; resolved via normalizeHighSchoolKey)
+      const HS_GPA_STATIC = {
         'william p. clements high school': '3.48',
         'blue valley high school': '3.51',
         'northville high school': '3.53'
+        // Lake Wales / Dutton-Brady / Milford: fill from first record that has a GPA,
+        // or set o.gpa on HIGH_SCHOOL_OPTIONS and they'll be picked up at runtime
+      };
+      const HS_NAME_ALIASES = {
+        'clements high school': 'william p. clements high school',
+        'lake wales high school': 'lake wales high school, fl',
+        'lake wales': 'lake wales high school, fl',
+        'dutton/brady public school': 'dutton/brady public school, mt',
+        'dutton brady public school, mt': 'dutton/brady public school, mt',
+        'dutton brady public school': 'dutton/brady public school, mt',
+        'dutton brandy public school, mt': 'dutton/brady public school, mt',
+        'dutton brandy public school': 'dutton/brady public school, mt',
+        'dutton/brady': 'dutton/brady public school, mt',
+        'dutton brady': 'dutton/brady public school, mt',
+        'milford high school': 'milford high school, oh',
+        'milford hs': 'milford high school, oh'
       };
       const PHONE_OPTIONS = [
         { value: '', label: '— Select —', dot: 'empty' },
@@ -2572,7 +2596,7 @@
         { key: 'highSchool', type: 'customSelect', options: HIGH_SCHOOL_OPTIONS },
         { key: 'gradYear', type: 'text', placeholder: 'MM/DD/YYYY – MM/DD/YYYY' },
         { key: 'gpa', type: 'number', placeholder: '0.00', step: '0.01' },
-        { key: 'phone', type: 'customSelect', options: PHONE_OPTIONS },
+        { key: 'phone', type: 'tel', placeholder: 'Phone number', list: 'phoneOptions' },
         { key: 'startDate', type: 'text', placeholder: 'Fall / Spring / or date' },
         { key: 'transcriptMail', type: 'email', placeholder: 'transcript@uni.edu' },
         { key: 'ethnicity', type: 'customSelect', options: ETHNICITY_OPTIONS },
@@ -2631,7 +2655,7 @@
       const PAGE_SIZE = 100;
       const PBKDF2_ITERATIONS = 120000;
       const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
-      const SAVE_DEBOUNCE_MS = 450;
+      const SAVE_DEBOUNCE_MS = 280;
       const FILTER_DEBOUNCE_MS = 160;
 
       let data = [];
@@ -3039,6 +3063,16 @@
               if (!r.createdAt) r.createdAt = Date.now();
               if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
               if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+              // Fix legacy high-school name typo + canonicalize known schools
+              if (r.highSchool) {
+                const key = normalize(r.highSchool);
+                if (key === 'dutton brandy public school, mt' || key === 'dutton brandy public school' ||
+                    key === 'dutton brady public school, mt' || key === 'dutton brady public school') {
+                  r.highSchool = 'Dutton/Brady Public School, MT';
+                }
+                // Seed runtime GPA map from existing rows
+                if (r.gpa) rememberGpaForHighSchool(r.highSchool, r.gpa);
+              }
             });
             rebuildDataIndex();
             applyFilters();
@@ -3188,16 +3222,38 @@
         });
       }
 
+      function normalizeHighSchoolKey(name) {
+        if (!name) return '';
+        let hs = normalize(name);
+        if (HS_NAME_ALIASES[hs]) hs = HS_NAME_ALIASES[hs];
+        return hs;
+      }
+
       function getKnownGpaForHighSchool(highSchool, excludeId) {
         if (!highSchool) return '';
-        const hs = normalize(highSchool);
-        if (HS_GPA_MAP[hs]) return HS_GPA_MAP[hs];
+        const hs = normalizeHighSchoolKey(highSchool);
+        // 1) Static map
+        if (HS_GPA_STATIC[hs]) return HS_GPA_STATIC[hs];
+        // 2) Option object on HIGH_SCHOOL_OPTIONS
+        const opt = HIGH_SCHOOL_OPTIONS.find(o => o.value && normalizeHighSchoolKey(o.value) === hs);
+        if (opt && opt.gpa) return String(opt.gpa);
+        // 3) Any existing row with same school (and a GPA)
         const match = data.find(r =>
           r.id !== excludeId &&
-          normalize(r.highSchool) === hs &&
+          normalizeHighSchoolKey(r.highSchool) === hs &&
           r.gpa !== '' && r.gpa != null
         );
         return match ? String(match.gpa) : '';
+      }
+
+      /** Remember a GPA for a school so future rows autofill */
+      function rememberGpaForHighSchool(highSchool, gpa) {
+        if (!highSchool || gpa === '' || gpa == null) return;
+        const hs = normalizeHighSchoolKey(highSchool);
+        if (!hs) return;
+        HS_GPA_STATIC[hs] = String(gpa);
+        const opt = HIGH_SCHOOL_OPTIONS.find(o => o.value && normalizeHighSchoolKey(o.value) === hs);
+        if (opt) opt.gpa = String(gpa);
       }
 
       function getRowClass(appStatus) {
@@ -3558,7 +3614,7 @@
         } else {
           updateCell(id, key, value);
           if (key === 'highSchool') {
-            const gpa = HS_GPA_MAP[normalize(value)] || '';
+            const gpa = getKnownGpaForHighSchool(value, id) || '';
             if (gpa) {
               updateCell(id, 'gpa', gpa);
             }
@@ -3988,6 +4044,12 @@
             row.gpa = known;
           }
         }
+        if (key === 'gpa' && value && row.highSchool) {
+          rememberGpaForHighSchool(row.highSchool, value);
+        }
+        if (key === 'highSchool' && value && row.gpa) {
+          rememberGpaForHighSchool(value, row.gpa);
+        }
 
         let nameAutofilled = false;
         if (key === 'name' && value && value.trim()) {
@@ -4043,6 +4105,7 @@
         scheduleSave();
         updateStats();
         if (key === 'program') updateProgramFilter();
+        if (key === 'phone') refreshPhoneDatalist();
 
         // Prefer cheap in-place updates over full table rebuilds
         if (key === 'appStatus') {
@@ -4391,6 +4454,14 @@
               data = imported;
             }
             rebuildDataIndex();
+            imported.forEach(r => {
+              if (r.highSchool && r.gpa) rememberGpaForHighSchool(r.highSchool, r.gpa);
+              const key = normalize(r.highSchool || '');
+              if (key.includes('dutton brandy') || key === 'dutton brady public school, mt' || key === 'dutton brady public school') {
+                r.highSchool = 'Dutton/Brady Public School, MT';
+              }
+            });
+            refreshPhoneDatalist();
             scheduleSave(true);
             applyFilters();
             showToast(`Successfully imported ${imported.length} record(s).`, 'success');
@@ -4551,43 +4622,83 @@
         showToast('Sample data loaded', 'success');
       }
 
+      let saveQueued = false;
+      let lastSaveOkAt = 0;
+
+      function setSaveStatus(state) {
+        // state: 'saving' | 'saved' | 'error' | ''
+        const btn = document.getElementById('btnSave');
+        if (!btn) return;
+        if (state === 'saving') {
+          btn.dataset.prevHtml = btn.dataset.prevHtml || btn.innerHTML;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> <span>Saving…</span>';
+          btn.disabled = true;
+        } else if (state === 'saved') {
+          btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span>Saved</span>';
+          btn.disabled = false;
+          clearTimeout(window.__saveStatusTimer);
+          window.__saveStatusTimer = setTimeout(() => {
+            btn.innerHTML = btn.dataset.prevHtml || '<i class="fas fa-save" aria-hidden="true"></i> <span>Save</span>';
+          }, 1400);
+        } else if (state === 'error') {
+          btn.innerHTML = '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> <span>Retry</span>';
+          btn.disabled = false;
+        } else {
+          btn.innerHTML = btn.dataset.prevHtml || '<i class="fas fa-save" aria-hidden="true"></i> <span>Save</span>';
+          btn.disabled = false;
+        }
+      }
+
       function scheduleSave(immediate) {
         if (!sessionPassword) return;
         if (saveTimer) clearTimeout(saveTimer);
         if (immediate) {
-          saveToStorage();
+          saveToStorage(true);
           return;
         }
-        saveTimer = setTimeout(saveToStorage, SAVE_DEBOUNCE_MS);
+        // Debounce rapid keystrokes; always flush after pause
+        saveTimer = setTimeout(() => saveToStorage(false), SAVE_DEBOUNCE_MS);
       }
 
       async function saveToStorage(force = false) {
         if (!sessionPassword) return;
-        // If a save is already in flight and this is not a forced final write, skip
-        if (isSaving && !force) return;
-        // Wait briefly for any in-flight save to finish when forcing
-        if (isSaving && force) {
-          let waited = 0;
-          while (isSaving && waited < 4000) {
-            await new Promise(r => setTimeout(r, 80));
-            waited += 80;
+        // Coalesce concurrent saves: if one is in flight, queue another pass
+        if (isSaving) {
+          saveQueued = true;
+          if (force) {
+            let waited = 0;
+            while (isSaving && waited < 5000) {
+              await new Promise(r => setTimeout(r, 60));
+              waited += 60;
+            }
+          } else {
+            return;
           }
         }
-        if (!sessionPassword) return; // may have been cleared while waiting
+        if (!sessionPassword) return;
         isSaving = true;
+        saveQueued = false;
+        setSaveStatus('saving');
         try {
-          // Yield to UI thread before heavy crypto so inputs stay responsive
           await new Promise(r => setTimeout(r, 0));
           const payload = await encryptPayload(data, sessionPassword);
           const { error } = await supabase
             .from('vault')
             .upsert({ id: 'main', payload: payload });
           if (error) throw error;
+          lastSaveOkAt = Date.now();
+          setSaveStatus('saved');
         } catch (e) {
           console.warn('Cloud save failed', e);
+          setSaveStatus('error');
           showToast('Could not save to cloud. Check your internet.', 'error');
         } finally {
           isSaving = false;
+          // If edits landed while we were saving, run once more
+          if (saveQueued && sessionPassword) {
+            saveQueued = false;
+            scheduleSave(true);
+          }
         }
       }
 
@@ -4720,9 +4831,23 @@
         el.dataset.real = el.value;
       }
 
+      function refreshPhoneDatalist() {
+        const dl = document.getElementById('phoneOptions');
+        if (!dl) return;
+        const fromOpts = PHONE_OPTIONS.map(o => o.value).filter(v => v && v !== 'Other');
+        const fromData = [];
+        for (let i = 0; i < data.length; i++) {
+          const p = (data[i].phone || '').trim();
+          if (p) fromData.push(p);
+        }
+        const all = [...new Set([...fromOpts, ...fromData])];
+        dl.innerHTML = all.map(p => `<option value="${escapeHtml(p)}">`).join('');
+      }
+
       function init() {
         const dl = document.getElementById('usUniversities');
         dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
+        refreshPhoneDatalist();
 
         hasEncryptedData().then(hasVault => {
           setAuthMode(hasVault ? 'login' : 'signup');
@@ -4839,6 +4964,26 @@
         });
 
         document.getElementById('usedContent').addEventListener('click', (e) => {
+          const tag = e.target.closest('.used-tag');
+          if (tag) {
+            e.preventDefault();
+            e.stopPropagation();
+            const txt = (tag.querySelector('.tag-text') || tag).textContent.trim();
+            if (txt && navigator.clipboard) {
+              navigator.clipboard.writeText(txt).then(() => {
+                showToast('Copied: ' + txt, 'success', 1600);
+              }).catch(() => {
+                // fallback
+                const ta = document.createElement('textarea');
+                ta.value = txt;
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); showToast('Copied: ' + txt, 'success', 1600); } catch (_) {}
+                document.body.removeChild(ta);
+              });
+            }
+            return;
+          }
           const header = e.target.closest('.used-uni-header');
           if (!header) return;
           const block = header.closest('.used-uni-block');
