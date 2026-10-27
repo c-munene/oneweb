@@ -197,20 +197,6 @@
       box-shadow: 0 0 0 3px rgba(100,100,100,0.28);
     }
     .auth-input-wrap:focus-within i { color: var(--text-muted); }
-    .auth-toggle-pass {
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--text-faint);
-      cursor: pointer;
-      padding: 8px;
-      font-size: 15px;
-      transition: color 0.2s;
-    }
-    .auth-toggle-pass:hover { color: var(--text); }
     .auth-error {
       background: rgba(239,68,68,0.12);
       border: 1px solid rgba(239,68,68,0.3);
@@ -1784,9 +1770,147 @@
       .used-filter-btn { min-height: 36px; }
       .page-btn { min-height: 40px; }
     }
+
+    /* ========== Welcome Animation (post-unlock) ========== */
+    .welcome-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+      background: radial-gradient(ellipse at 50% 40%, rgba(20,20,20,0.92) 0%, rgba(10,10,10,0.97) 70%);
+    }
+    .welcome-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .welcome-overlay.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.55s ease, visibility 0.55s ease;
+    }
+    .welcome-content {
+      text-align: center;
+      transform: translateY(28px) scale(0.94);
+      opacity: 0;
+      transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.55s ease;
+    }
+    .welcome-overlay.visible .welcome-content {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    .welcome-overlay.fade-out .welcome-content {
+      transform: translateY(-12px) scale(1.02);
+      opacity: 0;
+      transition: transform 0.5s ease, opacity 0.45s ease;
+    }
+    .welcome-logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 22px;
+      background: linear-gradient(135deg, #f5f5f5 0%, #b8b8b8 100%);
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0a0a0a;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08);
+      animation: welcomeLogoPulse 2.2s ease-in-out infinite;
+    }
+    @keyframes welcomeLogoPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08); }
+      50% { transform: scale(1.04); box-shadow: 0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.12); }
+    }
+    .welcome-title {
+      font-size: clamp(28px, 5vw, 40px);
+      font-weight: 700;
+      letter-spacing: -0.8px;
+      line-height: 1.15;
+      margin: 0 0 10px;
+      background: linear-gradient(120deg, #f5f5f5 0%, #d4d4d4 35%, #a3a3a3 70%, #e8e8e8 100%);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: welcomeShimmer 2.8s ease-in-out infinite;
+    }
+    @keyframes welcomeShimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .welcome-sub {
+      font-size: 15px;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      opacity: 0.9;
+    }
+    .welcome-bar {
+      width: 48px;
+      height: 3px;
+      margin: 18px auto 0;
+      border-radius: 99px;
+      background: linear-gradient(90deg, transparent, #e8e8e8, transparent);
+      opacity: 0.7;
+    }
+
+    /* Improved password toggle */
+    .auth-toggle-pass {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--text-faint);
+      cursor: pointer;
+      padding: 8px 10px;
+      font-size: 15px;
+      border-radius: 8px;
+      transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .auth-toggle-pass:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+    }
+    .auth-toggle-pass:active {
+      transform: translateY(-50%) scale(0.94);
+    }
+    .auth-toggle-pass:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      color: var(--text);
+    }
+    .auth-toggle-pass.active {
+      color: var(--text);
+    }
+    .auth-toggle-pass i {
+      transition: transform 0.2s ease, opacity 0.15s ease;
+    }
   </style>
 </head>
 <body class="p-4 md:p-6">
+  <!-- Welcome Animation Overlay (shown briefly after unlock) -->
+  <div class="welcome-overlay" id="welcomeOverlay" aria-hidden="true">
+    <div class="welcome-content">
+      <div class="welcome-logo" aria-hidden="true">Ow</div>
+      <h2 class="welcome-title">Welcome to OneWeb</h2>
+      <p class="welcome-sub">Your encrypted student records are ready</p>
+      <div class="welcome-bar" aria-hidden="true"></div>
+    </div>
+  </div>
+
   <!-- Auth Overlay -->
   <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <div class="auth-card">
@@ -1817,7 +1941,7 @@
             <div class="auth-input-wrap">
               <input type="password" class="auth-input" id="authPassword" name="password" placeholder="Enter a strong password" required autocomplete="current-password" minlength="8" />
               <i class="fas fa-lock" aria-hidden="true"></i>
-              <button type="button" class="auth-toggle-pass" id="togglePass" aria-label="Show password" tabindex="-1">
+              <button type="button" class="auth-toggle-pass" id="togglePass" aria-label="Show password" title="Show password" tabindex="0">
                 <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
@@ -1922,7 +2046,7 @@
     <div class="toolbar" role="toolbar" aria-label="Table controls">
       <div class="search-wrap">
         <i class="fas fa-search" aria-hidden="true"></i>
-        <input type="search" class="search-input" id="searchInput" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" />
+        <input type="search" class="search-input" id="searchInput" name="oneweb-search" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
       </div>
 
       <select class="filter-select" id="statusFilter" aria-label="Filter by status">
@@ -2540,6 +2664,17 @@
         document.getElementById('passHint').textContent = isSignup
           ? 'Choose a strong password (min 8 chars). It encrypts all data.'
           : 'Enter the master password used to encrypt your records.';
+        // Reset password visibility to hidden
+        const pwInput = document.getElementById('authPassword');
+        const toggleBtn = document.getElementById('togglePass');
+        if (pwInput && toggleBtn) {
+          pwInput.type = 'password';
+          const icon = toggleBtn.querySelector('i');
+          if (icon) icon.className = 'fas fa-eye';
+          toggleBtn.classList.remove('active');
+          toggleBtn.setAttribute('aria-label', 'Show password');
+          toggleBtn.setAttribute('title', 'Show password');
+        }
         clearAuthError();
       }
 
@@ -2549,6 +2684,26 @@
         isUnlocked = true;
         isAdmin = false;
         updateEditUI();
+        playWelcomeAnimation();
+      }
+
+      function playWelcomeAnimation() {
+        const overlay = document.getElementById('welcomeOverlay');
+        if (!overlay) return;
+        overlay.classList.remove('fade-out');
+        overlay.setAttribute('aria-hidden', 'false');
+        // Force reflow so animation restarts cleanly
+        void overlay.offsetWidth;
+        overlay.classList.add('visible');
+        clearTimeout(window.__welcomeTimer);
+        window.__welcomeTimer = setTimeout(() => {
+          overlay.classList.add('fade-out');
+          overlay.classList.remove('visible');
+          setTimeout(() => {
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.classList.remove('fade-out');
+          }, 560);
+        }, 2400);
       }
 
       function lockApp() {
@@ -4258,14 +4413,16 @@
         document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
         document.getElementById('togglePass').addEventListener('click', () => {
           const input = document.getElementById('authPassword');
-          const icon = document.getElementById('togglePass').querySelector('i');
-          if (input.type === 'password') {
-            input.type = 'text';
-            icon.className = 'fas fa-eye-slash';
-          } else {
-            input.type = 'password';
-            icon.className = 'fas fa-eye';
-          }
+          const btn = document.getElementById('togglePass');
+          const icon = btn.querySelector('i');
+          const showing = input.type === 'password';
+          input.type = showing ? 'text' : 'password';
+          icon.className = showing ? 'fas fa-eye-slash' : 'fas fa-eye';
+          btn.classList.toggle('active', showing);
+          btn.setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
+          btn.setAttribute('title', showing ? 'Hide password' : 'Show password');
+          // Keep focus on the password field for better keyboard flow
+          input.focus();
         });
         document.getElementById('btnLock').addEventListener('click', () => {
           if (confirm('Lock the vault? You will need your master password to unlock again.')) {
