@@ -192,11 +192,15 @@
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
+    /* Extra right padding only when the show/hide password button is present */
+    .auth-input-wrap:has(.auth-toggle-pass) .auth-input {
+      padding-right: 48px;
+    }
     .auth-input:focus {
       border-color: #666;
       box-shadow: 0 0 0 3px rgba(100,100,100,0.28);
     }
-    .auth-input-wrap:focus-within i { color: var(--text-muted); }
+    .auth-input-wrap:focus-within > i { color: var(--text-muted); }
     .auth-error {
       background: rgba(239,68,68,0.12);
       border: 1px solid rgba(239,68,68,0.3);
@@ -1783,7 +1787,7 @@
       opacity: 0;
       visibility: hidden;
       transition: opacity 0.45s ease, visibility 0.45s ease;
-      background: radial-gradient(ellipse at 50% 40%, rgba(20,20,20,0.92) 0%, rgba(10,10,10,0.97) 70%);
+      background: #0a0a0a;
     }
     .welcome-overlay.visible {
       opacity: 1;
@@ -1861,31 +1865,34 @@
       opacity: 0.7;
     }
 
-    /* Improved password toggle */
+    /* Improved password toggle – cleanly on the right, no overlap */
     .auth-toggle-pass {
       position: absolute;
-      right: 10px;
+      right: 8px;
       top: 50%;
       transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
       background: transparent;
       border: none;
       color: var(--text-faint);
       cursor: pointer;
-      padding: 8px 10px;
+      padding: 0;
       font-size: 15px;
-      border-radius: 8px;
+      border-radius: 10px;
       transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       line-height: 1;
+      z-index: 2;
     }
     .auth-toggle-pass:hover {
       color: var(--text);
-      background: rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.08);
     }
     .auth-toggle-pass:active {
-      transform: translateY(-50%) scale(0.94);
+      transform: translateY(-50%) scale(0.92);
     }
     .auth-toggle-pass:focus-visible {
       outline: 2px solid var(--accent);
@@ -1893,10 +1900,12 @@
       color: var(--text);
     }
     .auth-toggle-pass.active {
-      color: var(--text);
+      color: #e8e8e8;
+      background: rgba(255,255,255,0.06);
     }
     .auth-toggle-pass i {
-      transition: transform 0.2s ease, opacity 0.15s ease;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
     }
   </style>
 </head>
@@ -2046,7 +2055,7 @@
     <div class="toolbar" role="toolbar" aria-label="Table controls">
       <div class="search-wrap">
         <i class="fas fa-search" aria-hidden="true"></i>
-        <input type="search" class="search-input" id="searchInput" name="oneweb-search" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
+        <input type="search" class="search-input" id="searchInput" name="q_oneweb_no_autofill" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" readonly />
       </div>
 
       <select class="filter-select" id="statusFilter" aria-label="Filter by status">
@@ -4468,7 +4477,15 @@
         const scrollEl = document.getElementById('tableScroll');
         scrollEl.addEventListener('scroll', onTableScroll, { passive: true });
 
-        document.getElementById('searchInput').addEventListener('input', debouncedApplyFilters);
+        const searchEl = document.getElementById('searchInput');
+        // Prevent browser autofill on the search field only
+        searchEl.addEventListener('focus', function unlockSearch() {
+          searchEl.removeAttribute('readonly');
+          searchEl.removeEventListener('focus', unlockSearch);
+        });
+        // Clear any value the browser may have injected on load
+        if (searchEl.value) searchEl.value = '';
+        searchEl.addEventListener('input', debouncedApplyFilters);
         document.getElementById('statusFilter').addEventListener('change', applyFilters);
         document.getElementById('programFilter').addEventListener('change', applyFilters);
         document.getElementById('sortSelect').addEventListener('change', applyFilters);
