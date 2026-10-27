@@ -82,17 +82,23 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-size-adjust: 100%;
+      height: 100%;
+      overflow: hidden;
     }
 
     body {
       background: var(--bg);
-      min-height: 100vh;
-      min-height: 100dvh;
+      height: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
       margin: 0;
       color: var(--text);
       transition: background 0.25s ease, color 0.25s ease;
-      overscroll-behavior-y: contain;
-      overflow-x: hidden;
+      overscroll-behavior: none;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
     }
 
     /* ========== Auth Overlay (Refined) ========== */
@@ -508,7 +514,7 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      transition: all 0.2s ease;
+      transition: all 0.22s ease;
       white-space: nowrap;
       user-select: none;
     }
@@ -517,32 +523,32 @@
       border-color: var(--border);
       transform: translateY(-1px);
     }
+    .header-edit-btn {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.35);
+      color: #93c5fd;
+    }
+    .header-edit-btn:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #bfdbfe;
+    }
     .header-edit-btn.active {
       background: rgba(34, 197, 94, 0.18);
-      border-color: rgba(34, 197, 94, 0.45);
+      border-color: rgba(34, 197, 94, 0.5);
       color: #86efac;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
     }
-    .mode-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      transition: all 0.25s ease;
+    .header-edit-btn.active:hover {
+      background: rgba(34, 197, 94, 0.26);
+      border-color: rgba(34, 197, 94, 0.6);
+      color: #bbf7d0;
     }
-    .mode-badge.view {
-      background: rgba(100,116,139,0.15);
-      color: #94a3b8;
-      border: 1px solid rgba(100,116,139,0.25);
+    .header-edit-btn .edit-label {
+      transition: opacity 0.15s ease;
     }
-    .mode-badge.edit {
-      background: rgba(34,197,94,0.15);
-      color: #86efac;
-      border: 1px solid rgba(34,197,94,0.3);
-    }
+    /* Keep mode-badge styles for any residual refs but hide by default */
+    .mode-badge { display: none !important; }
 
     .stats-bar {
       display: flex;
@@ -1130,14 +1136,14 @@
     .table-scroll {
       overflow-x: auto;
       overflow-y: auto;
-      max-height: calc(100vh - 380px);
-      max-height: calc(100dvh - 380px);
+      max-height: none;
       overscroll-behavior: contain;
       scroll-behavior: auto;
       -webkit-overflow-scrolling: touch;
       position: relative;
       scrollbar-gutter: stable;
       border-radius: 0 0 12px 12px;
+      min-height: 0;
     }
     table {
       border-collapse: separate;
@@ -1786,7 +1792,7 @@
       .auth-title { font-size: 22px; }
       .header-lock-btn span, .header-edit-btn span { display: none; }
       .header-lock-btn, .header-edit-btn { padding: 0 12px; min-width: 40px; justify-content: center; }
-      .mode-badge span { display: none; }
+      /* mode-badge removed */
     }
     @media (max-width: 1200px) {
       .stats-bar { flex-wrap: wrap; }
@@ -1802,8 +1808,7 @@
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
       .table-scroll {
-        max-height: calc(100vh - 460px);
-        max-height: calc(100dvh - 460px);
+        max-height: none;
       }
       .toolbar { gap: 8px; }
       .search-wrap { min-width: 100%; max-width: 100%; }
@@ -1847,8 +1852,7 @@
       .search-input { font-size: 16px; }
       .filter-select { font-size: 13px; min-width: 100px; }
       .table-scroll {
-        max-height: calc(100vh - 480px);
-        max-height: calc(100dvh - 480px);
+        max-height: none;
       }
       .used-panel-header { padding: 12px 14px; }
       .used-badge { padding: 3px 8px; font-size: 10px; }
@@ -1881,6 +1885,42 @@
       .page-btn { min-height: 40px; }
     }
 
+
+    /* App shell – fills viewport, only table area scrolls */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    .app-shell.ready {
+      opacity: 1;
+      transform: none;
+      transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .app-shell .brand { flex-shrink: 0; }
+    .app-shell .stats-bar { flex-shrink: 0; }
+    .app-shell .toolbar { flex-shrink: 0; }
+    .app-shell .used-panel { flex-shrink: 0; }
+    .app-shell .table-wrap {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .app-shell .table-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none !important;
+    }
+    .app-shell .pagination-bar { flex-shrink: 0; }
+    .app-shell .footer-note { flex-shrink: 0; margin-top: 10px; padding-bottom: 4px; }
+
     /* ========== Welcome Animation (post-unlock) ========== */
     .welcome-overlay {
       position: fixed;
@@ -1892,32 +1932,35 @@
       pointer-events: none;
       opacity: 0;
       visibility: hidden;
-      transition: opacity 0.45s ease, visibility 0.45s ease;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
       background: #0a0a0a;
+      /* Solid cover – records underneath are never visible */
     }
     .welcome-overlay.visible {
       opacity: 1;
       visibility: visible;
+      pointer-events: auto;
     }
     .welcome-overlay.fade-out {
       opacity: 0;
       visibility: hidden;
-      transition: opacity 0.55s ease, visibility 0.55s ease;
+      pointer-events: none;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
     }
     .welcome-content {
       text-align: center;
-      transform: translateY(28px) scale(0.94);
+      transform: translateY(20px) scale(0.96);
       opacity: 0;
-      transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.55s ease;
+      transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease;
     }
     .welcome-overlay.visible .welcome-content {
       transform: translateY(0) scale(1);
       opacity: 1;
     }
     .welcome-overlay.fade-out .welcome-content {
-      transform: translateY(-12px) scale(1.02);
+      transform: translateY(-8px) scale(1.01);
       opacity: 0;
-      transition: transform 0.5s ease, opacity 0.45s ease;
+      transition: transform 0.4s ease, opacity 0.35s ease;
     }
     .welcome-logo {
       width: 72px;
@@ -2020,7 +2063,7 @@
 
   </style>
 </head>
-<body class="p-4 md:p-6">
+<body class="p-3 sm:p-4 md:p-5">
   <!-- Welcome Animation Overlay (shown briefly after unlock) -->
   <div class="welcome-overlay" id="welcomeOverlay" aria-hidden="true">
     <div class="welcome-content">
@@ -2109,7 +2152,7 @@
     </div>
   </div>
 
-  <div class="max-w-[1600px] mx-auto" id="appRoot" style="display:none">
+  <div class="max-w-[1600px] mx-auto app-shell" id="appRoot" style="display:none" aria-hidden="true">
     <header class="brand" role="banner">
       <div class="brand-left">
         <div class="brand-logo" aria-hidden="true">Ow</div>
@@ -2119,12 +2162,9 @@
         </div>
       </div>
       <div class="header-actions">
-        <span class="mode-badge view" id="modeBadge">
-          <i class="fas fa-eye" aria-hidden="true"></i>
-          <span>View Only</span>
-        </span>
-        <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing">
-          <i class="fas fa-pen-to-square" aria-hidden="true"></i> <span>Enable Editing</span>
+        <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing with admin password" aria-pressed="false">
+          <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+          <span class="edit-label">Enable Editing</span>
         </button>
         <button type="button" class="header-lock-btn" id="btnLock" title="Lock & encrypt data">
           <i class="fas fa-lock" aria-hidden="true"></i> <span>Lock</span>
@@ -2738,7 +2778,6 @@
 
       function updateEditUI() {
         const btn = document.getElementById('btnEnableEdit');
-        const badge = document.getElementById('modeBadge');
         const hint = document.getElementById('editModeHint');
         const addBtn = document.getElementById('btnAdd');
         const clearBtn = document.getElementById('btnClear');
@@ -2746,25 +2785,19 @@
         if (isAdmin) {
           if (btn) {
             btn.classList.add('active');
-            btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span>Editing On</span>';
-            btn.title = 'Editing is unlocked';
-          }
-          if (badge) {
-            badge.className = 'mode-badge edit';
-            badge.innerHTML = '<i class="fas fa-pen" aria-hidden="true"></i> <span>Editing</span>';
+            btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span class="edit-label">Editing On</span>';
+            btn.title = 'Editing is unlocked for this session';
+            btn.setAttribute('aria-pressed', 'true');
           }
           if (hint) hint.textContent = 'Editing enabled';
         } else {
           if (btn) {
             btn.classList.remove('active');
-            btn.innerHTML = '<i class="fas fa-pen-to-square" aria-hidden="true"></i> <span>Enable Editing</span>';
-            btn.title = 'Unlock editing (admin password required)';
+            btn.innerHTML = '<i class="fas fa-pen-to-square" aria-hidden="true"></i> <span class="edit-label">Enable Editing</span>';
+            btn.title = 'Unlock editing with admin password';
+            btn.setAttribute('aria-pressed', 'false');
           }
-          if (badge) {
-            badge.className = 'mode-badge view';
-            badge.innerHTML = '<i class="fas fa-eye" aria-hidden="true"></i> <span>View Only</span>';
-          }
-          if (hint) hint.textContent = 'View-only mode';
+          if (hint) hint.textContent = 'View-only · enable editing to make changes';
         }
         if (addBtn) addBtn.disabled = !isAdmin;
         if (clearBtn) clearBtn.disabled = !isAdmin;
@@ -2818,43 +2851,47 @@
       function showApp() {
         const overlay = document.getElementById('authOverlay');
         const appRoot = document.getElementById('appRoot');
+        // Keep records completely hidden until welcome finishes
+        appRoot.style.display = 'none';
+        appRoot.classList.remove('ready');
+        appRoot.setAttribute('aria-hidden', 'true');
         overlay.classList.add('hidden');
-        appRoot.style.display = 'block';
-        appRoot.style.opacity = '0';
-        appRoot.style.transform = 'scale(0.985)';
-        requestAnimationFrame(() => {
-          appRoot.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-          appRoot.style.opacity = '1';
-          appRoot.style.transform = 'scale(1)';
-          setTimeout(() => {
-            appRoot.style.transition = '';
-            appRoot.style.opacity = '';
-            appRoot.style.transform = '';
-          }, 420);
-        });
         isUnlocked = true;
         isAdmin = false;
         updateEditUI();
-        playWelcomeAnimation();
+        // Welcome covers the screen first; reveal app only after it ends
+        playWelcomeAnimation(() => {
+          appRoot.style.display = 'flex';
+          appRoot.setAttribute('aria-hidden', 'false');
+          // Force reflow then animate in
+          void appRoot.offsetWidth;
+          requestAnimationFrame(() => {
+            appRoot.classList.add('ready');
+          });
+        });
       }
 
-      function playWelcomeAnimation() {
+      function playWelcomeAnimation(onComplete) {
         const overlay = document.getElementById('welcomeOverlay');
-        if (!overlay) return;
+        if (!overlay) {
+          if (typeof onComplete === 'function') onComplete();
+          return;
+        }
         overlay.classList.remove('fade-out');
         overlay.setAttribute('aria-hidden', 'false');
-        // Force reflow so animation restarts cleanly
         void overlay.offsetWidth;
         overlay.classList.add('visible');
         clearTimeout(window.__welcomeTimer);
+        // Hold welcome ~1.8s then fade out (~0.5s), then show app
         window.__welcomeTimer = setTimeout(() => {
           overlay.classList.add('fade-out');
           overlay.classList.remove('visible');
           setTimeout(() => {
             overlay.setAttribute('aria-hidden', 'true');
             overlay.classList.remove('fade-out');
-          }, 560);
-        }, 2400);
+            if (typeof onComplete === 'function') onComplete();
+          }, 520);
+        }, 1800);
       }
 
       async function lockApp() {
@@ -2895,6 +2932,8 @@
         revealSSN = false;
 
         appRoot.style.display = 'none';
+        appRoot.classList.remove('ready');
+        appRoot.setAttribute('aria-hidden', 'true');
         appRoot.style.opacity = '';
         appRoot.style.transform = '';
         appRoot.style.transition = '';
