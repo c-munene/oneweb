@@ -984,226 +984,6 @@
       color: var(--text-faint);
     }
 
-    /* ========== Received Transcripts Panel ========== */
-    .received-panel {
-      background: linear-gradient(165deg, #161616 0%, #121212 100%);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 16px;
-      margin-bottom: 16px;
-      overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
-      max-height: 0;
-      opacity: 0;
-      transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                  opacity 0.35s ease,
-                  border-color 0.25s ease,
-                  box-shadow 0.25s ease;
-    }
-    .received-panel.visible {
-      max-height: 720px;
-      opacity: 1;
-    }
-    .received-panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 18px;
-      background: linear-gradient(90deg, rgba(34,197,94,0.06) 0%, transparent 100%);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.2s ease;
-      gap: 12px;
-    }
-    .received-panel-header:hover {
-      background: linear-gradient(90deg, rgba(34,197,94,0.1) 0%, transparent 100%);
-    }
-    .received-panel-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex: 1;
-      min-width: 0;
-    }
-    .received-panel-title .title-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: 12px;
-      flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(34,197,94,0.35);
-    }
-    .received-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      background: rgba(34,197,94,0.15);
-      color: #86efac;
-      border: 1px solid rgba(34,197,94,0.25);
-      font-variant-numeric: tabular-nums;
-    }
-    .received-panel-body {
-      padding: 0;
-      max-height: 520px;
-      overflow-y: auto;
-      overflow-x: hidden;
-      overscroll-behavior: contain;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-gutter: stable;
-    }
-    .received-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      background: rgba(0,0,0,0.2);
-      flex-wrap: wrap;
-    }
-    .received-search-wrap {
-      position: relative;
-      flex: 1;
-      min-width: 140px;
-      max-width: 280px;
-    }
-    .received-search-input {
-      width: 100%;
-      height: 34px;
-      padding: 0 12px 0 34px;
-      border: 1px solid var(--border-soft);
-      border-radius: 8px;
-      background: var(--input-bg);
-      font-size: 12px;
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-    .received-search-input:focus {
-      border-color: #555;
-      box-shadow: 0 0 0 2px rgba(80,80,80,0.25);
-    }
-    .received-search-wrap i {
-      position: absolute;
-      left: 11px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-faint);
-      font-size: 12px;
-      pointer-events: none;
-    }
-    .received-list {
-      padding: 8px 0;
-    }
-    .received-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      transition: background 0.15s ease;
-    }
-    .received-item:last-child { border-bottom: none; }
-    .received-item:hover { background: rgba(255,255,255,0.03); }
-    .received-item-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #14532d 0%, #166534 100%);
-      border: 1px solid rgba(34,197,94,0.25);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #86efac;
-      font-size: 14px;
-      flex-shrink: 0;
-    }
-    .received-item-main {
-      flex: 1;
-      min-width: 0;
-    }
-    .received-item-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .received-item-meta {
-      font-size: 11px;
-      color: var(--text-faint);
-      margin-top: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .received-item-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .received-file-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 500;
-      background: rgba(59,130,246,0.12);
-      color: #93c5fd;
-      border: 1px solid rgba(59,130,246,0.2);
-      max-width: 140px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .received-empty {
-      padding: 40px 20px;
-      text-align: center;
-    }
-    .received-empty-icon {
-      width: 52px;
-      height: 52px;
-      margin: 0 auto 14px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #14532d, #166534);
-      border: 1px solid rgba(34,197,94,0.15);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #86efac;
-      font-size: 20px;
-    }
-    .received-empty-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-    .received-empty-sub {
-      font-size: 12px;
-      color: var(--text-faint);
-      max-width: 280px;
-      margin: 0 auto;
-      line-height: 1.5;
-    }
-
-
     .table-wrap {
       background: var(--surface);
       border-radius: 12px;
@@ -2174,10 +1954,6 @@
         <i class="fas fa-list-ul" aria-hidden="true"></i> <span>Already Used</span>
       </button>
 
-      <button type="button" class="tool-btn" id="btnReceivedPanel" aria-expanded="false" aria-controls="receivedPanel">
-        <i class="fas fa-file-circle-check" aria-hidden="true"></i> <span>Received Transcripts</span>
-      </button>
-
       <div class="dropdown">
         <button type="button" class="tool-btn" id="btnFileMenu" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu">
           <i class="fas fa-file" aria-hidden="true"></i> <span>File</span>
@@ -2254,40 +2030,6 @@
           <div class="used-empty-sub">Add students to see used High Schools and Phone numbers grouped by University.</div>
         </div>
         <div id="usedContent"></div>
-      </div>
-    </div>
-
-
-    <div class="received-panel" id="receivedPanel" role="region" aria-label="Received transcripts">
-      <div class="received-panel-header" id="receivedPanelHeader" role="button" tabindex="0" aria-expanded="true">
-        <div class="received-panel-title">
-          <div class="title-icon" aria-hidden="true"><i class="fas fa-file-circle-check"></i></div>
-          <div class="title-text">
-            <span class="title-main">Received Transcripts</span>
-            <span class="title-sub">Students with transcript status “Sent (Received)” or uploaded file</span>
-          </div>
-        </div>
-        <div class="used-header-right">
-          <span class="received-badge" id="receivedTotalBadge" title="Total received">
-            <i class="fas fa-check-circle" aria-hidden="true"></i>
-            <span id="receivedTotalCount">0</span>
-          </span>
-          <i class="fas fa-chevron-down" id="receivedChevron" aria-hidden="true"></i>
-        </div>
-      </div>
-      <div class="received-panel-body" id="receivedPanelBody">
-        <div class="received-toolbar" id="receivedToolbar" style="display:none">
-          <div class="received-search-wrap">
-            <i class="fas fa-search" aria-hidden="true"></i>
-            <input type="search" class="received-search-input" id="receivedSearchInput" placeholder="Filter by name, university, school..." aria-label="Filter received transcripts" autocomplete="off" />
-          </div>
-        </div>
-        <div class="received-empty" id="receivedEmpty">
-          <div class="received-empty-icon"><i class="fas fa-inbox" aria-hidden="true"></i></div>
-          <div class="received-empty-title">No received transcripts yet</div>
-          <div class="received-empty-sub">Mark a transcript status as “Sent (Received)” or upload a file to see entries here.</div>
-        </div>
-        <div class="received-list" id="receivedContent"></div>
       </div>
     </div>
 
@@ -2612,9 +2354,6 @@
       let usedTypeFilter = 'all';
       let usedCollapsedUnis = new Set();
       let lastBeepAt = 0;
-      let receivedPanelOpen = false;
-      let receivedBodyCollapsed = false;
-      let receivedSearchQuery = '';
 
       let customOpenId = null;
       let customTriggerEl = null;
@@ -2804,16 +2543,6 @@
         clearAuthError();
       }
 
-
-      function seedCustomOptionsFromData() {
-        data.forEach(r => {
-          if (r.university) addCustomToOptions('university', r.university);
-          if (r.highSchool) addCustomToOptions('highSchool', r.highSchool);
-          if (r.phone) addCustomToOptions('phone', r.phone);
-          if (r.program) addCustomToOptions('program', r.program);
-        });
-      }
-
       function showApp() {
         document.getElementById('authOverlay').classList.add('hidden');
         document.getElementById('appRoot').style.display = 'block';
@@ -2922,7 +2651,6 @@
               if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
               if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
             });
-            seedCustomOptionsFromData();
             applyFilters();
             showApp();
             showToast('Vault unlocked', 'success');
@@ -3058,49 +2786,7 @@
         });
       }
 
-      
-      function addCustomToOptions(key, value) {
-        if (!value || !value.trim()) return;
-        const v = value.trim();
-        const n = normalize(v);
-        if (key === 'university') {
-          if (isFixedUniversity(v)) return;
-          if (!UNIVERSITY_OPTIONS.some(o => normalize(o.value) === n)) {
-            // Insert before the final "Other"
-            const otherIdx = UNIVERSITY_OPTIONS.findIndex(o => o.value === 'Other');
-            const entry = { value: v, label: v, dot: 'empty' };
-            if (otherIdx >= 0) UNIVERSITY_OPTIONS.splice(otherIdx, 0, entry);
-            else UNIVERSITY_OPTIONS.push(entry);
-          }
-        } else if (key === 'highSchool') {
-          if (isFixedHighSchool(v)) return;
-          if (!HIGH_SCHOOL_OPTIONS.some(o => normalize(o.value) === n)) {
-            const otherIdx = HIGH_SCHOOL_OPTIONS.findIndex(o => o.value === 'Other');
-            const entry = { value: v, label: v, gpa: '', dot: 'empty' };
-            if (otherIdx >= 0) HIGH_SCHOOL_OPTIONS.splice(otherIdx, 0, entry);
-            else HIGH_SCHOOL_OPTIONS.push(entry);
-          }
-        } else if (key === 'phone') {
-          if (isFixedPhone(v)) return;
-          const cleaned = n.replace(/[\s\-\(\)\.]/g, '');
-          if (!PHONE_OPTIONS.some(o => normalize(o.value).replace(/[\s\-\(\)\.]/g, '') === cleaned)) {
-            const otherIdx = PHONE_OPTIONS.findIndex(o => o.value === 'Other');
-            const entry = { value: v, label: v, dot: 'empty' };
-            if (otherIdx >= 0) PHONE_OPTIONS.splice(otherIdx, 0, entry);
-            else PHONE_OPTIONS.push(entry);
-          }
-        } else if (key === 'program') {
-          if (isFixedProgram(v)) return;
-          if (!PROGRAM_OPTIONS.some(o => normalize(o.value) === n)) {
-            const otherIdx = PROGRAM_OPTIONS.findIndex(o => o.value === 'Other');
-            const entry = { value: v, label: v, dot: 'empty' };
-            if (otherIdx >= 0) PROGRAM_OPTIONS.splice(otherIdx, 0, entry);
-            else PROGRAM_OPTIONS.push(entry);
-          }
-        }
-      }
-
-function getKnownGpaForHighSchool(highSchool, excludeId) {
+      function getKnownGpaForHighSchool(highSchool, excludeId) {
         if (!highSchool) return '';
         const hs = normalize(highSchool);
         if (HS_GPA_MAP[hs]) return HS_GPA_MAP[hs];
@@ -3773,102 +3459,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
         updatePagination();
       }
 
-
-      function getReceivedTranscripts() {
-        return data.filter(r => {
-          const status = normalize(r.transcriptStatus || '');
-          const hasFile = r.transcriptFile && r.transcriptFile.data;
-          return status === 'sent (received)' || hasFile;
-        }).sort((a, b) => normalize(a.name).localeCompare(normalize(b.name)));
-      }
-
-      function renderReceivedPanel() {
-        const list = getReceivedTranscripts();
-        const empty = document.getElementById('receivedEmpty');
-        const content = document.getElementById('receivedContent');
-        const toolbar = document.getElementById('receivedToolbar');
-        const totalBadge = document.getElementById('receivedTotalCount');
-        if (totalBadge) totalBadge.textContent = String(list.length);
-
-        if (!list.length) {
-          if (empty) empty.style.display = 'block';
-          if (content) content.innerHTML = '';
-          if (toolbar) toolbar.style.display = 'none';
-          return;
-        }
-        if (empty) empty.style.display = 'none';
-        if (toolbar) toolbar.style.display = 'flex';
-
-        const q = normalize(receivedSearchQuery);
-        const filtered = q
-          ? list.filter(r => {
-              return normalize(r.name).includes(q) ||
-                     normalize(r.university).includes(q) ||
-                     normalize(r.highSchool).includes(q) ||
-                     normalize(r.program).includes(q) ||
-                     (r.transcriptFile && normalize(r.transcriptFile.name || '').includes(q));
-            })
-          : list;
-
-        if (!filtered.length) {
-          content.innerHTML = '<div class="used-no-results"><i class="fas fa-search mr-1"></i> No matches for current filter</div>';
-          return;
-        }
-
-        content.innerHTML = filtered.map(r => {
-          const hasFile = r.transcriptFile && r.transcriptFile.data;
-          const fileName = hasFile ? (r.transcriptFile.name || 'Transcript') : '';
-          const statusLabel = r.transcriptStatus || (hasFile ? 'File uploaded' : '');
-          return `
-            <div class="received-item" data-id="${escapeHtml(r.id)}">
-              <div class="received-item-icon"><i class="fas fa-file-circle-check" aria-hidden="true"></i></div>
-              <div class="received-item-main">
-                <div class="received-item-name" title="${escapeHtml(r.name || '')}">${escapeHtml(r.name || 'Unnamed')}</div>
-                <div class="received-item-meta">${escapeHtml(r.university || '—')} · ${escapeHtml(statusLabel)}</div>
-              </div>
-              <div class="received-item-actions">
-                ${hasFile ? `<span class="received-file-pill" title="${escapeHtml(fileName)}"><i class="fas fa-paperclip" aria-hidden="true"></i> ${escapeHtml(fileName)}</span>
-                <button type="button" class="transcript-dl-btn" data-download-transcript="${r.id}" title="Download transcript" aria-label="Download">
-                  <i class="fas fa-download" aria-hidden="true"></i>
-                </button>` : '<span style="font-size:11px;color:var(--text-faint)">No file</span>'}
-              </div>
-            </div>`;
-        }).join('');
-      }
-
-      function toggleReceivedPanel() {
-        const panel = document.getElementById('receivedPanel');
-        receivedPanelOpen = !receivedPanelOpen;
-        panel.classList.toggle('visible', receivedPanelOpen);
-        document.getElementById('btnReceivedPanel').classList.toggle('active', receivedPanelOpen);
-        document.getElementById('btnReceivedPanel').setAttribute('aria-expanded', receivedPanelOpen ? 'true' : 'false');
-        if (receivedPanelOpen) {
-          renderReceivedPanel();
-          requestAnimationFrame(() => {
-            const body = document.getElementById('receivedPanelBody');
-            if (body && !receivedBodyCollapsed) body.scrollTop = 0;
-          });
-        }
-      }
-
-      function toggleReceivedPanelBody() {
-        const body = document.getElementById('receivedPanelBody');
-        const chev = document.getElementById('receivedChevron');
-        const header = document.getElementById('receivedPanelHeader');
-        receivedBodyCollapsed = !receivedBodyCollapsed;
-        if (receivedBodyCollapsed) {
-          body.style.maxHeight = '0';
-          body.style.overflow = 'hidden';
-          chev.style.transform = 'rotate(-90deg)';
-          header.setAttribute('aria-expanded', 'false');
-        } else {
-          body.style.maxHeight = '520px';
-          body.style.overflow = 'auto';
-          chev.style.transform = 'rotate(0deg)';
-          header.setAttribute('aria-expanded', 'true');
-        }
-      }
-
       function updateStats() {
         document.getElementById('statRoster').textContent = data.length;
         document.getElementById('statShowing').textContent = filteredData.length;
@@ -3928,7 +3518,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
         updateStats();
         updateProgramFilter();
         if (usedPanelOpen) renderUsedPanel();
-        if (receivedPanelOpen) renderReceivedPanel();
       }
 
       const debouncedApplyFilters = debounce(applyFilters, 140);
@@ -3942,11 +3531,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
         if (!row) return;
 
         row[key] = value;
-
-        // Persist manually entered items into dropdown lists
-        if (['university', 'highSchool', 'phone', 'program'].includes(key) && value) {
-          addCustomToOptions(key, value);
-        }
 
         if (key === 'highSchool' && value) {
           const known = getKnownGpaForHighSchool(value, id);
@@ -4016,9 +3600,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
         if (usedPanelOpen && (key === 'university' || key === 'highSchool' || key === 'phone')) {
           renderUsedPanel();
         }
-        if (receivedPanelOpen && (key === 'transcriptStatus' || key === 'name' || key === 'university')) {
-          renderReceivedPanel();
-        }
       }
 
       async function handleTranscriptUpload(rowId) {
@@ -4057,7 +3638,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
             };
             scheduleSave();
             renderTable();
-            if (receivedPanelOpen) renderReceivedPanel();
             showToast(`Transcript uploaded: ${file.name}`, 'success');
           }
           pendingTranscriptRowId = null;
@@ -4096,7 +3676,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
           row.transcriptFile = null;
           scheduleSave();
           renderTable();
-          if (receivedPanelOpen) renderReceivedPanel();
           showToast('Transcript removed', 'info');
         }
       }
@@ -4352,7 +3931,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
               data = imported;
             }
             scheduleSave(true);
-            seedCustomOptionsFromData();
             applyFilters();
             showToast(`Successfully imported ${imported.length} record(s).`, 'success');
           } catch (err) {
@@ -4506,10 +4084,8 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
           }
         ];
         scheduleSave(true);
-        seedCustomOptionsFromData();
         applyFilters();
         if (usedPanelOpen) renderUsedPanel();
-        if (receivedPanelOpen) renderReceivedPanel();
         showToast('Sample data loaded', 'success');
       }
 
@@ -4520,7 +4096,7 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
           saveToStorage();
           return;
         }
-        saveTimer = setTimeout(saveToStorage, 180);
+        saveTimer = setTimeout(saveToStorage, 280);
       }
 
       async function saveToStorage() {
@@ -4742,43 +4318,6 @@ function getKnownGpaForHighSchool(highSchool, excludeId) {
         document.getElementById('btnRevealSSN').addEventListener('click', toggleSSN);
         document.getElementById('btnUsedPanel').addEventListener('click', toggleUsedPanel);
         document.getElementById('usedPanelHeader').addEventListener('click', toggleUsedPanelBody);
-        document.getElementById('btnReceivedPanel').addEventListener('click', toggleReceivedPanel);
-        document.getElementById('receivedPanelHeader').addEventListener('click', toggleReceivedPanelBody);
-        document.getElementById('receivedPanelHeader').addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleReceivedPanelBody();
-          }
-        });
-        const receivedSearch = document.getElementById('receivedSearchInput');
-        if (receivedSearch) {
-          receivedSearch.addEventListener('input', debounce(() => {
-            receivedSearchQuery = receivedSearch.value;
-            renderReceivedPanel();
-          }, 120));
-        }
-        // Allow paste in number-like fields (GPA, phone, SSN) and clean on paste
-        document.getElementById('tableBody').addEventListener('paste', (e) => {
-          const el = e.target;
-          if (!el.classList || !el.classList.contains('cell-input')) return;
-          const key = el.getAttribute('data-key');
-          if (!key) return;
-          // Let browser paste first, then clean on next tick for numeric-ish fields
-          setTimeout(() => {
-            if (key === 'gpa') {
-              let v = el.value.replace(/[^0-9.]/g, '');
-              // keep only first decimal
-              const parts = v.split('.');
-              if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
-              el.value = v;
-              el.dataset.real = v;
-            } else if (key === 'phone' || key === 'ssn') {
-              // allow digits, dashes, spaces, parens
-              // no aggressive strip so user can paste formatted numbers
-              el.dataset.real = el.value;
-            }
-          }, 0);
-        });
         document.getElementById('usedPanelHeader').addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
