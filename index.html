@@ -1960,7 +1960,6 @@
       visibility: hidden;
       transition: opacity 0.4s ease, visibility 0.4s ease;
       background: #0a0a0a;
-      /* Solid cover – records underneath are never visible */
     }
     .welcome-overlay.visible {
       opacity: 1;
@@ -1975,16 +1974,17 @@
     }
     .welcome-content {
       text-align: center;
-      transform: translateY(20px) scale(0.96);
+      transform: translateY(24px) scale(0.94);
       opacity: 0;
-      transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
+      position: relative;
     }
     .welcome-overlay.visible .welcome-content {
       transform: translateY(0) scale(1);
       opacity: 1;
     }
     .welcome-overlay.fade-out .welcome-content {
-      transform: translateY(-8px) scale(1.01);
+      transform: translateY(-10px) scale(1.02);
       opacity: 0;
       transition: transform 0.4s ease, opacity 0.35s ease;
     }
@@ -2003,10 +2003,59 @@
       letter-spacing: -0.6px;
       box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08);
       animation: welcomeLogoPulse 2.2s ease-in-out infinite;
+      position: relative;
+      z-index: 2;
     }
     @keyframes welcomeLogoPulse {
       0%, 100% { transform: scale(1); box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08); }
       50% { transform: scale(1.04); box-shadow: 0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.12); }
+    }
+    /* Loading ring around the entire name */
+    .welcome-name-wrap {
+      position: relative;
+      display: inline-block;
+      padding: 28px 40px;
+      margin: 0 auto;
+    }
+    .welcome-name-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      pointer-events: none;
+    }
+    .welcome-name-ring::before,
+    .welcome-name-ring::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      border: 2px solid transparent;
+    }
+    .welcome-name-ring::before {
+      border-top-color: rgba(232,232,232,0.85);
+      border-right-color: rgba(232,232,232,0.25);
+      animation: welcomeRingSpin 1.4s linear infinite;
+    }
+    .welcome-name-ring::after {
+      inset: 6px;
+      border-bottom-color: rgba(99,102,241,0.7);
+      border-left-color: rgba(99,102,241,0.2);
+      animation: welcomeRingSpin 1.8s linear infinite reverse;
+    }
+    @keyframes welcomeRingSpin {
+      to { transform: rotate(360deg); }
+    }
+    .welcome-name-glow {
+      position: absolute;
+      inset: -4px;
+      border-radius: 28px;
+      background: radial-gradient(ellipse at center, rgba(232,232,232,0.08) 0%, transparent 70%);
+      animation: welcomeGlowPulse 2s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes welcomeGlowPulse {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.03); }
     }
     .welcome-title {
       font-size: clamp(28px, 5vw, 40px);
@@ -2020,6 +2069,8 @@
       background-clip: text;
       -webkit-text-fill-color: transparent;
       animation: welcomeShimmer 2.8s ease-in-out infinite;
+      position: relative;
+      z-index: 1;
     }
     @keyframes welcomeShimmer {
       0%, 100% { background-position: 0% 50%; }
@@ -2030,6 +2081,8 @@
       color: var(--text-muted);
       letter-spacing: 0.02em;
       opacity: 0.9;
+      position: relative;
+      z-index: 1;
     }
     .welcome-bar {
       width: 48px;
@@ -2038,7 +2091,79 @@
       border-radius: 99px;
       background: linear-gradient(90deg, transparent, #e8e8e8, transparent);
       opacity: 0.7;
+      position: relative;
+      z-index: 1;
     }
+    .welcome-loading-dots {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 20px;
+      position: relative;
+      z-index: 1;
+    }
+    .welcome-loading-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #e8e8e8;
+      opacity: 0.35;
+      animation: welcomeDot 1.2s ease-in-out infinite;
+    }
+    .welcome-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .welcome-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes welcomeDot {
+      0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
+      40% { opacity: 1; transform: scale(1.15); }
+    }
+
+    /* ========== Eyes-closing lock overlay ========== */
+    .eyelid-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2600;
+      pointer-events: none;
+      visibility: hidden;
+    }
+    .eyelid-overlay.active {
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .eyelid {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: #0a0a0a;
+      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .eyelid.top {
+      top: 0;
+      transform: translateY(-100%);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .eyelid.bottom {
+      bottom: 0;
+      transform: translateY(100%);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+    }
+    .eyelid-overlay.closing .eyelid.top {
+      transform: translateY(0);
+    }
+    .eyelid-overlay.closing .eyelid.bottom {
+      transform: translateY(0);
+    }
+    .eyelid-overlay .eyelid-lash {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, rgba(232,232,232,0.15), transparent);
+    }
+    .eyelid.top .eyelid-lash { bottom: 0; }
+    .eyelid.bottom .eyelid-lash { top: 0; }
 
     /* Improved password toggle – cleanly on the right, no overlap */
     .auth-toggle-pass {
@@ -2094,10 +2219,23 @@
   <div class="welcome-overlay" id="welcomeOverlay" aria-hidden="true">
     <div class="welcome-content">
       <div class="welcome-logo" aria-hidden="true">Ow</div>
-      <h2 class="welcome-title">Welcome to OneWeb</h2>
-      <p class="welcome-sub">Your encrypted student records are ready</p>
-      <div class="welcome-bar" aria-hidden="true"></div>
+      <div class="welcome-name-wrap">
+        <div class="welcome-name-glow" aria-hidden="true"></div>
+        <div class="welcome-name-ring" aria-hidden="true"></div>
+        <h2 class="welcome-title">Welcome to OneWeb</h2>
+        <p class="welcome-sub">Your encrypted student records are ready</p>
+        <div class="welcome-bar" aria-hidden="true"></div>
+        <div class="welcome-loading-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Eyes-closing lock overlay -->
+  <div class="eyelid-overlay" id="eyelidOverlay" aria-hidden="true">
+    <div class="eyelid top"><div class="eyelid-lash"></div></div>
+    <div class="eyelid bottom"><div class="eyelid-lash"></div></div>
   </div>
 
   <!-- Auth Overlay -->
@@ -2286,6 +2424,12 @@
           <button type="button" class="dropdown-item" role="menuitem" id="btnExportCSV">
             <i class="fas fa-file-csv" style="color:#64748b" aria-hidden="true"></i> Export CSV
           </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnExportTranscripts">
+            <i class="fas fa-file-export" style="color:#3b82f6" aria-hidden="true"></i> Export Transcripts
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnImportTranscripts">
+            <i class="fas fa-file-import" style="color:#6366f1" aria-hidden="true"></i> Import Transcripts
+          </button>
           <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
             <i class="fas fa-database" aria-hidden="true"></i> Load Sample Data
           </button>
@@ -2293,6 +2437,7 @@
       </div>
 
       <input type="file" id="excelInput" class="file-input-hidden" accept=".xlsx,.xls,.csv" aria-hidden="true" />
+      <input type="file" id="transcriptsImportInput" class="file-input-hidden" accept=".json,application/json,.pdf,image/*,.jpg,.jpeg,.png,.webp" multiple aria-hidden="true" />
 
       <button type="button" class="tool-btn save-btn" id="btnSave" title="Save all data (encrypted)">
         <i class="fas fa-save" aria-hidden="true"></i> <span>Save</span>
@@ -2917,7 +3062,7 @@
         void overlay.offsetWidth;
         overlay.classList.add('visible');
         clearTimeout(window.__welcomeTimer);
-        // Hold welcome ~1.8s then fade out (~0.5s), then show app
+        // Hold welcome with loading ring ~2.2s then fade out, then show app
         window.__welcomeTimer = setTimeout(() => {
           overlay.classList.add('fade-out');
           overlay.classList.remove('visible');
@@ -2926,7 +3071,7 @@
             overlay.classList.remove('fade-out');
             if (typeof onComplete === 'function') onComplete();
           }, 520);
-        }, 1800);
+        }, 2200);
       }
 
       async function lockApp() {
@@ -2944,18 +3089,24 @@
           }
         }
 
-        // Lock animation
+        // Eyes-closing lock animation
+        const eyelid = document.getElementById('eyelidOverlay');
         const overlay = document.getElementById('authOverlay');
         const appRoot = document.getElementById('appRoot');
         const lockIcon = document.getElementById('lockAnimIcon');
+        if (eyelid) {
+          eyelid.classList.add('active');
+          void eyelid.offsetWidth;
+          eyelid.classList.add('closing');
+        }
         if (lockIcon) {
           lockIcon.classList.add('locking');
         }
-        appRoot.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+        appRoot.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
         appRoot.style.opacity = '0';
-        appRoot.style.transform = 'scale(0.98)';
+        appRoot.style.transform = 'scale(0.97)';
 
-        await new Promise(r => setTimeout(r, 320));
+        await new Promise(r => setTimeout(r, 580));
 
         sessionPassword = null;
         data = [];
@@ -2994,6 +3145,12 @@
         updatePagination();
         showToast('Vault locked. Data remains encrypted in the cloud.', 'info', 2800);
         if (lockIcon) lockIcon.classList.remove('locking');
+        // Reset eyelids after auth screen is visible
+        if (eyelid) {
+          setTimeout(() => {
+            eyelid.classList.remove('closing', 'active');
+          }, 400);
+        }
       }
 
       async function handleAuthSubmit(e) {
@@ -4517,6 +4674,131 @@
         showToast('CSV exported', 'success');
       }
 
+      function exportTranscripts() {
+        document.getElementById('fileMenu').classList.remove('show');
+        const withFiles = data.filter(r => r.transcriptFile && r.transcriptFile.data);
+        if (!withFiles.length) {
+          showToast('No transcript files to export', 'info');
+          return;
+        }
+        const payload = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          count: withFiles.length,
+          transcripts: withFiles.map(r => ({
+            id: r.id,
+            name: r.name || '',
+            university: r.university || '',
+            file: {
+              name: r.transcriptFile.name || 'transcript.pdf',
+              type: r.transcriptFile.type || 'application/octet-stream',
+              size: r.transcriptFile.size || 0,
+              data: r.transcriptFile.data
+            }
+          }))
+        };
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `oneweb_transcripts_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast(`Exported ${withFiles.length} transcript(s)`, 'success');
+      }
+
+      async function handleTranscriptsImport(event) {
+        const ok = await requireAdmin('import transcripts');
+        if (!ok) {
+          event.target.value = '';
+          return;
+        }
+        const files = Array.from(event.target.files || []);
+        if (!files.length) return;
+
+        showLoading(true);
+        try {
+          const jsonFile = files.find(f => /\.json$/i.test(f.name) || f.type === 'application/json');
+          if (jsonFile) {
+            const text = await jsonFile.text();
+            const parsed = JSON.parse(text);
+            const list = parsed.transcripts || (Array.isArray(parsed) ? parsed : null);
+            if (!list || !list.length) {
+              showToast('No transcripts found in the JSON file.', 'error');
+              return;
+            }
+            let matched = 0;
+            let unmatched = 0;
+            list.forEach(item => {
+              if (!item || !item.file || !item.file.data) {
+                unmatched++;
+                return;
+              }
+              let row = null;
+              if (item.id) row = getRowById(item.id);
+              if (!row && item.name) {
+                const n = normalize(item.name);
+                row = data.find(r => normalize(r.name) === n);
+              }
+              if (row) {
+                row.transcriptFile = {
+                  name: item.file.name || 'transcript.pdf',
+                  type: item.file.type || 'application/octet-stream',
+                  data: item.file.data,
+                  size: item.file.size || 0
+                };
+                matched++;
+              } else {
+                unmatched++;
+              }
+            });
+            scheduleSave(true);
+            renderTable();
+            showToast(`Imported transcripts: ${matched} matched${unmatched ? `, ${unmatched} unmatched` : ''}`, matched ? 'success' : 'warning');
+          } else {
+            // Match individual PDF/image files by filename to student names
+            let matched = 0;
+            let skipped = 0;
+            for (const file of files) {
+              if (file.size > MAX_TRANSCRIPT_SIZE) {
+                skipped++;
+                continue;
+              }
+              const base = file.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[_\-]+/g, ' ').trim();
+              const row = data.find(r => {
+                const n = normalize(r.name);
+                return n && (base.includes(n) || n.includes(base) || base === n);
+              });
+              if (!row) {
+                skipped++;
+                continue;
+              }
+              const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+              });
+              row.transcriptFile = {
+                name: file.name,
+                type: file.type || 'application/octet-stream',
+                data: dataUrl,
+                size: file.size
+              };
+              matched++;
+            }
+            scheduleSave(true);
+            renderTable();
+            showToast(`Attached ${matched} file(s)${skipped ? `, ${skipped} skipped` : ''}`, matched ? 'success' : 'info');
+          }
+        } catch (err) {
+          console.warn(err);
+          showToast('Failed to import transcripts. Check the file format.', 'error');
+        } finally {
+          event.target.value = '';
+          showLoading(false);
+        }
+      }
+
       async function loadSample() {
         const ok = await requireAdmin('load sample data');
         if (!ok) return;
@@ -4904,10 +5186,17 @@
         });
         document.getElementById('btnExportExcel').addEventListener('click', exportExcel);
         document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
+        document.getElementById('btnExportTranscripts').addEventListener('click', exportTranscripts);
+        document.getElementById('btnImportTranscripts').addEventListener('click', () => {
+          fileMenu.classList.remove('show');
+          fileMenuBtn.setAttribute('aria-expanded', 'false');
+          document.getElementById('transcriptsImportInput').click();
+        });
         document.getElementById('btnLoadSample').addEventListener('click', loadSample);
         document.getElementById('excelInput').addEventListener('change', handleExcelImport);
+        document.getElementById('transcriptsImportInput').addEventListener('change', handleTranscriptsImport);
 
-        // Transcript file input
+        // Transcript file input (per-row)
         document.getElementById('transcriptFileInput').addEventListener('change', (e) => {
           const file = e.target.files && e.target.files[0];
           if (file) processTranscriptFile(file);
