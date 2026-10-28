@@ -162,17 +162,6 @@
     .auth-card {
       transition: box-shadow 0.3s ease;
     }
-    /* Improve used-panel open feel */
-    .used-panel {
-      transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                  opacity 0.35s ease,
-                  border-color 0.25s ease,
-                  box-shadow 0.25s ease,
-                  transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .used-panel.visible {
-      transform: translateY(0);
-    }
     /* Table row hover polish */
     tbody tr {
       transition: background 0.18s ease, filter 0.18s ease;
@@ -716,69 +705,88 @@
     .btn-add:hover:not(:disabled) { background: #d0d0d0; transform: translateY(-1px); }
     .btn-add:active:not(:disabled) { transform: translateY(0); }
 
-    .used-panel {
-      background: linear-gradient(165deg, #161616 0%, #121212 100%);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 16px;
-      margin-bottom: 16px;
-      overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
-      max-height: 0;
+    /* ========== Already Used — Side Drawer ========== */
+    .used-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1400;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       opacity: 0;
-      transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                  opacity 0.35s ease,
-                  border-color 0.25s ease,
-                  box-shadow 0.25s ease;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      pointer-events: none;
+    }
+    .used-backdrop.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .used-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1500;
+      width: min(420px, 100vw);
+      max-width: 100%;
+      background: linear-gradient(180deg, #161616 0%, #111111 40%, #0e0e0e 100%);
+      border-left: 1px solid rgba(255,255,255,0.08);
+      box-shadow: -24px 0 64px rgba(0,0,0,0.55), inset 1px 0 0 rgba(255,255,255,0.04);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(105%);
+      transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
     }
     .used-panel.visible {
-      max-height: 640px;
-      opacity: 1;
+      transform: translateX(0);
     }
     .used-panel-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 18px;
-      background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+      padding: 20px 20px 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
       border-bottom: 1px solid rgba(255,255,255,0.06);
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.2s ease;
+      flex-shrink: 0;
       gap: 12px;
-    }
-    .used-panel-header:hover {
-      background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+      user-select: none;
     }
     .used-panel-title {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--text);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       flex: 1;
       min-width: 0;
     }
     .used-panel-title .title-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
       background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
-      font-size: 12px;
+      font-size: 14px;
       flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(59,130,246,0.35);
+      box-shadow: 0 4px 14px rgba(59,130,246,0.35);
     }
     .used-panel-title .title-text {
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 2px;
       min-width: 0;
     }
     .used-panel-title .title-main {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -787,81 +795,101 @@
       font-size: 11px;
       font-weight: 400;
       color: var(--text-faint);
+      line-height: 1.3;
     }
     .used-header-right {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-shrink: 0;
     }
     .used-badge {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 4px 10px;
+      padding: 5px 11px;
       border-radius: 999px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       background: rgba(59,130,246,0.15);
       color: #93c5fd;
-      border: 1px solid rgba(59,130,246,0.25);
+      border: 1px solid rgba(59,130,246,0.28);
       font-variant-numeric: tabular-nums;
     }
-    .used-badge i { font-size: 10px; opacity: 0.8; }
-    #usedChevron {
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      color: var(--text-faint);
-      font-size: 12px;
+    .used-badge i { font-size: 10px; opacity: 0.85; }
+    .used-close-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      background: var(--input-bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.18s ease;
+      flex-shrink: 0;
+    }
+    .used-close-btn:hover {
+      background: var(--surface-alt);
+      color: var(--text);
+      border-color: var(--border);
     }
     .used-panel-body {
-      padding: 0;
-      max-height: 480px;
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .used-scroll-area {
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
       overscroll-behavior: contain;
-      scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
       scrollbar-gutter: stable;
-      contain: content;
     }
     .used-toolbar {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       padding: 12px 16px;
       border-bottom: 1px solid rgba(255,255,255,0.05);
-      background: rgba(0,0,0,0.2);
+      background: rgba(0,0,0,0.25);
       flex-wrap: wrap;
+      flex-shrink: 0;
     }
     .used-search-wrap {
       position: relative;
       flex: 1;
-      min-width: 140px;
-      max-width: 280px;
+      min-width: 120px;
     }
     .used-search-input {
       width: 100%;
-      height: 34px;
-      padding: 0 12px 0 34px;
+      height: 36px;
+      padding: 0 12px 0 36px;
       border: 1px solid var(--border-soft);
-      border-radius: 8px;
+      border-radius: 10px;
       background: var(--input-bg);
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text);
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
     .used-search-input:focus {
       border-color: #555;
-      box-shadow: 0 0 0 2px rgba(80,80,80,0.25);
+      box-shadow: 0 0 0 3px rgba(80,80,80,0.28);
     }
     .used-search-wrap i {
       position: absolute;
-      left: 11px;
+      left: 12px;
       top: 50%;
       transform: translateY(-50%);
       color: var(--text-faint);
-      font-size: 12px;
+      font-size: 13px;
       pointer-events: none;
     }
     .used-filter-btns {
@@ -870,7 +898,7 @@
       flex-wrap: wrap;
     }
     .used-filter-btn {
-      height: 30px;
+      height: 32px;
       padding: 0 12px;
       border-radius: 8px;
       border: 1px solid var(--border-soft);
@@ -971,8 +999,8 @@
     }
     .used-uni-block.collapsed .used-uni-chevron { transform: rotate(-90deg); }
     .used-uni-body {
-      padding: 0 16px 14px 58px;
-      max-height: 400px;
+      padding: 0 16px 14px 16px;
+      max-height: 500px;
       overflow: hidden;
       transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease;
       opacity: 1;
@@ -1828,8 +1856,6 @@
       .tool-btn, .btn-add { padding: 0 12px; font-size: 12px; height: 38px; }
       .header-lock-btn, .header-edit-btn { height: 38px; padding: 0 12px; font-size: 12px; }
       .table-hint { font-size: 11px; padding: 8px 12px; }
-      .used-uni-body { padding-left: 16px; }
-      .used-panel-title .title-main { font-size: 12px; }
       .footer-note { font-size: 11px; padding: 0 8px 20px; }
     }
     @media (max-width: 480px) {
@@ -1854,8 +1880,9 @@
       .table-scroll {
         max-height: none;
       }
-      .used-panel-header { padding: 12px 14px; }
-      .used-badge { padding: 3px 8px; font-size: 10px; }
+      .used-panel { width: 100vw; }
+      .used-panel-header { padding: 16px 14px 14px; }
+      .used-badge { padding: 4px 9px; font-size: 11px; }
       .auth-logo { width: 52px; height: 52px; font-size: 20px; }
       .pagination-bar { flex-direction: column; align-items: stretch; }
       .pagination-controls { justify-content: center; }
@@ -1905,7 +1932,6 @@
     .app-shell .brand { flex-shrink: 0; }
     .app-shell .stats-bar { flex-shrink: 0; }
     .app-shell .toolbar { flex-shrink: 0; }
-    .app-shell .used-panel { flex-shrink: 0; }
     .app-shell .table-wrap {
       flex: 1 1 auto;
       min-height: 0;
@@ -2281,13 +2307,14 @@
       </button>
     </div>
 
-    <div class="used-panel" id="usedPanel" role="region" aria-label="Already used high schools and phones">
-      <div class="used-panel-header" id="usedPanelHeader" role="button" tabindex="0" aria-expanded="true">
+    <div class="used-backdrop" id="usedBackdrop" aria-hidden="true"></div>
+    <div class="used-panel" id="usedPanel" role="dialog" aria-modal="true" aria-label="Already used high schools and phones" aria-hidden="true">
+      <div class="used-panel-header" id="usedPanelHeader">
         <div class="used-panel-title">
           <div class="title-icon" aria-hidden="true"><i class="fas fa-shield-halved"></i></div>
           <div class="title-text">
-            <span class="title-main">Already Used — High Schools &amp; Phones</span>
-            <span class="title-sub">Unique within each university · Duplicates trigger alert</span>
+            <span class="title-main">Already Used</span>
+            <span class="title-sub">High schools &amp; phones by university</span>
           </div>
         </div>
         <div class="used-header-right">
@@ -2295,7 +2322,9 @@
             <i class="fas fa-layer-group" aria-hidden="true"></i>
             <span id="usedTotalCount">0</span>
           </span>
-          <i class="fas fa-chevron-down" id="usedChevron" aria-hidden="true"></i>
+          <button type="button" class="used-close-btn" id="usedCloseBtn" title="Close panel" aria-label="Close">
+            <i class="fas fa-times" aria-hidden="true"></i>
+          </button>
         </div>
       </div>
       <div class="used-panel-body" id="usedPanelBody">
@@ -2316,12 +2345,14 @@
             </button>
           </div>
         </div>
-        <div class="used-empty" id="usedEmpty">
-          <div class="used-empty-icon"><i class="fas fa-inbox" aria-hidden="true"></i></div>
-          <div class="used-empty-title">No entries yet</div>
-          <div class="used-empty-sub">Add students to see used High Schools and Phone numbers grouped by University.</div>
+        <div class="used-scroll-area" id="usedScrollArea">
+          <div class="used-empty" id="usedEmpty">
+            <div class="used-empty-icon"><i class="fas fa-inbox" aria-hidden="true"></i></div>
+            <div class="used-empty-title">No entries yet</div>
+            <div class="used-empty-sub">Add students to see used High Schools and Phone numbers grouped by University.</div>
+          </div>
+          <div id="usedContent"></div>
         </div>
-        <div id="usedContent"></div>
       </div>
     </div>
 
@@ -2645,7 +2676,6 @@
       let currentPage = 1;
       let revealSSN = false;
       let usedPanelOpen = false;
-      let usedBodyCollapsed = false;
       let saveTimer = null;
       let isSaving = false;
       let scrollRaf = null;
@@ -4184,36 +4214,32 @@
         renderTable();
       }
 
-      function toggleUsedPanel() {
+      function toggleUsedPanel(forceState) {
         const panel = document.getElementById('usedPanel');
-        usedPanelOpen = !usedPanelOpen;
+        const backdrop = document.getElementById('usedBackdrop');
+        const btn = document.getElementById('btnUsedPanel');
+        if (typeof forceState === 'boolean') {
+          usedPanelOpen = forceState;
+        } else {
+          usedPanelOpen = !usedPanelOpen;
+        }
         panel.classList.toggle('visible', usedPanelOpen);
-        document.getElementById('btnUsedPanel').classList.toggle('active', usedPanelOpen);
-        document.getElementById('btnUsedPanel').setAttribute('aria-expanded', usedPanelOpen ? 'true' : 'false');
+        panel.setAttribute('aria-hidden', usedPanelOpen ? 'false' : 'true');
+        if (backdrop) {
+          backdrop.classList.toggle('visible', usedPanelOpen);
+          backdrop.setAttribute('aria-hidden', usedPanelOpen ? 'false' : 'true');
+        }
+        if (btn) {
+          btn.classList.toggle('active', usedPanelOpen);
+          btn.setAttribute('aria-expanded', usedPanelOpen ? 'true' : 'false');
+        }
+        document.body.style.overflow = usedPanelOpen ? 'hidden' : '';
         if (usedPanelOpen) {
           renderUsedPanel();
           requestAnimationFrame(() => {
-            const body = document.getElementById('usedPanelBody');
-            if (body && !usedBodyCollapsed) body.scrollTop = 0;
+            const scrollArea = document.getElementById('usedScrollArea');
+            if (scrollArea) scrollArea.scrollTop = 0;
           });
-        }
-      }
-
-      function toggleUsedPanelBody() {
-        const body = document.getElementById('usedPanelBody');
-        const chev = document.getElementById('usedChevron');
-        const header = document.getElementById('usedPanelHeader');
-        usedBodyCollapsed = !usedBodyCollapsed;
-        if (usedBodyCollapsed) {
-          body.style.maxHeight = '0';
-          body.style.overflow = 'hidden';
-          chev.style.transform = 'rotate(-90deg)';
-          header.setAttribute('aria-expanded', 'false');
-        } else {
-          body.style.maxHeight = '480px';
-          body.style.overflow = 'auto';
-          chev.style.transform = 'rotate(0deg)';
-          header.setAttribute('aria-expanded', 'true');
         }
       }
 
@@ -4809,14 +4835,11 @@
         document.getElementById('programFilter').addEventListener('change', applyFilters);
         document.getElementById('sortSelect').addEventListener('change', applyFilters);
         document.getElementById('btnRevealSSN').addEventListener('click', toggleSSN);
-        document.getElementById('btnUsedPanel').addEventListener('click', toggleUsedPanel);
-        document.getElementById('usedPanelHeader').addEventListener('click', toggleUsedPanelBody);
-        document.getElementById('usedPanelHeader').addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleUsedPanelBody();
-          }
-        });
+        document.getElementById('btnUsedPanel').addEventListener('click', () => toggleUsedPanel());
+        const usedCloseBtn = document.getElementById('usedCloseBtn');
+        if (usedCloseBtn) usedCloseBtn.addEventListener('click', () => toggleUsedPanel(false));
+        const usedBackdrop = document.getElementById('usedBackdrop');
+        if (usedBackdrop) usedBackdrop.addEventListener('click', () => toggleUsedPanel(false));
         document.getElementById('btnClear').addEventListener('click', clearAll);
         document.getElementById('btnAdd').addEventListener('click', addRow);
         document.getElementById('btnSave').addEventListener('click', forceSave);
@@ -4917,6 +4940,7 @@
           if (e.key === 'Escape') {
             closeCustomSelectMenu();
             closeAdminModal(false);
+            if (usedPanelOpen) toggleUsedPanel(false);
           }
         });
 
