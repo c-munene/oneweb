@@ -2028,13 +2028,15 @@
       display: flex;
       flex-direction: column;
       position: relative;
-      /* Comfortable height for the list – page itself continues to scroll */
-      min-height: 380px;
-      max-height: min(62vh, 620px);
+      /* Comfortable, predictable height – page scrolls around it */
+      min-height: 360px;
+      height: min(58vh, 580px);
+      max-height: min(58vh, 580px);
     }
     .app-shell .table-scroll {
       flex: 1 1 auto;
-      min-height: 260px;
+      min-height: 0;
+      height: 100%;
       overflow-x: auto;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
@@ -2501,7 +2503,7 @@
       background: #0f0f0f;
     }
 
-    /* Also style the table’s own scrollbar so both feel consistent */
+    /* Table internal scrollbar – consistent with page */
     .table-scroll {
       scrollbar-width: thin;
       scrollbar-color: #555 transparent;
@@ -2529,31 +2531,38 @@
       background: transparent;
     }
 
-    /* Mobile & tablet – keep list comfortable while page scrolls */
+    /* Responsive table heights */
     @media (max-width: 900px) {
       .app-shell .table-wrap {
-        min-height: 320px;
-        max-height: min(55vh, 520px);
+        min-height: 300px;
+        height: min(52vh, 480px);
+        max-height: min(52vh, 480px);
       }
     }
     @media (max-width: 600px) {
       .app-shell .table-wrap {
-        min-height: 280px;
-        max-height: min(50vh, 440px);
+        min-height: 260px;
+        height: min(48vh, 400px);
+        max-height: min(48vh, 400px);
       }
-      /* Slightly wider thumb on touch for easier grabbing */
-      html::-webkit-scrollbar {
-        width: 6px;
-      }
-      .table-scroll::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+      html::-webkit-scrollbar { width: 6px; }
+      .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+      /* Prevent iOS zoom on focus */
+      .search-input, .auth-input, .cell-input, .used-search-input {
+        font-size: 16px;
       }
     }
     @media (max-height: 500px) and (orientation: landscape) {
       .app-shell .table-wrap {
-        max-height: min(60vh, 260px);
+        height: min(55vh, 240px);
+        max-height: min(55vh, 240px);
       }
+    }
+
+    /* Reduce motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .table-scroll { scroll-behavior: auto; }
     }
 
   </style>
@@ -2722,7 +2731,7 @@
     <div class="toolbar" role="toolbar" aria-label="Table controls">
       <div class="search-wrap">
         <i class="fas fa-search" aria-hidden="true"></i>
-        <input type="search" class="search-input" id="searchInput" name="q_oneweb_no_autofill" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" readonly />
+        <input type="search" class="search-input" id="searchInput" name="q_oneweb_search_x9k2" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" inputmode="search" />
       </div>
 
       <select class="filter-select" id="statusFilter" aria-label="Filter by status">
@@ -3151,13 +3160,13 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
       const ROW_HEIGHT = 46;
-      const BUFFER_ROWS = 8;
-      const VIRTUAL_THRESHOLD = 60;
+      const BUFFER_ROWS = 10;
+      const VIRTUAL_THRESHOLD = 40;          /* start virtualizing earlier for smoothness */
       const PAGE_SIZE = 100;
       const PBKDF2_ITERATIONS = 120000;
       const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
-      const SAVE_DEBOUNCE_MS = 450;
-      const FILTER_DEBOUNCE_MS = 160;
+      const SAVE_DEBOUNCE_MS = 380;          /* slightly snappier auto-save */
+      const FILTER_DEBOUNCE_MS = 140;
 
       let data = [];
       let filteredData = [];
@@ -3643,6 +3652,10 @@
       function showToast(message, type = 'info', duration = 3200) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
+        // Limit stacked toasts to avoid clutter
+        while (container.children.length >= 3) {
+          container.removeChild(container.firstChild);
+        }
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.setAttribute('role', 'status');
@@ -4380,6 +4393,24 @@
         if (filteredData.length === 0) {
           tbody.innerHTML = '';
           empty.classList.remove('hidden');
+          // Contextual empty message
+          const hasFilters = !!(document.getElementById('searchInput').value.trim() ||
+            document.getElementById('statusFilter').value ||
+            document.getElementById('programFilter').value);
+          const titleEl = empty.querySelector('p.text-base');
+          const subEl = empty.querySelector('p.text-sm');
+          if (titleEl && subEl) {
+            if (data.length === 0) {
+              titleEl.textContent = 'No student records yet';
+              subEl.textContent = 'Click “Enable Editing” then “Add”, or import an Excel file';
+            } else if (hasFilters) {
+              titleEl.textContent = 'No matching records';
+              subEl.textContent = 'Try clearing the search or filters';
+            } else {
+              titleEl.textContent = 'No student records yet';
+              subEl.textContent = 'Click “Enable Editing” then “Add”, or import an Excel file';
+            }
+          }
           document.getElementById('dataTable').setAttribute('aria-rowcount', '0');
           updatePagination();
           return;
@@ -4765,6 +4796,15 @@
           showToast('Vault is locked. Unlock first.', 'error');
           return;
         }
+        if (isSaving) {
+          showToast('Save already in progress…', 'info', 1500);
+          return;
+        }
+        const btn = document.getElementById('btnSave');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> <span>Saving…</span>';
+        }
         try {
           const payload = await encryptPayload(data, sessionPassword);
           const { error } = await supabase
@@ -4775,6 +4815,11 @@
         } catch (e) {
           console.warn('save failed', e);
           showToast('Could not save to cloud. Check your internet.', 'error', 4000);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save" aria-hidden="true"></i> <span>Save</span>';
+          }
         }
       }
 
@@ -5256,13 +5301,20 @@
           if (pageData.length >= VIRTUAL_THRESHOLD) {
             renderVirtualRows(pageData, (currentPage - 1) * PAGE_SIZE);
           }
+          // Close floating menus while scrolling for clean UX
           if (customOpenId) closeCustomSelectMenu();
+          const fileMenu = document.getElementById('fileMenu');
+          if (fileMenu && fileMenu.classList.contains('show')) {
+            fileMenu.classList.remove('show');
+            const btn = document.getElementById('btnFileMenu');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+          }
 
-          // Premium cue: hide bottom fade when user reaches end of list
+          // Hide bottom fade when user reaches end of list
           const scrollEl = document.getElementById('tableScroll');
           const wrap = scrollEl && scrollEl.closest('.table-wrap');
           if (scrollEl && wrap) {
-            const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 8;
+            const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
             wrap.classList.toggle('scrolled-bottom', atBottom);
           }
         });
@@ -5351,9 +5403,15 @@
           if (!isAdmin) requireAdmin('edit this field');
           return;
         }
-        const real = el.dataset.real || '';
+        // Restore full unmasked value for editing
+        const real = el.dataset.real != null ? el.dataset.real : el.value;
         el.value = real;
+        el.dataset.real = real;
         el.classList.remove('masked');
+        // Select all for quick overwrite on SSN / short fields
+        if (el.getAttribute('data-ssn') === '1' || el.getAttribute('data-pass') === '1') {
+          setTimeout(() => { try { el.select(); } catch (_) {} }, 0);
+        }
       }
 
       function handleCellBlur(e) {
@@ -5364,9 +5422,10 @@
         const key = el.getAttribute('data-key');
         if (!id || !key) return;
 
+        // Authoritative value is what the user typed
         const value = el.value;
-        updateCell(id, key, value);
         el.dataset.real = value;
+        updateCell(id, key, value);
 
         const isSSN = el.getAttribute('data-ssn') === '1';
         const isPass = el.getAttribute('data-pass') === '1';
@@ -5374,7 +5433,7 @@
         if (isPass) el.classList.add('masked');
         if (isSSN && !revealSSN) {
           el.classList.add('masked');
-          el.value = value ? '•••••' + String(value).slice(-4) : '';
+          el.value = value ? ('•••••' + String(value).slice(-4)) : '';
         }
       }
 
@@ -5457,14 +5516,13 @@
         scrollEl.addEventListener('scroll', onTableScroll, { passive: true });
 
         const searchEl = document.getElementById('searchInput');
-        // Prevent browser autofill on the search field only
-        searchEl.addEventListener('focus', function unlockSearch() {
-          searchEl.removeAttribute('readonly');
-          searchEl.removeEventListener('focus', unlockSearch);
-        });
         // Clear any value the browser may have injected on load
         if (searchEl.value) searchEl.value = '';
         searchEl.addEventListener('input', debouncedApplyFilters);
+        // Ensure Enter does not submit anything
+        searchEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') e.preventDefault();
+        });
         document.getElementById('statusFilter').addEventListener('change', applyFilters);
         document.getElementById('programFilter').addEventListener('change', applyFilters);
         document.getElementById('sortSelect').addEventListener('change', applyFilters);
@@ -5594,19 +5652,34 @@
 
         document.addEventListener('keydown', (e) => {
           if (!isUnlocked) return;
-          if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'n' || e.key === 'N')) {
             e.preventDefault();
             addRow();
           }
-          if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
             e.preventDefault();
             forceSave();
+          }
+          // Escape already handled globally; prevent Enter from submitting phantom forms
+          if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('cell-input')) {
+            e.preventDefault();
+            e.target.blur(); // commit the value
           }
         });
 
         window.addEventListener('resize', () => {
           if (customOpenId) closeCustomSelectMenu();
         });
+        // Close floating menus when the page itself is scrolled
+        window.addEventListener('scroll', () => {
+          if (customOpenId) closeCustomSelectMenu();
+          const fileMenu = document.getElementById('fileMenu');
+          if (fileMenu && fileMenu.classList.contains('show')) {
+            fileMenu.classList.remove('show');
+            const btn = document.getElementById('btnFileMenu');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+          }
+        }, { passive: true });
 
         window.addEventListener('beforeunload', () => {
           if (saveTimer && sessionPassword) {
