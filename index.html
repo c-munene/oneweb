@@ -97,10 +97,11 @@
       color: var(--text);
       transition: background 0.25s ease, color 0.25s ease;
       overscroll-behavior: none;
-      overflow: hidden;
+      overflow: hidden;          /* page itself never scrolls */
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
+      position: relative;
     }
 
     /* ========== Auth Overlay (Refined) ========== */
@@ -1166,14 +1167,56 @@
     .table-scroll {
       overflow-x: auto;
       overflow-y: auto;
-      max-height: none;
       overscroll-behavior: contain;
-      scroll-behavior: auto;
+      scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
       position: relative;
       scrollbar-gutter: stable;
       border-radius: 0 0 12px 12px;
       min-height: 0;
+      /* Premium custom scrollbar – vertical list access */
+      scrollbar-width: thin;
+      scrollbar-color: #4a4a4a transparent;
+    }
+
+    /* WebKit / Blink premium scrollbar */
+    .table-scroll::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .table-scroll::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 99px;
+      margin: 4px 0;
+    }
+    .table-scroll::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #555 0%, #3a3a3a 100%);
+      border-radius: 99px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      min-height: 48px;
+      transition: background 0.2s ease;
+    }
+    .table-scroll::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, #6b6b6b 0%, #505050 100%);
+      background-clip: padding-box;
+    }
+    .table-scroll::-webkit-scrollbar-thumb:active {
+      background: linear-gradient(180deg, #7a7a7a 0%, #5a5a5a 100%);
+      background-clip: padding-box;
+    }
+    .table-scroll::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    /* Subtle horizontal scrollbar distinction */
+    .table-scroll::-webkit-scrollbar:horizontal {
+      height: 7px;
+    }
+    .table-scroll::-webkit-scrollbar-thumb:horizontal {
+      background: linear-gradient(90deg, #4a4a4a, #3a3a3a);
+      border-radius: 99px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
     }
     table {
       border-collapse: separate;
@@ -1518,32 +1561,82 @@
       padding: 64px 20px;
       color: var(--text-faint);
     }
+    /* ========== Optimized Scrollbars (desktop + touch) ========== */
+    .table-scroll,
+    .used-scroll-area,
+    .used-panel-body {
+      scrollbar-width: auto;               /* Firefox: show useful size */
+      scrollbar-color: #555 #1a1a1a;       /* thumb | track */
+    }
+
+    /* WebKit (Chrome, Safari, Edge, most mobile browsers) */
     .table-scroll::-webkit-scrollbar,
+    .used-scroll-area::-webkit-scrollbar,
     .used-panel-body::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 12px;
+      height: 12px;
     }
     .table-scroll::-webkit-scrollbar-track,
+    .used-scroll-area::-webkit-scrollbar-track,
     .used-panel-body::-webkit-scrollbar-track {
-      background: transparent;
+      background: #141414;
+      border-radius: 8px;
+      margin: 2px;
     }
     .table-scroll::-webkit-scrollbar-thumb,
+    .used-scroll-area::-webkit-scrollbar-thumb,
     .used-panel-body::-webkit-scrollbar-thumb {
-      background: var(--scroll-thumb);
-      border-radius: 99px;
-      border: 2px solid transparent;
+      background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+      border-radius: 8px;
+      border: 2px solid #141414;
       background-clip: padding-box;
-      transition: background 0.2s ease;
+      min-height: 40px;
+      min-width: 40px;
     }
     .table-scroll::-webkit-scrollbar-thumb:hover,
+    .used-scroll-area::-webkit-scrollbar-thumb:hover,
     .used-panel-body::-webkit-scrollbar-thumb:hover {
-      background: var(--scroll-thumb-hover);
-      background-clip: padding-box;
+      background: linear-gradient(180deg, #666 0%, #555 100%);
+      border: 2px solid #141414;
     }
-    .table-scroll,
-    .used-panel-body {
-      scrollbar-width: thin;
-      scrollbar-color: var(--scroll-thumb) transparent;
+    .table-scroll::-webkit-scrollbar-thumb:active,
+    .used-scroll-area::-webkit-scrollbar-thumb:active,
+    .used-panel-body::-webkit-scrollbar-thumb:active {
+      background: #777;
+    }
+    .table-scroll::-webkit-scrollbar-corner,
+    .used-scroll-area::-webkit-scrollbar-corner,
+    .used-panel-body::-webkit-scrollbar-corner {
+      background: #141414;
+    }
+
+    /* Horizontal scrollbar specifically more visible for the wide table */
+    .table-scroll::-webkit-scrollbar:horizontal {
+      height: 14px;
+    }
+    .table-scroll::-webkit-scrollbar-thumb:horizontal {
+      min-width: 60px;
+    }
+
+    /* On touch devices keep scrollbars usable but not huge */
+    @media (hover: none) and (pointer: coarse) {
+      .table-scroll::-webkit-scrollbar,
+      .used-scroll-area::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      .table-scroll::-webkit-scrollbar:horizontal {
+        height: 12px;
+      }
+      .table-scroll,
+      .used-scroll-area {
+        scrollbar-width: auto;
+      }
+    }
+
+    /* Force stable gutter so layout doesn't jump when scrollbar appears */
+    .table-scroll {
+      scrollbar-gutter: stable both-edges;
     }
     .dropdown {
       position: relative;
@@ -1837,9 +1930,7 @@
       .stat-item { min-width: 33.333%; }
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
-      .table-scroll {
-        max-height: none;
-      }
+      /* Keep constrained height so vertical scroll works on tablets */
       .toolbar { gap: 8px; }
       .search-wrap { min-width: 100%; max-width: 100%; }
       .filter-select { flex: 1 1 auto; min-width: 120px; }
@@ -1879,9 +1970,7 @@
       .header-lock-btn, .header-edit-btn { padding: 0 11px; min-width: 40px; justify-content: center; }
       .search-input { font-size: 16px; }
       .filter-select { font-size: 13px; min-width: 100px; }
-      .table-scroll {
-        max-height: none;
-      }
+      /* Keep constrained height – vertical scrollbar remains the access method */
       .used-panel { width: 100vw; }
       .used-panel-header { padding: 16px 14px 14px; }
       .used-badge { padding: 4px 9px; font-size: 11px; }
@@ -1915,12 +2004,13 @@
     }
 
 
-    /* App shell – fills viewport, only table area scrolls */
+    /* App shell – fills viewport, only the records list scrolls (premium constrained layout) */
     .app-shell {
       display: flex;
       flex-direction: column;
       flex: 1 1 auto;
       min-height: 0;
+      height: 100%;
       width: 100%;
       overflow: hidden;
       opacity: 0;
@@ -1940,14 +2030,38 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      /* ensure the scroll region has a real height on every device */
+      position: relative;
     }
     .app-shell .table-scroll {
       flex: 1 1 auto;
       min-height: 0;
-      max-height: none !important;
+      height: 0;                 /* allows flex to allocate remaining space */
+      max-height: 100%;
+      overflow-x: auto;
+      overflow-y: auto;
     }
     .app-shell .pagination-bar { flex-shrink: 0; }
-    .app-shell .footer-note { flex-shrink: 0; margin-top: 10px; padding-bottom: 4px; }
+    .app-shell .footer-note { flex-shrink: 0; margin-top: 8px; padding-bottom: 2px; }
+
+    /* Fade hint at bottom of list when more content exists (classy cue) */
+    .app-shell .table-wrap::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 8px;
+      bottom: 0;
+      height: 28px;
+      pointer-events: none;
+      background: linear-gradient(to top, rgba(20,20,20,0.75), transparent);
+      border-radius: 0 0 12px 12px;
+      opacity: 0.85;
+      z-index: 15;
+      transition: opacity 0.25s ease;
+    }
+    .app-shell .table-wrap.scrolled-bottom::after {
+      opacity: 0;
+    }
 
     /* ========== Welcome Animation (post-unlock) ========== */
     .welcome-overlay {
@@ -2349,6 +2463,131 @@
       }
       .transcript-upload-btn {
         min-height: 40px;
+      }
+    }
+
+  
+    /* ========== Premium vertical list scrolling – device responsiveness ========== */
+    /* Guarantee the records list is the only vertical scroller on every screen size */
+    @media (max-width: 1024px) {
+      .app-shell .table-wrap {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+      }
+      .app-shell .table-scroll {
+        flex: 1 1 auto;
+        min-height: 120px;          /* never collapse */
+        height: 0;                  /* critical for flex children to respect parent height */
+        max-height: 100%;
+        overflow-y: auto !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        /* slightly wider, more visible thumb on touch devices */
+        scrollbar-width: thin;
+        scrollbar-color: #5a5a5a #1a1a1a;
+      }
+      .app-shell .table-scroll::-webkit-scrollbar {
+        width: 9px;
+        height: 8px;
+      }
+      .app-shell .table-scroll::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #666 0%, #444 100%);
+        border-radius: 99px;
+        border: 2px solid #141414;
+        min-height: 56px;
+      }
+      .app-shell .table-scroll::-webkit-scrollbar-thumb:hover,
+      .app-shell .table-scroll::-webkit-scrollbar-thumb:active {
+        background: linear-gradient(180deg, #888 0%, #555 100%);
+      }
+      .app-shell .table-scroll::-webkit-scrollbar-track {
+        background: #1a1a1a;
+        border-radius: 99px;
+        margin: 3px;
+      }
+    }
+
+    /* Phones: give the list a clear, usable height and elegant scrollbar */
+    @media (max-width: 700px) {
+      .app-shell {
+        /* use dynamic viewport so address bar show/hide does not break layout */
+        height: 100dvh;
+        max-height: 100dvh;
+      }
+      .app-shell .table-scroll {
+        /* fallback calculated height if flex ever fails */
+        min-height: min(52vh, 420px);
+      }
+      /* Make the bottom fade a bit stronger as a visual cue */
+      .app-shell .table-wrap::after {
+        height: 36px;
+        background: linear-gradient(to top, rgba(10,10,10,0.9), transparent);
+      }
+      /* Compact footer so more room goes to the list */
+      .app-shell .footer-note {
+        font-size: 11px;
+        margin-top: 6px;
+        padding-bottom: 2px;
+        opacity: 0.75;
+      }
+      .pagination-bar {
+        padding: 10px 12px;
+        margin-top: 8px;
+      }
+    }
+
+    /* Very small phones – prioritise list height */
+    @media (max-width: 400px) {
+      .stats-bar {
+        /* slightly tighter stats to free vertical space */
+      }
+      .stat-item {
+        padding: 8px 4px;
+      }
+      .stat-value {
+        font-size: 15px;
+      }
+      .toolbar {
+        margin: 8px 0 6px;
+      }
+      .app-shell .table-scroll {
+        min-height: min(48vh, 360px);
+      }
+    }
+
+    /* Landscape phones: keep list usable */
+    @media (max-height: 480px) and (orientation: landscape) {
+      .app-shell .stats-bar {
+        display: none; /* reclaim height for the list */
+      }
+      .app-shell .footer-note {
+        display: none;
+      }
+      .app-shell .table-scroll {
+        min-height: 180px;
+      }
+      .table-hint {
+        padding: 6px 12px;
+        font-size: 11px;
+      }
+    }
+
+    /* Touch devices – always show a slightly more prominent scrollbar for discoverability */
+    @media (hover: none) and (pointer: coarse) {
+      .app-shell .table-scroll {
+        scrollbar-width: auto;
+        scrollbar-color: #6b6b6b #1c1c1c;
+      }
+      .app-shell .table-scroll::-webkit-scrollbar {
+        width: 10px;
+        height: 9px;
+      }
+      .app-shell .table-scroll::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #777 0%, #4a4a4a 100%);
+        border: 2px solid #141414;
+        min-height: 64px;
       }
     }
 
@@ -5053,6 +5292,14 @@
             renderVirtualRows(pageData, (currentPage - 1) * PAGE_SIZE);
           }
           if (customOpenId) closeCustomSelectMenu();
+
+          // Premium cue: hide bottom fade when user reaches end of list
+          const scrollEl = document.getElementById('tableScroll');
+          const wrap = scrollEl && scrollEl.closest('.table-wrap');
+          if (scrollEl && wrap) {
+            const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 8;
+            wrap.classList.toggle('scrolled-bottom', atBottom);
+          }
         });
       }
 
