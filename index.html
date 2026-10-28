@@ -3214,6 +3214,13 @@
         { value: 'Sent (Not Received)', label: 'Sent (Not Received)', dot: 'empty' },
         { value: 'Not Sent', label: 'Not Sent', dot: 'empty' }
       ];
+      const START_DATE_OPTIONS = [
+        { value: '', label: '— Select —', dot: 'empty' },
+        { value: 'Spring', label: 'Spring', dot: 'empty' },
+        { value: 'Summer', label: 'Summer', dot: 'empty' },
+        { value: 'Fall', label: 'Fall', dot: 'empty' },
+        { value: 'Winter', label: 'Winter', dot: 'empty' }
+      ];
       const UNIVERSITY_OPTIONS = [
         { value: '', label: '— Select —', dot: 'empty' },
         ...US_UNIVERSITIES.map(u => ({ value: u, label: u, dot: 'empty' })),
@@ -3234,7 +3241,7 @@
         { key: 'gradYear', type: 'text', placeholder: 'MM/DD/YYYY – MM/DD/YYYY' },
         { key: 'gpa', type: 'number', placeholder: '0.00', step: '0.01' },
         { key: 'phone', type: 'customSelect', options: PHONE_OPTIONS },
-        { key: 'startDate', type: 'text', placeholder: 'Fall / Spring / or date' },
+        { key: 'startDate', type: 'customSelect', options: START_DATE_OPTIONS },
         { key: 'transcriptMail', type: 'email', placeholder: 'transcript@uni.edu' },
         { key: 'ethnicity', type: 'customSelect', options: ETHNICITY_OPTIONS },
         { key: 'program', type: 'customSelect', options: PROGRAM_OPTIONS },
@@ -5961,6 +5968,7 @@
             else if (key === 'program') options = PROGRAM_OPTIONS;
             else if (key === 'transcriptStatus') options = TRANSCRIPT_STATUS_OPTIONS;
             else if (key === 'phone') options = PHONE_OPTIONS;
+            else if (key === 'startDate') options = START_DATE_OPTIONS;
             openCustomSelectMenu(trigger, id, key, current, options);
           }
           return;
