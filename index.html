@@ -80,13 +80,16 @@
     }
 
     html {
-      scroll-behavior: smooth;
+      scroll-behavior: auto; /* responsive; smooth only when preferred */
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-size-adjust: 100%;
       /* Allow the whole page to scroll – natural & reliable */
       overflow-x: hidden;
       overflow-y: auto;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      html { scroll-behavior: smooth; }
     }
 
     body {
@@ -102,6 +105,11 @@
       flex-direction: column;
       box-sizing: border-box;
       position: relative;
+    }
+
+    /* Disable expensive row transitions on touch devices while scrolling */
+    @media (hover: none) and (pointer: coarse) {
+      tbody tr { transition: none; }
     }
 
     /* ========== Auth Overlay (Refined) ========== */
@@ -165,12 +173,12 @@
     .auth-card {
       transition: box-shadow 0.3s ease;
     }
-    /* Table row hover polish */
+    /* Table row hover polish – avoid filter (expensive paint) */
     tbody tr {
-      transition: background 0.18s ease, filter 0.18s ease;
+      transition: background 0.12s ease;
     }
     tbody tr:hover {
-      filter: brightness(1.06);
+      background: rgba(255,255,255,0.03);
     }
     /* Soft fade for loading */
     .loading-overlay {
@@ -854,6 +862,10 @@
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
       scrollbar-gutter: stable;
+      scroll-behavior: auto;
+      transform: translateZ(0);
+      will-change: scroll-position;
+      contain: strict;
     }
     .used-toolbar {
       display: flex;
@@ -1123,10 +1135,11 @@
       overflow: hidden;           /* critical – contains the scroll area */
       box-shadow: var(--shadow);
       transition: background 0.25s ease, border-color 0.25s ease;
-      contain: layout style;
+      contain: layout style paint;
       display: flex;
       flex-direction: column;
       min-height: 0;
+      isolation: isolate;
     }
     .table-hint {
       padding: 10px 16px;
@@ -1172,12 +1185,16 @@
       overflow-x: auto;
       overflow-y: auto;
       overscroll-behavior: contain;
-      scroll-behavior: smooth;
+      scroll-behavior: auto; /* instant response – avoids lag on long lists */
       -webkit-overflow-scrolling: touch;
       position: relative;
       scrollbar-gutter: stable;
       border-radius: 0 0 12px 12px;
       min-height: 0;
+      /* Promote to own compositor layer for buttery scroll */
+      transform: translateZ(0);
+      will-change: scroll-position;
+      contain: strict;
       /* Premium custom scrollbar – vertical list access */
       scrollbar-width: thin;
       scrollbar-color: #4a4a4a transparent;
@@ -1242,6 +1259,9 @@
       text-align: left;
       white-space: nowrap;
       border-bottom: 2px solid #2a2a2a;
+      /* Keep sticky header on compositor layer */
+      transform: translateZ(0);
+      backface-visibility: hidden;
     }
     thead th:first-child {
       position: sticky;
@@ -1250,8 +1270,10 @@
       background: var(--thead);
       min-width: 48px;
       text-align: center;
+      transform: translateZ(0);
+      backface-visibility: hidden;
     }
-    tbody tr { transition: background 0.15s ease; }
+    tbody tr { transition: background 0.12s ease; }
     tbody tr.row-accepted { background: #14532d !important; }
     tbody tr.row-rejected { background: #7f1d1d !important; }
     tbody tr.row-id { background: #312e81 !important; }
@@ -1286,7 +1308,7 @@
       font-size: 13px;
       color: var(--text);
       outline: none;
-      transition: background 0.15s ease, box-shadow 0.15s ease, min-width 0.2s ease;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
       white-space: nowrap;
       overflow: visible;
       text-overflow: clip;
@@ -1294,7 +1316,7 @@
     .cell-input:focus {
       background: var(--input-bg);
       box-shadow: inset 0 0 0 2px var(--brand);
-      min-width: 180px;
+      /* Avoid min-width change – prevents layout shift while scrolling/editing */
     }
     .cell-input:disabled, .cell-input[readonly] {
       opacity: 0.9;
@@ -1339,7 +1361,6 @@
       background-color: var(--input-bg);
       box-shadow: inset 0 0 0 2px var(--brand);
       z-index: 50;
-      min-width: 180px;
     }
     .app-status-trigger {
       width: 100%;
@@ -2041,6 +2062,8 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
+      scroll-behavior: auto;
+      transform: translateZ(0);
     }
     .app-shell .pagination-bar { flex-shrink: 0; }
     .app-shell .footer-note { flex-shrink: 0; margin-top: 10px; padding-bottom: 8px; }
@@ -2453,10 +2476,6 @@
     @media (hover: none) and (pointer: coarse) {
       .table-scroll {
         scrollbar-width: auto;
-      }
-      .cell-input:focus,
-      .app-status-trigger:focus {
-        min-width: 160px;
       }
       .icon-btn {
         width: 36px;
@@ -3160,8 +3179,8 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
       const ROW_HEIGHT = 46;
-      const BUFFER_ROWS = 10;
-      const VIRTUAL_THRESHOLD = 40;          /* start virtualizing earlier for smoothness */
+      const BUFFER_ROWS = 14;               /* larger buffer = fewer re-renders while scrolling */
+      const VIRTUAL_THRESHOLD = 30;         /* virtualize earlier for long pages */
       const PAGE_SIZE = 100;
       const PBKDF2_ITERATIONS = 120000;
       const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -4359,7 +4378,14 @@
 
       function renderVirtualRows(pageData, pageOffset) {
         const { start, end, total } = computeVirtualRange(pageData);
-        if (start === virtualStart && end === virtualEnd && document.getElementById('tableBody').children.length > 0) {
+        // Hysteresis: only rebuild when range moves outside current buffer window
+        // (prevents thrashing on small scroll adjustments)
+        if (
+          virtualStart >= 0 &&
+          start >= virtualStart &&
+          end <= virtualEnd &&
+          document.getElementById('tableBody').children.length > 0
+        ) {
           return;
         }
         virtualStart = start;
@@ -5293,6 +5319,7 @@
         }
       }
 
+      let _lastAtBottom = false;
       function onTableScroll() {
         if (scrollRaf) return;
         scrollRaf = requestAnimationFrame(() => {
@@ -5310,12 +5337,15 @@
             if (btn) btn.setAttribute('aria-expanded', 'false');
           }
 
-          // Hide bottom fade when user reaches end of list
+          // Hide bottom fade when user reaches end of list (only toggle when state changes)
           const scrollEl = document.getElementById('tableScroll');
           const wrap = scrollEl && scrollEl.closest('.table-wrap');
           if (scrollEl && wrap) {
             const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
-            wrap.classList.toggle('scrolled-bottom', atBottom);
+            if (atBottom !== _lastAtBottom) {
+              _lastAtBottom = atBottom;
+              wrap.classList.toggle('scrolled-bottom', atBottom);
+            }
           }
         });
       }
