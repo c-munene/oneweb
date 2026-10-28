@@ -590,11 +590,10 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      justify-content: center;
       gap: 10px;
       margin: 16px 0 12px;
     }
-    .search-wrap { position: relative; flex: 0 1 280px; min-width: 180px; max-width: 320px; }
+    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
     .search-input {
       width: 100%;
       height: 40px;
@@ -2335,8 +2334,8 @@
       .stats-bar { border-radius: 14px; }
       .stat-item { padding: 12px 6px; }
       .stat-value { font-size: 18px; }
-      .toolbar { gap: 8px; justify-content: center; }
-      .search-wrap { max-width: 280px; flex: 0 1 280px; }
+      .toolbar { gap: 8px; }
+      .search-wrap { max-width: 280px; }
     }
 
     /* Ensure table remains usable: sticky first column + smooth horizontal scroll */
@@ -2675,7 +2674,7 @@
     <div class="toolbar" role="toolbar" aria-label="Table controls">
       <div class="search-wrap">
         <i class="fas fa-search" aria-hidden="true"></i>
-        <input type="text" class="search-input" id="searchInput" name="ow_search_noautofill_x9k2p" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" data-dashlane-ignore="true" inputmode="search" role="searchbox" />
+        <input type="search" class="search-input" id="searchInput" name="q_oneweb_search_x9k2" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" inputmode="search" />
       </div>
 
       <select class="filter-select" id="statusFilter" aria-label="Filter by status">
@@ -5490,13 +5489,8 @@
         window.addEventListener('scroll', () => markScrolling(document.documentElement), { passive: true });
 
         const searchEl = document.getElementById('searchInput');
-        // Strictly clear any autofill the browser may have injected on load
-        searchEl.value = '';
-        searchEl.setAttribute('autocomplete', 'off');
-        searchEl.setAttribute('autocorrect', 'off');
-        // Clear again after a short delay in case password managers fill late
-        setTimeout(() => { if (searchEl) searchEl.value = ''; }, 50);
-        setTimeout(() => { if (searchEl) searchEl.value = ''; }, 300);
+        // Clear any value the browser may have injected on load
+        if (searchEl.value) searchEl.value = '';
         searchEl.addEventListener('input', debouncedApplyFilters);
         // Ensure Enter does not submit anything
         searchEl.addEventListener('keydown', (e) => {
