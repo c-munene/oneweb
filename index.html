@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   ============================================================
-  Oneweb Student Records – Setup Notes (Supabase)
+  OneWeb V.1.0 – Student Records – Setup Notes (Supabase)
   ============================================================
   1. Create a free project at https://supabase.com
   2. In SQL Editor run:
@@ -33,9 +33,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
-  <meta name="description" content="Oneweb Student Records Management – fast, reliable, offline-capable student data tool with encrypted storage" />
+  <meta name="description" content="OneWeb V.1.0 Student Records Management – fast, reliable, offline-capable student data tool with encrypted storage" />
   <meta name="theme-color" content="#0a0a0a" />
-  <title>Oneweb — Student Records</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f5f5f5'/%3E%3Cstop offset='100%25' stop-color='%23b8b8b8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='url(%23g)'%3E%3Canimate attributeName='rx' values='16;20;16' dur='2.5s' repeatCount='indefinite'/%3E%3C/rect%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='%230a0a0a' letter-spacing='-1'%3EOw%3C/text%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%23e8e8e8' stroke-width='1.5' opacity='0.4'%3E%3Canimate attributeName='r' values='26;30;26' dur='2.5s' repeatCount='indefinite'/%3E%3Canimate attributeName='opacity' values='0.5;0.15;0.5' dur='2.5s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f5f5f5'/%3E%3Cstop offset='100%25' stop-color='%23b8b8b8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='url(%23g)'%3E%3Canimate attributeName='rx' values='16;20;16' dur='2.5s' repeatCount='indefinite'/%3E%3C/rect%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='%230a0a0a' letter-spacing='-1'%3EOw%3C/text%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%23e8e8e8' stroke-width='1.5' opacity='0.4'%3E%3Canimate attributeName='r' values='26;30;26' dur='2.5s' repeatCount='indefinite'/%3E%3Canimate attributeName='opacity' values='0.5;0.15;0.5' dur='2.5s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E" />
+  <title>OneWeb V.1.0 — Student Records</title>
   <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
@@ -2212,6 +2214,144 @@
     #statSentNR { color: #fcd34d; }
     #statNotSent { color: #fca5a5; }
 
+  
+    /* ========== Responsiveness improvements – OneWeb V.1.0 ========== */
+    /* Extra-small phones */
+    @media (max-width: 320px) {
+      body { padding: 8px !important; }
+      .brand-name { font-size: 15px; }
+      .brand-logo { width: 32px; height: 32px; font-size: 14px; border-radius: 9px; }
+      .stat-value { font-size: 15px; }
+      .auth-card { border-radius: 16px; }
+      .auth-title { font-size: 20px; }
+    }
+
+    /* Improve landscape phones / small tablets */
+    @media (max-height: 500px) and (orientation: landscape) {
+      .auth-overlay { padding: 12px; align-items: flex-start; overflow-y: auto; }
+      .auth-header { padding: 20px 24px 12px; }
+      .auth-logo { width: 44px; height: 44px; font-size: 18px; margin-bottom: 10px; }
+      .auth-body { padding: 16px 24px 20px; }
+      .welcome-logo { width: 52px; height: 52px; font-size: 22px; margin-bottom: 12px; }
+      .welcome-title { font-size: 22px; }
+    }
+
+    /* Better tablet layout */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .stats-bar { border-radius: 14px; }
+      .stat-item { padding: 12px 6px; }
+      .stat-value { font-size: 18px; }
+      .toolbar { gap: 8px; }
+      .search-wrap { max-width: 280px; }
+    }
+
+    /* Ensure table remains usable: sticky first column + smooth horizontal scroll */
+    .table-scroll {
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: none;
+    }
+    @media (max-width: 700px) {
+      thead th:first-child,
+      td:first-child {
+        min-width: 40px;
+        padding-left: 4px;
+        padding-right: 4px;
+        font-size: 11px;
+      }
+      .cell-input {
+        min-width: 120px;
+        font-size: 13px;
+        padding: 10px 8px;
+      }
+      .app-status-trigger {
+        min-width: 120px;
+        font-size: 13px;
+      }
+      .table-hint {
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      .legend { gap: 8px; }
+      .legend-item { font-size: 10px; }
+    }
+
+    /* Prevent zoom on input focus (iOS) while keeping readability */
+    @media (max-width: 480px) {
+      .search-input,
+      .used-search-input,
+      .auth-input,
+      .cell-input {
+        font-size: 16px; /* prevents iOS zoom */
+      }
+      .filter-select {
+        font-size: 14px;
+      }
+      /* Stack header actions more compactly */
+      .header-actions {
+        gap: 6px;
+      }
+      .brand {
+        margin-bottom: 10px;
+      }
+      .brand-sub {
+        font-size: 11px;
+      }
+    }
+
+    /* High-DPI / retina refinements */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+      .brand-logo,
+      .auth-logo,
+      .welcome-logo {
+        box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      }
+    }
+
+    /* Prefer reduced data / battery: slightly simpler shadows on small screens */
+    @media (max-width: 600px) {
+      .auth-card {
+        box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      }
+      .table-wrap,
+      .stats-bar,
+      .pagination-bar {
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+    }
+
+    /* Safe area insets for notched devices */
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: max(12px, env(safe-area-inset-left));
+        padding-right: max(12px, env(safe-area-inset-right));
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+      }
+      .used-panel {
+        padding-top: env(safe-area-inset-top);
+      }
+      .toast-container {
+        bottom: max(24px, calc(16px + env(safe-area-inset-bottom)));
+      }
+    }
+
+    /* Make the long table more finger-friendly on touch devices */
+    @media (hover: none) and (pointer: coarse) {
+      .table-scroll {
+        scrollbar-width: auto;
+      }
+      .cell-input:focus,
+      .app-status-trigger:focus {
+        min-width: 160px;
+      }
+      .icon-btn {
+        width: 36px;
+        height: 36px;
+      }
+      .transcript-upload-btn {
+        min-height: 40px;
+      }
+    }
+
   </style>
 </head>
 <body class="p-3 sm:p-4 md:p-5">
@@ -2222,7 +2362,7 @@
       <div class="welcome-name-wrap">
         <div class="welcome-name-glow" aria-hidden="true"></div>
         <div class="welcome-name-ring" aria-hidden="true"></div>
-        <h2 class="welcome-title">Welcome to OneWeb</h2>
+        <h2 class="welcome-title">Welcome to OneWeb V.1.0</h2>
         <p class="welcome-sub">Your encrypted student records are ready</p>
         <div class="welcome-bar" aria-hidden="true"></div>
         <div class="welcome-loading-dots" aria-hidden="true">
@@ -2243,8 +2383,8 @@
     <div class="auth-card">
       <div class="auth-header">
         <div class="auth-logo" id="lockAnimIcon" aria-hidden="true">Ow</div>
-        <h1 class="auth-title" id="authTitle">Oneweb</h1>
-        <p class="auth-sub" id="authSub">Encrypted student records · Protected by your master password</p>
+        <h1 class="auth-title" id="authTitle">OneWeb V.1.0</h1>
+        <p class="auth-sub" id="authSub">OneWeb V.1.0 · Encrypted student records · Protected by your master password</p>
       </div>
       <div class="auth-tabs" role="tablist">
         <button type="button" class="auth-tab active" id="tabLogin" role="tab" aria-selected="true" data-mode="login">Log In</button>
@@ -2321,8 +2461,8 @@
       <div class="brand-left">
         <div class="brand-logo" aria-hidden="true">Ow</div>
         <div>
-          <div class="brand-name">Oneweb</div>
-          <div class="brand-sub">Student Records Management · Encrypted</div>
+          <div class="brand-name">OneWeb V.1.0</div>
+          <div class="brand-sub">Student Records Management · Encrypted · V.1.0</div>
         </div>
       </div>
       <div class="header-actions">
@@ -2569,7 +2709,7 @@
     </div>
 
     <p class="footer-note">
-      Oneweb · AES-256-GCM encrypted · Auto-saves to cloud · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save · 100 records per page
+      OneWeb V.1.0 · AES-256-GCM encrypted · Auto-saves to cloud · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save · 100 records per page
     </p>
   </div>
 
@@ -4531,7 +4671,7 @@
               return;
             }
 
-            let mapMsg = 'Oneweb — Column mapping:\n\n';
+            let mapMsg = 'OneWeb V.1.0 — Column mapping:\n\n';
             Object.entries(mapped).forEach(([h, k]) => {
               mapMsg += `  "${h}" → ${k}\n`;
             });
@@ -4629,7 +4769,7 @@
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Students');
-        XLSX.writeFile(wb, `oneweb_student_records_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        XLSX.writeFile(wb, `oneweb_v1_student_records_${new Date().toISOString().slice(0, 10)}.xlsx`);
         showToast('Excel exported', 'success');
       }
 
@@ -4668,7 +4808,7 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `oneweb_student_records_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `oneweb_v1_student_records_${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         URL.revokeObjectURL(a.href);
         showToast('CSV exported', 'success');
@@ -4700,7 +4840,7 @@
         const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `oneweb_transcripts_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `oneweb_v1_transcripts_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
         showToast(`Exported ${withFiles.length} transcript(s)`, 'success');
