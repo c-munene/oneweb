@@ -35,6 +35,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
   <meta name="description" content="OneWeb V.1.0 Student Records Management – fast, reliable, offline-capable student data tool with encrypted storage" />
   <meta name="theme-color" content="#0a0a0a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OneWeb" />
+  <link rel="manifest" id="pwaManifestLink" href="#" />
+
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f5f5f5'/%3E%3Cstop offset='100%25' stop-color='%23b8b8b8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='url(%23g)'%3E%3Canimate attributeName='rx' values='16;20;16' dur='2.5s' repeatCount='indefinite'/%3E%3C/rect%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='%230a0a0a' letter-spacing='-1'%3EOw%3C/text%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%23e8e8e8' stroke-width='1.5' opacity='0.4'%3E%3Canimate attributeName='r' values='26;30;26' dur='2.5s' repeatCount='indefinite'/%3E%3Canimate attributeName='opacity' values='0.5;0.15;0.5' dur='2.5s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f5f5f5'/%3E%3Cstop offset='100%25' stop-color='%23b8b8b8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='url(%23g)'%3E%3Canimate attributeName='rx' values='16;20;16' dur='2.5s' repeatCount='indefinite'/%3E%3C/rect%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='%230a0a0a' letter-spacing='-1'%3EOw%3C/text%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%23e8e8e8' stroke-width='1.5' opacity='0.4'%3E%3Canimate attributeName='r' values='26;30;26' dur='2.5s' repeatCount='indefinite'/%3E%3Canimate attributeName='opacity' values='0.5;0.15;0.5' dur='2.5s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E" />
   <title>OneWeb V.1.0 — Student Records</title>
@@ -2512,6 +2518,106 @@
       .table-scroll { scroll-behavior: auto; }
     }
 
+
+    /* ========== PWA / offline / audit / idle (V.1.0+) ========== */
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-faint);
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-soft);
+      white-space: nowrap;
+      max-width: 220px;
+    }
+    .sync-status .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #64748b;
+      flex-shrink: 0;
+    }
+    .sync-status.online .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+    .sync-status.offline .dot { background: #f59e0b; }
+    .sync-status.syncing .dot { background: #3b82f6; animation: pulseDot 1s ease infinite; }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+    .sync-status .sync-text { overflow: hidden; text-overflow: ellipsis; }
+    .idle-warning {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1200;
+      background: linear-gradient(135deg, #1a1a1a, #121212);
+      border: 1px solid rgba(245,158,11,0.4);
+      color: #fcd34d;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      max-width: 320px;
+    }
+    .idle-warning.visible { display: flex; }
+    .audit-modal-overlay {
+      position: fixed; inset: 0; z-index: 3100;
+      background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; opacity: 0; visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .audit-modal-overlay.visible { opacity: 1; visibility: visible; }
+    .audit-modal {
+      width: 100%; max-width: 520px; max-height: 80vh;
+      background: linear-gradient(165deg, #1a1a1a 0%, #121212 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      display: flex; flex-direction: column; overflow: hidden;
+      transform: translateY(12px) scale(0.97);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .audit-modal-overlay.visible .audit-modal { transform: translateY(0) scale(1); }
+    .audit-modal-header {
+      padding: 20px 22px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .audit-modal-title { font-size: 17px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; }
+    .audit-modal-body { flex: 1; overflow-y: auto; padding: 12px 16px 20px; min-height: 0; }
+    .audit-entry {
+      padding: 10px 12px; border-radius: 10px; margin-bottom: 8px;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      font-size: 12px; line-height: 1.45;
+    }
+    .audit-entry .audit-action { font-weight: 600; color: var(--text); }
+    .audit-entry .audit-meta { color: var(--text-faint); margin-top: 3px; font-size: 11px; }
+    .audit-empty { text-align: center; padding: 32px 16px; color: var(--text-faint); font-size: 13px; }
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 13px; color: var(--text-muted);
+    }
+    .settings-row select {
+      height: 36px; padding: 0 28px 0 10px; border-radius: 8px;
+      border: 1px solid var(--border-soft); background: var(--input-bg); color: var(--text);
+      font-size: 13px; appearance: none; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b6b6b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center; background-size: 12px;
+    }
+    .pwa-install-btn {
+      height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(59,130,246,0.35);
+      background: rgba(59,130,246,0.12); color: #93c5fd; font-size: 12px; font-weight: 500;
+      cursor: pointer; display: none; align-items: center; gap: 6px;
+    }
+    .pwa-install-btn.visible { display: inline-flex; }
+    .pwa-install-btn:hover { background: rgba(59,130,246,0.22); }
+
   </style>
 </head>
 <body class="p-3 sm:p-4 md:p-5">
@@ -2626,6 +2732,13 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="sync-status online" id="syncStatus" title="Cloud sync status">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="sync-text" id="syncStatusText">Synced — just now</span>
+        </div>
+        <button type="button" class="pwa-install-btn" id="btnPwaInstall" title="Install OneWeb as an app">
+          <i class="fas fa-download" aria-hidden="true"></i> Install App
+        </button>
         <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing with admin password" aria-pressed="false">
           <i class="fas fa-pen-to-square" aria-hidden="true"></i>
           <span class="edit-label">Enable Editing</span>
@@ -2732,6 +2845,15 @@
           </button>
           <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
             <i class="fas fa-database" aria-hidden="true"></i> Load Sample Data
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnBackupJson">
+            <i class="fas fa-file-code" style="color:#a78bfa" aria-hidden="true"></i> Backup to JSON
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
+            <i class="fas fa-clipboard-list" style="color:#60a5fa" aria-hidden="true"></i> Audit Log
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" id="btnIdleSettings">
+            <i class="fas fa-clock" style="color:#fbbf24" aria-hidden="true"></i> Auto-Lock Settings
           </button>
         </div>
       </div>
@@ -2869,11 +2991,69 @@
     </div>
 
     <p class="footer-note">
-      OneWeb V.1.0 · AES-256-GCM encrypted · Auto-saves to cloud · Ctrl/Cmd+N to add · Ctrl/Cmd+S to save · 100 records per page
+      OneWeb V.1.0 · AES-256-GCM · Auto-lock · Audit log · Offline PWA · Ctrl/Cmd+N add · Ctrl/Cmd+S save · 100/page
     </p>
   </div>
 
   <div id="customSelectMenu" role="listbox" aria-label="Select option"></div>
+
+
+  <!-- Idle warning toast -->
+  <div class="idle-warning" id="idleWarning" role="status" aria-live="polite">
+    <i class="fas fa-hourglass-half" aria-hidden="true"></i>
+    <span id="idleWarningText">Vault will lock in 60s due to inactivity…</span>
+  </div>
+
+  <!-- Audit Log Modal -->
+  <div class="audit-modal-overlay" id="auditModalOverlay" role="dialog" aria-modal="true" aria-labelledby="auditModalTitle">
+    <div class="audit-modal">
+      <div class="audit-modal-header">
+        <div class="audit-modal-title" id="auditModalTitle">
+          <i class="fas fa-clipboard-list" style="color:var(--accent)"></i>
+          Audit Log
+        </div>
+        <button type="button" class="used-close-btn" id="auditModalClose" title="Close" aria-label="Close">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="audit-modal-body" id="auditModalBody">
+        <div class="audit-empty">No audit entries yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Idle / Settings Modal -->
+  <div class="audit-modal-overlay" id="idleSettingsOverlay" role="dialog" aria-modal="true" aria-labelledby="idleSettingsTitle">
+    <div class="audit-modal" style="max-width:400px">
+      <div class="audit-modal-header">
+        <div class="audit-modal-title" id="idleSettingsTitle">
+          <i class="fas fa-clock" style="color:var(--warning)"></i>
+          Auto-Lock Settings
+        </div>
+        <button type="button" class="used-close-btn" id="idleSettingsClose" title="Close" aria-label="Close">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="audit-modal-body" style="padding:16px 22px 24px">
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;line-height:1.45">
+          Automatically lock the vault after a period of inactivity. The master password will be required to unlock again.
+        </p>
+        <div class="settings-row">
+          <label for="idleTimeoutSelect">Idle timeout</label>
+          <select id="idleTimeoutSelect" aria-label="Idle timeout">
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60" selected>1 hour</option>
+            <option value="120">2 hours</option>
+            <option value="0">Disabled</option>
+          </select>
+        </div>
+        <p style="font-size:11px;color:var(--text-faint);margin:12px 0 0;line-height:1.4">
+          Changes are saved with your encrypted vault. A 60-second warning appears before auto-lock.
+        </p>
+      </div>
+    </div>
+  </div>
 
   <div class="loading-overlay" id="loadingOverlay" aria-hidden="true" aria-live="assertive">
     <div class="loading-spinner" role="status" aria-label="Loading"></div>
@@ -3150,6 +3330,22 @@
       let adminResolve = null;
       let pendingTranscriptRowId = null;
 
+      /* ========== V.1.0+ : idle, audit, sync, PWA ========== */
+      const DEFAULT_IDLE_MINUTES = 60;
+      const IDLE_WARN_SECONDS = 60;
+      const MAX_AUDIT_ENTRIES = 200;
+      let idleTimeoutMinutes = DEFAULT_IDLE_MINUTES; // 0 = disabled
+      let idleTimer = null;
+      let idleWarnTimer = null;
+      let lastActivityAt = Date.now();
+      let auditLog = [];           // { ts, action, detail, actor }
+      let lastSyncedAt = null;     // ms epoch of last successful cloud write
+      let pendingCloudSave = false;
+      let isOnline = navigator.onLine;
+      let deferredPwaPrompt = null;
+      let vaultMeta = { version: 2 }; // envelope for records + audit + settings
+
+
       /* ========== Encryption Helpers ========== */
       function bufToBase64(buf) {
         const bytes = new Uint8Array(buf);
@@ -3216,6 +3412,376 @@
         }
       }
 
+      
+      /* ========== Audit / Idle / Sync / PWA helpers ========== */
+      function appendAudit(action, detail) {
+        const entry = {
+          ts: Date.now(),
+          action: String(action || 'event'),
+          detail: String(detail || ''),
+          actor: isAdmin ? 'admin' : (isUnlocked ? 'user' : 'system')
+        };
+        auditLog.unshift(entry);
+        if (auditLog.length > MAX_AUDIT_ENTRIES) auditLog.length = MAX_AUDIT_ENTRIES;
+      }
+
+      function formatAuditTime(ts) {
+        try {
+          return new Date(ts).toLocaleString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+          });
+        } catch { return String(ts); }
+      }
+
+      function renderAuditModal() {
+        const body = document.getElementById('auditModalBody');
+        if (!body) return;
+        if (!auditLog.length) {
+          body.innerHTML = '<div class="audit-empty"><i class="fas fa-inbox" style="font-size:22px;opacity:0.4;display:block;margin-bottom:8px"></i>No audit entries yet.</div>';
+          return;
+        }
+        body.innerHTML = auditLog.map(e => `
+          <div class="audit-entry">
+            <div class="audit-action">${escapeHtml(e.action)}</div>
+            <div class="audit-meta">
+              ${escapeHtml(formatAuditTime(e.ts))}
+              ${e.detail ? ' · ' + escapeHtml(e.detail) : ''}
+              · ${escapeHtml(e.actor || 'user')}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      function openAuditModal() {
+        document.getElementById('fileMenu')?.classList.remove('show');
+        renderAuditModal();
+        const ov = document.getElementById('auditModalOverlay');
+        if (ov) {
+          ov.classList.add('visible');
+          ov.setAttribute('aria-hidden', 'false');
+        }
+      }
+
+      function closeAuditModal() {
+        const ov = document.getElementById('auditModalOverlay');
+        if (ov) {
+          ov.classList.remove('visible');
+          ov.setAttribute('aria-hidden', 'true');
+        }
+      }
+
+      function openIdleSettings() {
+        document.getElementById('fileMenu')?.classList.remove('show');
+        const sel = document.getElementById('idleTimeoutSelect');
+        if (sel) sel.value = String(idleTimeoutMinutes);
+        const ov = document.getElementById('idleSettingsOverlay');
+        if (ov) {
+          ov.classList.add('visible');
+          ov.setAttribute('aria-hidden', 'false');
+        }
+      }
+
+      function closeIdleSettings() {
+        const ov = document.getElementById('idleSettingsOverlay');
+        if (ov) {
+          ov.classList.remove('visible');
+          ov.setAttribute('aria-hidden', 'true');
+        }
+      }
+
+      function applyIdleTimeoutFromSelect() {
+        const sel = document.getElementById('idleTimeoutSelect');
+        if (!sel) return;
+        const mins = parseInt(sel.value, 10);
+        idleTimeoutMinutes = isNaN(mins) ? DEFAULT_IDLE_MINUTES : mins;
+        resetIdleTimer();
+        scheduleSave(true);
+        showToast(
+          idleTimeoutMinutes === 0
+            ? 'Auto-lock disabled'
+            : `Auto-lock set to ${idleTimeoutMinutes} minute(s)`,
+          'success',
+          2200
+        );
+        closeIdleSettings();
+      }
+
+      function resetIdleTimer() {
+        lastActivityAt = Date.now();
+        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+        if (idleWarnTimer) { clearTimeout(idleWarnTimer); idleWarnTimer = null; }
+        const warnEl = document.getElementById('idleWarning');
+        if (warnEl) warnEl.classList.remove('visible');
+        if (!isUnlocked || idleTimeoutMinutes <= 0) return;
+        const totalMs = idleTimeoutMinutes * 60 * 1000;
+        const warnMs = Math.max(0, totalMs - IDLE_WARN_SECONDS * 1000);
+        idleWarnTimer = setTimeout(() => {
+          if (!isUnlocked || idleTimeoutMinutes <= 0) return;
+          const el = document.getElementById('idleWarning');
+          const txt = document.getElementById('idleWarningText');
+          if (txt) txt.textContent = `Vault will lock in ${IDLE_WARN_SECONDS}s due to inactivity…`;
+          if (el) el.classList.add('visible');
+        }, warnMs);
+        idleTimer = setTimeout(async () => {
+          if (!isUnlocked) return;
+          const el = document.getElementById('idleWarning');
+          if (el) el.classList.remove('visible');
+          appendAudit('auto_lock', `Idle for ${idleTimeoutMinutes} minute(s)`);
+          showToast('Locked due to inactivity', 'warning', 3000);
+          await lockApp();
+        }, totalMs);
+      }
+
+      function onUserActivity() {
+        if (!isUnlocked) return;
+        // Throttle resets to avoid hammering timers on every mousemove
+        const now = Date.now();
+        if (now - lastActivityAt < 4000) return;
+        lastActivityAt = now;
+        resetIdleTimer();
+      }
+
+      function updateSyncStatusUI() {
+        const el = document.getElementById('syncStatus');
+        const txt = document.getElementById('syncStatusText');
+        if (!el || !txt) return;
+        el.classList.remove('online', 'offline', 'syncing');
+        if (!isOnline) {
+          el.classList.add('offline');
+          txt.textContent = 'Offline — changes queued';
+          return;
+        }
+        if (isSaving || pendingCloudSave) {
+          el.classList.add('syncing');
+          txt.textContent = 'Syncing…';
+          return;
+        }
+        el.classList.add('online');
+        if (!lastSyncedAt) {
+          txt.textContent = 'Online — not yet synced';
+          return;
+        }
+        const sec = Math.round((Date.now() - lastSyncedAt) / 1000);
+        let label;
+        if (sec < 15) label = 'Synced — just now';
+        else if (sec < 60) label = `Synced — ${sec}s ago`;
+        else if (sec < 3600) label = `Synced — ${Math.floor(sec / 60)}m ago`;
+        else label = `Synced — ${Math.floor(sec / 3600)}h ago`;
+        txt.textContent = label;
+      }
+
+      function startSyncStatusTicker() {
+        setInterval(updateSyncStatusUI, 15000);
+        updateSyncStatusUI();
+      }
+
+      function buildVaultEnvelope() {
+        return {
+          version: 2,
+          records: data,
+          auditLog: auditLog,
+          settings: {
+            idleTimeoutMinutes: idleTimeoutMinutes
+          },
+          lastSyncedAt: lastSyncedAt || Date.now()
+        };
+      }
+
+      function applyVaultEnvelope(obj) {
+        // Backward compatible: plain array = legacy records-only
+        if (Array.isArray(obj)) {
+          data = obj;
+          auditLog = [];
+          idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
+          lastSyncedAt = Date.now();
+          return;
+        }
+        if (obj && typeof obj === 'object') {
+          data = Array.isArray(obj.records) ? obj.records : (Array.isArray(obj.data) ? obj.data : []);
+          auditLog = Array.isArray(obj.auditLog) ? obj.auditLog : [];
+          if (obj.settings && typeof obj.settings.idleTimeoutMinutes === 'number') {
+            idleTimeoutMinutes = obj.settings.idleTimeoutMinutes;
+          } else {
+            idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
+          }
+          lastSyncedAt = obj.lastSyncedAt || Date.now();
+          vaultMeta = { version: obj.version || 2 };
+          return;
+        }
+        data = [];
+        auditLog = [];
+        idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
+      }
+
+      async function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) return;
+        try {
+          const swCode = `
+            const CACHE = 'oneweb-v1-static-v1';
+            const ASSETS = [
+              'https://cdn.tailwindcss.com',
+              'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+              'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+              'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
+              'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+            ];
+            self.addEventListener('install', (e) => {
+              e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})).then(() => self.skipWaiting()));
+            });
+            self.addEventListener('activate', (e) => {
+              e.waitUntil(self.clients.claim());
+            });
+            self.addEventListener('fetch', (e) => {
+              const url = e.request.url;
+              // Network-first for Supabase / API; cache-first for static CDNs
+              if (url.includes('supabase.co') || url.includes('/rest/') || url.includes('/auth/')) {
+                e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+                return;
+              }
+              e.respondWith(
+                caches.match(e.request).then(cached => {
+                  const net = fetch(e.request).then(res => {
+                    if (res && res.ok && e.request.method === 'GET') {
+                      const clone = res.clone();
+                      caches.open(CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
+                    }
+                    return res;
+                  }).catch(() => cached);
+                  return cached || net;
+                })
+              );
+            });
+            self.addEventListener('sync', (e) => {
+              if (e.tag === 'oneweb-sync') {
+                e.waitUntil(self.clients.matchAll().then(clients => {
+                  clients.forEach(c => c.postMessage({ type: 'BACKGROUND_SYNC' }));
+                }));
+              }
+            });
+          `;
+          const blob = new Blob([swCode], { type: 'application/javascript' });
+          const swUrl = URL.createObjectURL(blob);
+          const reg = await navigator.serviceWorker.register(swUrl, { scope: './' });
+          console.info('OneWeb SW registered', reg.scope);
+          navigator.serviceWorker.addEventListener('message', (ev) => {
+            if (ev.data && ev.data.type === 'BACKGROUND_SYNC' && isUnlocked && sessionPassword) {
+              pendingCloudSave = true;
+              saveToStorage(true);
+            }
+          });
+        } catch (err) {
+          console.warn('SW registration failed (expected on file:// or restricted hosts)', err);
+        }
+      }
+
+      function setupPwaManifest() {
+        const icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f5f5f5'/%3E%3Cstop offset='100%25' stop-color='%23b8b8b8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='%230a0a0a' letter-spacing='-1'%3EOw%3C/text%3E%3C/svg%3E";
+        const manifest = {
+          name: 'OneWeb V.1.0 — Student Records',
+          short_name: 'OneWeb',
+          description: 'Encrypted student records management with offline support',
+          start_url: './',
+          display: 'standalone',
+          background_color: '#0a0a0a',
+          theme_color: '#0a0a0a',
+          orientation: 'any',
+          icons: [
+            { src: icon, sizes: '64x64', type: 'image/svg+xml', purpose: 'any' },
+            { src: icon, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+            { src: icon, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+          ]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.getElementById('pwaManifestLink');
+        if (link) link.href = url;
+      }
+
+      function setupPwaInstall() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          deferredPwaPrompt = e;
+          const btn = document.getElementById('btnPwaInstall');
+          if (btn) btn.classList.add('visible');
+        });
+        window.addEventListener('appinstalled', () => {
+          deferredPwaPrompt = null;
+          const btn = document.getElementById('btnPwaInstall');
+          if (btn) btn.classList.remove('visible');
+          showToast('OneWeb installed as an app', 'success');
+          appendAudit('pwa_install', 'App installed to home screen');
+        });
+        const btn = document.getElementById('btnPwaInstall');
+        if (btn) {
+          btn.addEventListener('click', async () => {
+            if (!deferredPwaPrompt) {
+              showToast('Install not available in this browser. Use the browser menu → Install App.', 'info', 4000);
+              return;
+            }
+            deferredPwaPrompt.prompt();
+            const choice = await deferredPwaPrompt.userChoice;
+            if (choice && choice.outcome === 'accepted') {
+              appendAudit('pwa_install', 'User accepted install prompt');
+            }
+            deferredPwaPrompt = null;
+            btn.classList.remove('visible');
+          });
+        }
+      }
+
+      function setupOnlineHandlers() {
+        window.addEventListener('online', () => {
+          isOnline = true;
+          updateSyncStatusUI();
+          showToast('Back online — syncing…', 'info', 2000);
+          if (isUnlocked && sessionPassword) {
+            pendingCloudSave = true;
+            saveToStorage(true).then(() => {
+              // Request background sync if SW supports it
+              if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+                navigator.serviceWorker.ready.then(reg => {
+                  if (reg.sync) reg.sync.register('oneweb-sync').catch(() => {});
+                });
+              }
+            });
+          }
+        });
+        window.addEventListener('offline', () => {
+          isOnline = false;
+          updateSyncStatusUI();
+          showToast('You are offline. Changes will sync when connection returns.', 'warning', 3500);
+        });
+      }
+
+      function backupToJson() {
+        document.getElementById('fileMenu')?.classList.remove('show');
+        if (!isUnlocked) {
+          showToast('Unlock the vault first', 'error');
+          return;
+        }
+        const payload = {
+          version: 2,
+          exportedAt: new Date().toISOString(),
+          app: 'OneWeb V.1.0',
+          recordCount: data.length,
+          records: data,
+          auditLog: auditLog.slice(0, 50),
+          settings: { idleTimeoutMinutes },
+          note: 'This is a plaintext backup of your decrypted vault. Store it securely.'
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `oneweb_v1_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        appendAudit('backup_json', `${data.length} record(s) exported`);
+        scheduleSave();
+        showToast('JSON backup downloaded', 'success');
+      }
+
+
       /* ========== Admin Modal (seamless) ========== */
       function showAdminModal(reason) {
         return new Promise((resolve) => {
@@ -3253,6 +3819,8 @@
       function unlockAdmin() {
         isAdmin = true;
         updateEditUI();
+        appendAudit('enable_editing', 'Admin password accepted — editing unlocked');
+        scheduleSave();
         showToast('Editing unlocked for this session', 'success');
       }
 
@@ -3408,14 +3976,22 @@
 
         await new Promise(r => setTimeout(r, 580));
 
+        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+        if (idleWarnTimer) { clearTimeout(idleWarnTimer); idleWarnTimer = null; }
+        const idleWarnEl = document.getElementById('idleWarning');
+        if (idleWarnEl) idleWarnEl.classList.remove('visible');
         sessionPassword = null;
         data = [];
         dataById.clear();
         filteredData = [];
+        auditLog = [];
         currentPage = 1;
         isUnlocked = false;
         isAdmin = false;
         revealSSN = false;
+        lastSyncedAt = null;
+        pendingCloudSave = false;
+        updateSyncStatusUI();
 
         appRoot.style.display = 'none';
         appRoot.classList.remove('ready');
@@ -3491,17 +4067,24 @@
                 } catch {}
               }
             }
-            const payload = await encryptPayload(initial, password);
+            data = initial;
+            auditLog = [];
+            idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
+            appendAudit('vault_created', 'New encrypted vault created');
+            const envelope = buildVaultEnvelope();
+            const payload = await encryptPayload(envelope, password);
             const { error } = await supabase
               .from('vault')
               .upsert({ id: 'main', payload: payload });
             if (error) throw error;
             LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
             sessionPassword = password;
-            data = initial;
+            lastSyncedAt = Date.now();
             rebuildDataIndex();
             applyFilters();
             showApp();
+            resetIdleTimer();
+            updateSyncStatusUI();
             showToast('Encrypted vault created successfully', 'success');
           } else {
             const { data: rows, error } = await supabase
@@ -3523,18 +4106,23 @@
 
             const payload = rows.payload;
             const decrypted = await decryptPayload(payload, password);
-            if (!Array.isArray(decrypted)) throw new Error('Invalid data');
+            applyVaultEnvelope(decrypted);
+            if (!Array.isArray(data)) throw new Error('Invalid data');
             sessionPassword = password;
-            data = decrypted;
             data.forEach(r => {
               if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
               if (!r.createdAt) r.createdAt = Date.now();
               if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
               if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
             });
+            appendAudit('unlock', 'Vault unlocked with master password');
             rebuildDataIndex();
             applyFilters();
             showApp();
+            resetIdleTimer();
+            updateSyncStatusUI();
+            // Persist the new audit entry
+            scheduleSave();
             showToast('Vault unlocked', 'success');
           }
         } catch (err) {
@@ -4738,6 +5326,7 @@
         scheduleSave(true);
         applyFilters();
         if (usedPanelOpen) scheduleUsedPanelRender();
+        appendAudit('clear_all', 'All records deleted');
         showToast('All records cleared', 'info');
       }
 
@@ -4760,14 +5349,20 @@
           btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> <span>Saving…</span>';
         }
         try {
-          const payload = await encryptPayload(data, sessionPassword);
+          const envelope = buildVaultEnvelope();
+          const payload = await encryptPayload(envelope, sessionPassword);
           const { error } = await supabase
             .from('vault')
             .upsert({ id: 'main', payload: payload });
           if (error) throw error;
+          lastSyncedAt = Date.now();
+          pendingCloudSave = false;
+          updateSyncStatusUI();
           showToast(`Encrypted & saved ${data.length} record(s)`, 'success', 2500);
         } catch (e) {
           console.warn('save failed', e);
+          pendingCloudSave = true;
+          updateSyncStatusUI();
           showToast('Could not save to cloud. Check your internet.', 'error', 4000);
         } finally {
           if (btn) {
@@ -4924,6 +5519,7 @@
             rebuildDataIndex();
             scheduleSave(true);
             applyFilters();
+            appendAudit('import_excel', `${imported.length} record(s)`);
             showToast(`Successfully imported ${imported.length} record(s).`, 'success');
           } catch (err) {
             console.error(err);
@@ -4973,6 +5569,8 @@
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Students');
         XLSX.writeFile(wb, `oneweb_v1_student_records_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        appendAudit('export_excel', `${data.length} record(s)`);
+        scheduleSave();
         showToast('Excel exported', 'success');
       }
 
@@ -5014,6 +5612,8 @@
         a.download = `oneweb_v1_student_records_${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         URL.revokeObjectURL(a.href);
+        appendAudit('export_csv', `${data.length} record(s)`);
+        scheduleSave();
         showToast('CSV exported', 'success');
       }
 
@@ -5046,6 +5646,8 @@
         a.download = `oneweb_v1_transcripts_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
+        appendAudit('export_transcripts', `${withFiles.length} file(s)`);
+        scheduleSave();
         showToast(`Exported ${withFiles.length} transcript(s)`, 'success');
       }
 
@@ -5204,6 +5806,7 @@
         scheduleSave(true);
         applyFilters();
         if (usedPanelOpen) scheduleUsedPanelRender();
+        appendAudit('load_sample', '5 sample records loaded');
         showToast('Sample data loaded', 'success');
       }
 
@@ -5219,9 +5822,7 @@
 
       async function saveToStorage(force = false) {
         if (!sessionPassword) return;
-        // If a save is already in flight and this is not a forced final write, skip
         if (isSaving && !force) return;
-        // Wait briefly for any in-flight save to finish when forcing
         if (isSaving && force) {
           let waited = 0;
           while (isSaving && waited < 4000) {
@@ -5229,21 +5830,29 @@
             waited += 80;
           }
         }
-        if (!sessionPassword) return; // may have been cleared while waiting
+        if (!sessionPassword) return;
         isSaving = true;
+        pendingCloudSave = true;
+        updateSyncStatusUI();
         try {
-          // Yield to UI thread before heavy crypto so inputs stay responsive
           await new Promise(r => setTimeout(r, 0));
-          const payload = await encryptPayload(data, sessionPassword);
+          const envelope = buildVaultEnvelope();
+          const payload = await encryptPayload(envelope, sessionPassword);
           const { error } = await supabase
             .from('vault')
             .upsert({ id: 'main', payload: payload });
           if (error) throw error;
+          lastSyncedAt = Date.now();
+          pendingCloudSave = false;
+          updateSyncStatusUI();
         } catch (e) {
           console.warn('Cloud save failed', e);
-          showToast('Could not save to cloud. Check your internet.', 'error');
+          pendingCloudSave = true;
+          updateSyncStatusUI();
+          if (isOnline) showToast('Could not save to cloud. Check your internet.', 'error');
         } finally {
           isSaving = false;
+          updateSyncStatusUI();
         }
       }
 
@@ -5443,6 +6052,9 @@
         });
         document.getElementById('btnLock').addEventListener('click', async () => {
           if (confirm('Lock the vault? You will need your master password to unlock again.')) {
+            appendAudit('lock', 'User locked the vault');
+            // Flush audit before password is cleared
+            try { await saveToStorage(true); } catch (_) {}
             await lockApp();
           }
         });
@@ -5663,6 +6275,40 @@
             clearTimeout(saveTimer);
           }
         });
+
+        // ---- V.1.0+ idle / audit / PWA / offline ----
+        const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+        activityEvents.forEach(ev => {
+          document.addEventListener(ev, onUserActivity, { passive: true, capture: true });
+        });
+
+        document.getElementById('btnBackupJson')?.addEventListener('click', backupToJson);
+        document.getElementById('btnAuditLog')?.addEventListener('click', openAuditModal);
+        document.getElementById('btnIdleSettings')?.addEventListener('click', openIdleSettings);
+        document.getElementById('auditModalClose')?.addEventListener('click', closeAuditModal);
+        document.getElementById('auditModalOverlay')?.addEventListener('click', (e) => {
+          if (e.target === document.getElementById('auditModalOverlay')) closeAuditModal();
+        });
+        document.getElementById('idleSettingsClose')?.addEventListener('click', closeIdleSettings);
+        document.getElementById('idleSettingsOverlay')?.addEventListener('click', (e) => {
+          if (e.target === document.getElementById('idleSettingsOverlay')) closeIdleSettings();
+        });
+        document.getElementById('idleTimeoutSelect')?.addEventListener('change', applyIdleTimeoutFromSelect);
+
+        // Extend Escape to close new modals
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            closeAuditModal();
+            closeIdleSettings();
+          }
+        });
+
+        setupPwaManifest();
+        setupPwaInstall();
+        setupOnlineHandlers();
+        registerServiceWorker();
+        startSyncStatusTicker();
+        updateSyncStatusUI();
 
         setTimeout(() => {
           const pw = document.getElementById('authPassword');
