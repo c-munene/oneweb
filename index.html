@@ -84,7 +84,7 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-size-adjust: 100%;
-      /* Natural page scroll – the whole website scrolls */
+      /* Page can scroll when content outside the list exceeds the viewport */
       overflow-x: hidden;
       overflow-y: auto;
       height: auto;
@@ -101,7 +101,7 @@
       height: auto;
       color: var(--text);
       transition: background 0.25s ease, color 0.25s ease;
-      /* Page can scroll; contain only inside table / drawers */
+      /* Page scrolls; list keeps its own contained vertical scroll */
       overscroll-behavior-y: auto;
       overflow-x: hidden;
       overflow-y: auto;
@@ -1166,10 +1166,10 @@
       background: var(--surface);
       border-radius: 12px;
       border: 1px solid var(--border);
-      overflow: visible;          /* allow page to own vertical scroll */
+      overflow: hidden;           /* critical – contains the scroll area */
       box-shadow: var(--shadow);
       transition: background 0.25s ease, border-color 0.25s ease;
-      contain: layout style;
+      contain: layout style paint;
       display: flex;
       flex-direction: column;
       min-height: 0;
@@ -1217,20 +1217,19 @@
     .legend-dot.other { background: #64748b; }
     .table-scroll {
       overflow-x: auto;
-      overflow-y: visible; /* vertical scrolling belongs to the page */
-      overscroll-behavior-x: contain;
-      overscroll-behavior-y: auto;
-      scroll-behavior: auto;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scroll-behavior: auto; /* instant response – avoids lag on long lists */
       -webkit-overflow-scrolling: touch;
       position: relative;
       scrollbar-gutter: stable;
       border-radius: 0 0 12px 12px;
       min-height: 0;
+      /* Promote to own compositor layer for buttery scroll */
       transform: translateZ(0);
-      /* Only promote while horizontal scrolling to save battery */
-      will-change: auto;
-      contain: layout style;
-      /* Near-black, auto-hiding scrollbar (Firefox) – mainly for horizontal */
+      will-change: scroll-position;
+      contain: strict;
+      /* Near-black, auto-hiding scrollbar (Firefox) */
       scrollbar-width: thin;
       scrollbar-color: transparent transparent;
     }
@@ -1275,8 +1274,7 @@
     }
     thead th {
       position: sticky;
-      /* Clear sticky brand + stats + toolbar so column headers stay usable */
-      top: 178px;
+      top: 0;
       z-index: 20;
       background: var(--thead);
       color: var(--thead-text);
@@ -1288,25 +1286,19 @@
       text-align: left;
       white-space: nowrap;
       border-bottom: 2px solid #2a2a2a;
+      /* Keep sticky header on compositor layer */
       transform: translateZ(0);
       backface-visibility: hidden;
     }
     thead th:first-child {
       position: sticky;
       left: 0;
-      top: 178px;
       z-index: 30;
       background: var(--thead);
       min-width: 48px;
       text-align: center;
       transform: translateZ(0);
       backface-visibility: hidden;
-    }
-    @media (max-width: 900px) {
-      thead th, thead th:first-child { top: 168px; }
-    }
-    @media (max-width: 600px) {
-      thead th, thead th:first-child { top: 158px; }
     }
     tbody tr { transition: background 0.12s ease; }
     tbody tr.row-accepted { background: #14532d !important; }
@@ -2003,69 +1995,55 @@
       width: 100%;
       opacity: 0;
       transform: translateY(8px);
-      flex: 1 1 auto;
     }
     .app-shell.ready {
       opacity: 1;
       transform: none;
       transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    /* Sticky chrome so controls stay visible while the page scrolls */
-    .app-shell .brand {
-      flex-shrink: 0;
-      position: sticky;
-      top: 0;
-      z-index: 35;
-      background: var(--bg);
-      padding-top: 2px;
-      padding-bottom: 6px;
-    }
-    .app-shell .stats-bar {
-      flex-shrink: 0;
-      position: sticky;
-      top: 58px;
-      z-index: 34;
-      background: var(--bg);
-    }
-    .app-shell .toolbar {
-      flex-shrink: 0;
-      position: sticky;
-      top: 128px;
-      z-index: 33;
-      background: var(--bg);
-      padding-bottom: 8px;
-      margin-bottom: 8px;
-      box-shadow: 0 8px 16px -8px rgba(0,0,0,0.45);
-    }
+    .app-shell .brand { flex-shrink: 0; }
+    .app-shell .stats-bar { flex-shrink: 0; }
+    .app-shell .toolbar { flex-shrink: 0; }
     .app-shell .table-wrap {
       display: flex;
       flex-direction: column;
       position: relative;
-      /* Expand with content – whole page scrolls naturally */
-      min-height: 280px;
-      height: auto;
-      max-height: none;
-      flex: 0 0 auto;
+      /* Comfortable, predictable height – page scrolls around it */
+      min-height: 360px;
+      height: min(58vh, 580px);
+      max-height: min(58vh, 580px);
     }
     .app-shell .table-scroll {
-      flex: 0 0 auto;
+      flex: 1 1 auto;
       min-height: 0;
-      height: auto;
-      /* Vertical scroll is the page; keep horizontal for wide table */
+      height: 100%;
       overflow-x: auto;
-      overflow-y: visible;
+      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior-x: contain;
-      overscroll-behavior-y: auto;
+      overscroll-behavior: contain;
       scroll-behavior: auto;
       transform: translateZ(0);
     }
     .app-shell .pagination-bar { flex-shrink: 0; }
     .app-shell .footer-note { flex-shrink: 0; margin-top: 10px; padding-bottom: 8px; }
 
-    /* Soft fade removed – page scroll no longer needs internal bottom mask */
+    /* Soft fade at bottom of the table list */
     .app-shell .table-wrap::after {
-      display: none;
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 6px;
+      bottom: 0;
+      height: 28px;
+      pointer-events: none;
+      background: linear-gradient(to top, rgba(14,14,14,0.85), transparent);
+      border-radius: 0 0 12px 12px;
+      opacity: 0.85;
+      z-index: 15;
+      transition: opacity 0.25s ease;
+    }
+    .app-shell .table-wrap.scrolled-bottom::after {
+      opacity: 0;
     }
 
     /* ========== Welcome Animation (post-unlock) ========== */
@@ -2502,25 +2480,20 @@
       background: transparent;
     }
 
-    /* Responsive table – no fixed heights; page scrolls on all viewports */
+    /* Responsive table heights */
     @media (max-width: 900px) {
       .app-shell .table-wrap {
-        min-height: 240px;
-        height: auto;
-        max-height: none;
+        min-height: 300px;
+        height: min(52vh, 480px);
+        max-height: min(52vh, 480px);
       }
-      .app-shell .stats-bar { top: 52px; }
-      .app-shell .toolbar { top: 118px; }
     }
     @media (max-width: 600px) {
       .app-shell .table-wrap {
-        min-height: 200px;
-        height: auto;
-        max-height: none;
+        min-height: 260px;
+        height: min(48vh, 400px);
+        max-height: min(48vh, 400px);
       }
-      .app-shell .brand { top: 0; }
-      .app-shell .stats-bar { top: 48px; }
-      .app-shell .toolbar { top: 110px; }
       /* Prevent iOS zoom on focus */
       .search-input, .auth-input, .cell-input, .used-search-input {
         font-size: 16px;
@@ -2528,9 +2501,8 @@
     }
     @media (max-height: 500px) and (orientation: landscape) {
       .app-shell .table-wrap {
-        min-height: 160px;
-        height: auto;
-        max-height: none;
+        height: min(55vh, 240px);
+        max-height: min(55vh, 240px);
       }
     }
 
@@ -4170,12 +4142,8 @@
         virtualEnd = -1;
         renderTable();
         updatePagination();
-        // Bring the table into view when changing pages (page-level scroll)
-        const wrap = document.querySelector('.table-wrap');
-        if (wrap) {
-          const top = wrap.getBoundingClientRect().top + window.scrollY - 190;
-          window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-        }
+        const scrollEl = document.getElementById('tableScroll');
+        if (scrollEl) scrollEl.scrollTop = 0;
       }
 
       function buildRowHtml(row, absoluteIdx) {
@@ -4326,21 +4294,11 @@
       }
 
       function computeVirtualRange(pageData) {
-        // Virtualize against the page (window) scroll so the whole website scrolls
         const scrollEl = document.getElementById('tableScroll');
+        const scrollTop = scrollEl.scrollTop;
+        const viewHeight = scrollEl.clientHeight || 400;
         const total = pageData.length;
-        if (!scrollEl || total === 0) return { start: 0, end: 0, total: 0 };
-
-        const rect = scrollEl.getBoundingClientRect();
-        const viewHeight = window.innerHeight || 600;
-        // How far the top of the table content is above the viewport
-        // Negative rect.top means content has scrolled up past the top of the screen
-        const scrolledPast = Math.max(0, -rect.top);
-        // Approximate thead + hint height so row 0 aligns correctly
-        const headerOffset = 48;
-        const effectiveScroll = Math.max(0, scrolledPast - headerOffset);
-
-        const start = Math.max(0, Math.floor(effectiveScroll / ROW_HEIGHT) - BUFFER_ROWS);
+        const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
         const visibleCount = Math.ceil(viewHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
         const end = Math.min(total, start + visibleCount);
         return { start, end, total };
@@ -5302,20 +5260,8 @@
       }
 
       function onTableScroll() {
-        // Horizontal scroll only on the table container
         const scrollEl = document.getElementById('tableScroll');
         markScrolling(scrollEl);
-        if (customOpenId) closeCustomSelectMenu();
-        const fileMenu = document.getElementById('fileMenu');
-        if (fileMenu && fileMenu.classList.contains('show')) {
-          fileMenu.classList.remove('show');
-          const btn = document.getElementById('btnFileMenu');
-          if (btn) btn.setAttribute('aria-expanded', 'false');
-        }
-      }
-
-      function onPageScroll() {
-        markScrolling(document.documentElement);
         if (scrollRaf) return;
         scrollRaf = requestAnimationFrame(() => {
           scrollRaf = null;
@@ -5323,13 +5269,23 @@
           if (pageData.length >= VIRTUAL_THRESHOLD) {
             renderVirtualRows(pageData, (currentPage - 1) * PAGE_SIZE);
           }
-          // Close floating menus while the page scrolls
+          // Close floating menus while scrolling for clean UX
           if (customOpenId) closeCustomSelectMenu();
           const fileMenu = document.getElementById('fileMenu');
           if (fileMenu && fileMenu.classList.contains('show')) {
             fileMenu.classList.remove('show');
             const btn = document.getElementById('btnFileMenu');
             if (btn) btn.setAttribute('aria-expanded', 'false');
+          }
+
+          // Hide bottom fade when user reaches end of list (only toggle when state changes)
+          const wrap = scrollEl && scrollEl.closest('.table-wrap');
+          if (scrollEl && wrap) {
+            const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
+            if (atBottom !== _lastAtBottom) {
+              _lastAtBottom = atBottom;
+              wrap.classList.toggle('scrolled-bottom', atBottom);
+            }
           }
         });
       }
@@ -5529,12 +5485,12 @@
         const scrollEl = document.getElementById('tableScroll');
         scrollEl.addEventListener('scroll', onTableScroll, { passive: true });
 
-        // Auto-hide near-black scrollbar on Used panel + drive virtualization from page scroll
+        // Auto-hide near-black scrollbar on Used panel + page
         const usedScroll = document.getElementById('usedScrollArea');
         if (usedScroll) {
           usedScroll.addEventListener('scroll', () => markScrolling(usedScroll), { passive: true });
         }
-        window.addEventListener('scroll', onPageScroll, { passive: true });
+        window.addEventListener('scroll', () => markScrolling(document.documentElement), { passive: true });
 
         const searchEl = document.getElementById('searchInput');
         // Clear any value the browser may have injected on load
@@ -5690,14 +5646,17 @@
 
         window.addEventListener('resize', () => {
           if (customOpenId) closeCustomSelectMenu();
-          // Recalculate virtual rows after orientation / size change
-          const pageData = getPagedData();
-          if (pageData.length >= VIRTUAL_THRESHOLD) {
-            virtualStart = -1;
-            virtualEnd = -1;
-            renderVirtualRows(pageData, (currentPage - 1) * PAGE_SIZE);
-          }
         });
+        // Close floating menus when the page itself is scrolled
+        window.addEventListener('scroll', () => {
+          if (customOpenId) closeCustomSelectMenu();
+          const fileMenu = document.getElementById('fileMenu');
+          if (fileMenu && fileMenu.classList.contains('show')) {
+            fileMenu.classList.remove('show');
+            const btn = document.getElementById('btnFileMenu');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+          }
+        }, { passive: true });
 
         window.addEventListener('beforeunload', () => {
           if (saveTimer && sessionPassword) {
