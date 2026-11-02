@@ -50,15 +50,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="dns-prefetch" href="https://wqmgciavxiteqwtxavqc.supabase.co" />
+  <!-- Non-blocking Inter (avoids @import render delay) -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" /></noscript>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" /></noscript>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-    * { font-family: 'Inter', system-ui, -apple-system, sans-serif; box-sizing: border-box; }
+    * { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; box-sizing: border-box; }
 
     :root {
       color-scheme: dark;
@@ -83,6 +84,12 @@
       --danger: #ef4444;
       --warning: #f59e0b;
       --info: #6366f1;
+      /* Design system tokens — keep controls consistent */
+      --radius-sm: 8px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --control-h: 38px;
+      --font-ui: 13px;
     }
 
     html {
@@ -513,12 +520,12 @@
       flex-wrap: nowrap;
     }
     .header-lock-btn, .header-edit-btn, .header-settings-btn, .header-save-btn {
-      height: 40px;
+      height: var(--control-h);
       padding: 0 14px;
       border: 1px solid var(--border-soft);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       background: var(--input-bg);
-      font-size: 13px;
+      font-size: var(--font-ui);
       font-weight: 500;
       color: var(--text);
       cursor: pointer;
@@ -657,12 +664,12 @@
     }
     .search-input {
       width: 100%;
-      height: 38px;
+      height: var(--control-h);
       padding: 0 10px 0 34px;
       border: 1px solid var(--border-soft);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       background: var(--input-bg);
-      font-size: 13px;
+      font-size: var(--font-ui);
       color: var(--text);
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -693,18 +700,18 @@
       transition: color 0.2s ease;
     }
     .filter-select {
-      height: 38px;
+      height: var(--control-h);
       padding: 0 28px 0 10px;
       flex: 0 0 auto;
       min-width: 0;
       border: 1px solid var(--border-soft);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       background-color: var(--input-bg);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b6b6b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 10px center;
       background-size: 14px;
-      font-size: 13px;
+      font-size: var(--font-ui);
       color: var(--text);
       appearance: none;
       -webkit-appearance: none;
@@ -712,7 +719,7 @@
       cursor: pointer;
       outline: none;
       transition: border-color 0.2s ease, background-color 0.2s ease;
-      max-height: 40px;
+      max-height: var(--control-h);
       color-scheme: dark;
     }
     .filter-select:focus { border-color: #555; }
@@ -723,12 +730,12 @@
       padding: 8px 12px;
     }
     .tool-btn {
-      height: 38px;
+      height: var(--control-h);
       padding: 0 12px;
       border: 1px solid var(--border-soft);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       background: var(--input-bg);
-      font-size: 12.5px;
+      font-size: var(--font-ui);
       font-weight: 500;
       color: var(--text);
       cursor: pointer;
@@ -773,13 +780,13 @@
       transform: none !important;
     }
     .btn-add {
-      height: 38px;
+      height: var(--control-h);
       padding: 0 14px;
       border: none;
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       background: #e8e8e8;
       color: #0a0a0a;
-      font-size: 12.5px;
+      font-size: var(--font-ui);
       font-weight: 600;
       cursor: pointer;
       display: inline-flex;
@@ -1822,61 +1829,138 @@
     .loading-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.55);
+      background: rgba(0,0,0,0.6);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 4500;
       opacity: 0;
       visibility: hidden;
       transition: opacity 0.2s ease, visibility 0.2s ease;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
     .loading-overlay.visible {
       opacity: 1;
       visibility: visible;
     }
     .loading-spinner {
-      width: 48px;
-      height: 48px;
-      border: 3px solid var(--border);
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255,255,255,0.08);
       border-top-color: var(--brand);
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.04);
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .toast-container {
       position: fixed;
-      bottom: 24px;
+      bottom: max(20px, env(safe-area-inset-bottom, 0px));
       left: 50%;
       transform: translateX(-50%);
-      z-index: 1100;
+      z-index: 5000;
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      flex-direction: column-reverse;
+      align-items: center;
+      gap: 10px;
       pointer-events: none;
+      width: min(420px, calc(100vw - 24px));
     }
     .toast {
-      background: var(--surface-alt);
-      border: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      width: 100%;
+      background: linear-gradient(165deg, #1a1a1a 0%, #141414 100%);
+      border: 1px solid rgba(255,255,255,0.08);
       color: var(--text);
-      padding: 12px 18px;
-      border-radius: 10px;
+      padding: 14px 16px;
+      border-radius: 14px;
       font-size: 13px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      font-weight: 500;
+      line-height: 1.45;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03);
       opacity: 0;
-      transform: translateY(12px);
-      transition: opacity 0.25s ease, transform 0.25s ease;
+      transform: translateY(16px) scale(0.98);
+      transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
       pointer-events: auto;
-      max-width: 90vw;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
     .toast.show {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
     }
-    .toast.success { border-left: 3px solid var(--success); }
-    .toast.error { border-left: 3px solid var(--danger); }
-    .toast.info { border-left: 3px solid var(--info); }
-    .toast.warning { border-left: 3px solid var(--warning); }
+    .toast.hiding {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+    .toast-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+      margin-top: 1px;
+    }
+    .toast-body {
+      flex: 1;
+      min-width: 0;
+      padding-top: 3px;
+    }
+    .toast-close {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text-faint);
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: color 0.15s ease, background 0.15s ease;
+      padding: 0;
+    }
+    .toast-close:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+    }
+    .toast.success {
+      border-color: rgba(34, 197, 94, 0.25);
+    }
+    .toast.success .toast-icon {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+    }
+    .toast.error {
+      border-color: rgba(239, 68, 68, 0.28);
+    }
+    .toast.error .toast-icon {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+    .toast.info {
+      border-color: rgba(99, 102, 241, 0.28);
+    }
+    .toast.info .toast-icon {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+    }
+    .toast.warning {
+      border-color: rgba(245, 158, 11, 0.28);
+    }
+    .toast.warning .toast-icon {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+    }
 
     .pagination-bar {
       display: flex;
@@ -4326,21 +4410,43 @@
 
       function showToast(message, type = 'info', duration = 3200) {
         const container = document.getElementById('toastContainer');
-        if (!container) return;
-        // Limit stacked toasts to avoid clutter
+        if (!container || !message) return;
+
+        const icons = {
+          success: 'fa-circle-check',
+          error: 'fa-circle-exclamation',
+          warning: 'fa-triangle-exclamation',
+          info: 'fa-circle-info'
+        };
+        const icon = icons[type] || icons.info;
+
+        // Cap stack at 3; remove oldest (last child because column-reverse)
         while (container.children.length >= 3) {
-          container.removeChild(container.firstChild);
+          const old = container.lastElementChild;
+          if (old) old.remove();
         }
+
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.setAttribute('role', 'status');
-        toast.textContent = message;
-        container.appendChild(toast);
-        requestAnimationFrame(() => toast.classList.add('show'));
-        setTimeout(() => {
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        toast.innerHTML =
+          `<span class="toast-icon" aria-hidden="true"><i class="fas ${icon}"></i></span>` +
+          `<span class="toast-body"></span>` +
+          `<button type="button" class="toast-close" aria-label="Dismiss"><i class="fas fa-xmark" aria-hidden="true"></i></button>`;
+        toast.querySelector('.toast-body').textContent = message;
+
+        let hideTimer = null;
+        const dismiss = () => {
+          if (hideTimer) clearTimeout(hideTimer);
+          toast.classList.add('hiding');
           toast.classList.remove('show');
-          setTimeout(() => toast.remove(), 300);
-        }, duration);
+          setTimeout(() => toast.remove(), 280);
+        };
+        toast.querySelector('.toast-close').addEventListener('click', dismiss);
+
+        container.prepend(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        hideTimer = setTimeout(dismiss, duration);
       }
 
       function createEmptyRow() {
