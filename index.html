@@ -1373,6 +1373,7 @@
       backface-visibility: hidden;
     }
     tbody tr { transition: background 0.12s ease; }
+    .table-scroll.is-scrolling tbody tr { transition: none !important; }
     tbody tr.row-accepted { background: #14532d !important; }
     tbody tr.row-rejected { background: #7f1d1d !important; }
     tbody tr.row-id { background: #312e81 !important; }
@@ -1754,22 +1755,38 @@
       text-align: center;
     }
 
-    /* Fade-In + Slide-Up for list rows */
+    /* Fade-In + Slide-Up — only on full list refresh, never during scroll */
     @keyframes fadeSlideUp {
       from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(10px);
       }
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
-    tbody tr.row-enter-up,
-    tbody tr.row-enter-down {
-      animation: fadeSlideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
-      will-change: transform, opacity;
+    tbody tr.row-enter {
+      animation: fadeSlideUp 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
+    /* While user is actively scrolling, kill any enter animation (prevents glitch/flash) */
+    .table-scroll.is-scrolling tbody tr.row-enter {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    /* GPU-friendly fixed-height rows for seamless virtual scroll */
+    #tableBody tr:not(.virtual-spacer) {
+      height: 46px;
+      contain: layout style;
+      content-visibility: auto;
+      contain-intrinsic-size: auto 46px;
+    }
+    #tableBody tr.virtual-spacer {
+      contain: strict;
+      pointer-events: none;
+    }
+
 
     .file-input-hidden { display: none; }
     .footer-note {
@@ -3407,8 +3424,9 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
       const ROW_HEIGHT = 46;
-      const BUFFER_ROWS = 14;               /* larger buffer = fewer re-renders while scrolling */
-      const VIRTUAL_THRESHOLD = 30;         /* virtualize earlier for long pages */
+      const BUFFER_ROWS = 20;               /* generous buffer = fewer re-renders while scrolling */
+      const VIRTUAL_THRESHOLD = 40;         /* virtualize once list is long enough */
+      const HYSTERESIS_ROWS = 8;            /* only re-window when scroll crosses this many rows */
       const PAGE_SIZE = 100;
       const PBKDF2_ITERATIONS = 120000;
       const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -5005,8 +5023,8 @@
 
       function computeVirtualRange(pageData) {
         const scrollEl = document.getElementById('tableScroll');
-        const scrollTop = scrollEl.scrollTop;
-        const viewHeight = scrollEl.clientHeight || 400;
+        const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+        const viewHeight = (scrollEl && scrollEl.clientHeight) || 400;
         const total = pageData.length;
         const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
         const visibleCount = Math.ceil(viewHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
@@ -5014,11 +5032,16 @@
         return { start, end, total };
       }
 
-      function renderVirtualRows(pageData, pageOffset) {
+      /**
+       * Seamless virtual window — no enter animation (avoids flash while scrolling).
+       * Uses hysteresis so we only rebuild when the viewport approaches the edge of the buffer.
+       */
+      function renderVirtualRows(pageData, pageOffset, force) {
         const { start, end, total } = computeVirtualRange(pageData);
-        // Hysteresis: only rebuild when range moves outside current buffer window
-        // (prevents thrashing on small scroll adjustments)
+
+        // Hysteresis: skip rebuild while the needed window is still fully inside the rendered buffer
         if (
+          !force &&
           virtualStart >= 0 &&
           start >= virtualStart &&
           end <= virtualEnd &&
@@ -5026,26 +5049,39 @@
         ) {
           return;
         }
+
         virtualStart = start;
         virtualEnd = end;
 
         const tbody = document.getElementById('tableBody');
         const topPad = start * ROW_HEIGHT;
         const bottomPad = Math.max(0, (total - end) * ROW_HEIGHT);
+
+        // Build once — no animation classes during scroll windowing
         let html = '';
         if (topPad > 0) {
           html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="22" style="height:${topPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
         }
         for (let i = start; i < end; i++) {
-          // Fade-In + Slide-Up on newly rendered rows
-          const rowHtml = buildRowHtml(pageData[i], pageOffset + i);
-          html += rowHtml.replace('<tr class="', '<tr class="row-enter-up ');
+          html += buildRowHtml(pageData[i], pageOffset + i);
         }
         if (bottomPad > 0) {
           html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="22" style="height:${bottomPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
         }
+
+        // Preserve horizontal scroll position (prevents jump when re-rendering wide table)
+        const scrollEl = document.getElementById('tableScroll');
+        const keepX = scrollEl ? scrollEl.scrollLeft : 0;
+        const keepY = scrollEl ? scrollEl.scrollTop : 0;
+
         tbody.innerHTML = html;
         document.getElementById('dataTable').setAttribute('aria-rowcount', String(total));
+
+        if (scrollEl) {
+          // Restore scroll without triggering another layout cycle
+          if (scrollEl.scrollLeft !== keepX) scrollEl.scrollLeft = keepX;
+          if (Math.abs(scrollEl.scrollTop - keepY) > 1) scrollEl.scrollTop = keepY;
+        }
       }
 
       function renderTable() {
@@ -5058,7 +5094,6 @@
         if (filteredData.length === 0) {
           tbody.innerHTML = '';
           empty.classList.remove('hidden');
-          // Contextual empty message
           const hasFilters = !!(document.getElementById('searchInput').value.trim() ||
             document.getElementById('statusFilter').value ||
             document.getElementById('programFilter').value);
@@ -5085,11 +5120,12 @@
         if (pageData.length >= VIRTUAL_THRESHOLD) {
           virtualStart = -1;
           virtualEnd = -1;
-          renderVirtualRows(pageData, pageOffset);
+          renderVirtualRows(pageData, pageOffset, true);
         } else {
+          // Full page render — Fade-In + Slide-Up once (not while scrolling)
           tbody.innerHTML = pageData.map((row, idx) => {
             const rowHtml = buildRowHtml(row, pageOffset + idx);
-            return rowHtml.replace('<tr class="', '<tr class="row-enter-up ');
+            return rowHtml.replace('<tr class="', '<tr class="row-enter ');
           }).join('');
           document.getElementById('dataTable').setAttribute('aria-rowcount', String(pageData.length));
         }
@@ -5991,7 +6027,7 @@
         if (prev) clearTimeout(prev);
         _scrollHideTimers.set(el, setTimeout(() => {
           el.classList.remove('is-scrolling');
-        }, 900));
+        }, 180));
       }
 
       function onTableScroll() {
@@ -6009,15 +6045,19 @@
           scrollRaf = null;
           const pageData = getPagedData();
           if (pageData.length >= VIRTUAL_THRESHOLD) {
-            renderVirtualRows(pageData, (currentPage - 1) * PAGE_SIZE);
+            renderVirtualRows(pageData, (currentPage - 1) * PAGE_SIZE, false);
           }
-          // Close floating menus while scrolling for clean UX
-          if (customOpenId) closeCustomSelectMenu();
-          if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
 
-          // Hide bottom fade when user reaches end of list (only toggle when state changes)
-          const wrap = scrollEl && scrollEl.closest('.table-wrap');
-          if (scrollEl && wrap) {
+          // Close menus only if open (cheap check) — keeps scroll path lean
+          if (customOpenId) closeCustomSelectMenu();
+          const fm = document.getElementById('fileMenu');
+          const sm = document.getElementById('settingsMenu');
+          if ((fm && fm.classList.contains('show')) || (sm && sm.classList.contains('show'))) {
+            if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
+          }
+
+          const wrap = scrollEl.closest('.table-wrap');
+          if (wrap) {
             const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
             if (atBottom !== _lastAtBottom) {
               _lastAtBottom = atBottom;
