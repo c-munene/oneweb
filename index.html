@@ -3273,6 +3273,9 @@
               <button type="button" class="dropdown-item" role="menuitem" id="btnIdleSettings">
                 <i class="fas fa-clock" style="color:#fbbf24" aria-hidden="true"></i> Auto-Lock Settings
               </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnDownloadSw">
+                <i class="fas fa-mobile-screen" style="color:#60a5fa" aria-hidden="true"></i> Download sw.js (for install)
+              </button>
             </div>
           </div>
           <button type="button" class="header-save-btn" id="btnSave" title="Save all data (encrypted)">
@@ -4166,88 +4169,212 @@
         idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
       }
 
-      async function registerServiceWorker() {
-        if (!('serviceWorker' in navigator)) return;
-        try {
-          const swCode = `
-            const CACHE = 'oneweb-v1-static-v1';
-            const ASSETS = [
-              'https://cdn.tailwindcss.com',
-              'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-              'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-              'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
-              'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
-            ];
-            self.addEventListener('install', (e) => {
-              e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})).then(() => self.skipWaiting()));
-            });
-            self.addEventListener('activate', (e) => {
-              e.waitUntil(self.clients.claim());
-            });
-            self.addEventListener('fetch', (e) => {
-              const url = e.request.url;
-              // Network-first for Supabase / API; cache-first for static CDNs
-              if (url.includes('supabase.co') || url.includes('/rest/') || url.includes('/auth/')) {
-                e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-                return;
-              }
-              e.respondWith(
-                caches.match(e.request).then(cached => {
-                  const net = fetch(e.request).then(res => {
-                    if (res && res.ok && e.request.method === 'GET') {
-                      const clone = res.clone();
-                      caches.open(CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
-                    }
-                    return res;
-                  }).catch(() => cached);
-                  return cached || net;
-                })
-              );
-            });
-            self.addEventListener('sync', (e) => {
-              if (e.tag === 'oneweb-sync') {
-                e.waitUntil(self.clients.matchAll().then(clients => {
-                  clients.forEach(c => c.postMessage({ type: 'BACKGROUND_SYNC' }));
-                }));
-              }
-            });
-          `;
-          const blob = new Blob([swCode], { type: 'application/javascript' });
-          const swUrl = URL.createObjectURL(blob);
-          const reg = await navigator.serviceWorker.register(swUrl, { scope: './' });
-          console.info('OneWeb SW registered', reg.scope);
-          navigator.serviceWorker.addEventListener('message', (ev) => {
-            if (ev.data && ev.data.type === 'BACKGROUND_SYNC' && isUnlocked && sessionPassword) {
-              pendingCloudSave = true;
-              saveToStorage(true);
-            }
-          });
-        } catch (err) {
-          console.warn('SW registration failed (expected on file:// or restricted hosts)', err);
+      /* ========== PWA: icons, manifest, service worker, install ========== */
+      function getPwaSwSource() {
+        // Same-origin SW — upload this as sw.js next to the HTML on GitHub Pages
+        return `/* OneWeb V.1.0 service worker */
+const CACHE = 'oneweb-v1-shell-v3';
+const PRECACHE = [
+  './',
+  './index.html',
+  'https://cdn.tailwindcss.com',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
+];
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE).catch(() => {})).then(() => self.skipWaiting())
+  );
+});
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = req.url;
+  if (url.includes('supabase.co') || url.includes('/rest/v1/') || url.includes('/auth/v1/')) {
+    event.respondWith(fetch(req).catch(() => caches.match(req)));
+    return;
+  }
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      const network = fetch(req).then((res) => {
+        if (res && res.ok && (url.startsWith(self.location.origin) || url.includes('cdn.'))) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
         }
+        return res;
+      }).catch(() => cached);
+      return cached || network;
+    })
+  );
+});
+self.addEventListener('message', (event) => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
+});
+`;
+      }
+
+      function createPwaIconDataUrl(size) {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        // Background rounded square
+        const r = size * 0.22;
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, 0, size, size);
+        const grd = ctx.createLinearGradient(0, 0, size, size);
+        grd.addColorStop(0, '#f5f5f5');
+        grd.addColorStop(1, '#a3a3a3');
+        // Rounded rect path
+        const pad = size * 0.06;
+        const x = pad, y = pad, w = size - pad * 2, h = size - pad * 2;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        ctx.fillStyle = grd;
+        ctx.fill();
+        // Ow mark
+        ctx.fillStyle = '#0a0a0a';
+        ctx.font = `700 ${Math.floor(size * 0.38)}px system-ui, -apple-system, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Ow', size / 2, size / 2 + size * 0.03);
+        return canvas.toDataURL('image/png');
       }
 
       function setupPwaManifest() {
-        const icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f5f5f5'/%3E%3Cstop offset='100%25' stop-color='%23b8b8b8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='%230a0a0a' letter-spacing='-1'%3EOw%3C/text%3E%3C/svg%3E";
+        const startUrl = new URL(location.pathname.replace(/\/[^/]*$/, '/') || './', location.origin).href;
+        const scope = startUrl;
+        const icon192 = createPwaIconDataUrl(192);
+        const icon512 = createPwaIconDataUrl(512);
+
+        // Apple touch icon
+        let apple = document.querySelector('link[rel="apple-touch-icon"]');
+        if (!apple) {
+          apple = document.createElement('link');
+          apple.rel = 'apple-touch-icon';
+          document.head.appendChild(apple);
+        }
+        apple.href = icon192;
+
+        // Theme color meta
+        let theme = document.querySelector('meta[name="theme-color"]');
+        if (!theme) {
+          theme = document.createElement('meta');
+          theme.name = 'theme-color';
+          document.head.appendChild(theme);
+        }
+        theme.content = '#0a0a0a';
+
         const manifest = {
+          id: scope,
           name: 'OneWeb V.1.0 — Student Records',
           short_name: 'OneWeb',
-          description: 'Encrypted student records management with offline support',
-          start_url: './',
+          description: 'Encrypted student records · offline-capable vault',
+          start_url: startUrl,
+          scope: scope,
           display: 'standalone',
+          display_override: ['standalone', 'minimal-ui'],
           background_color: '#0a0a0a',
           theme_color: '#0a0a0a',
           orientation: 'any',
+          lang: 'en',
+          dir: 'ltr',
+          categories: ['business', 'productivity', 'education'],
           icons: [
-            { src: icon, sizes: '64x64', type: 'image/svg+xml', purpose: 'any' },
-            { src: icon, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
-            { src: icon, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
           ]
         };
-        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
         const url = URL.createObjectURL(blob);
         const link = document.getElementById('pwaManifestLink');
-        if (link) link.href = url;
+        if (link) {
+          link.href = url;
+          link.setAttribute('crossorigin', 'use-credentials');
+        }
+      }
+
+      async function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) return null;
+        const isSecure =
+          location.protocol === 'https:' ||
+          location.hostname === 'localhost' ||
+          location.hostname === '127.0.0.1';
+        if (!isSecure) {
+          console.info('PWA: service worker needs HTTPS (GitHub Pages is fine).');
+          return null;
+        }
+
+        const scope = new URL('./', location.href).href;
+        const candidates = [
+          new URL('sw.js', location.href).href,
+          new URL('service-worker.js', location.href).href
+        ];
+
+        navigator.serviceWorker.addEventListener('message', (ev) => {
+          if (ev.data && ev.data.type === 'BACKGROUND_SYNC' && isUnlocked && sessionPassword) {
+            pendingCloudSave = true;
+            saveToStorage(true, { silent: true });
+          }
+        });
+
+        for (const url of candidates) {
+          try {
+            const probe = await fetch(url, { method: 'GET', cache: 'no-store' });
+            if (!probe.ok) continue;
+            const ct = (probe.headers.get('content-type') || '').toLowerCase();
+            // Must be JS, not HTML fallback from GitHub Pages
+            if (ct.includes('text/html')) continue;
+            const reg = await navigator.serviceWorker.register(url, { scope });
+            console.info('OneWeb SW registered:', reg.scope);
+            return reg;
+          } catch (err) {
+            console.warn('SW candidate failed', url, err);
+          }
+        }
+
+        // Last resort: blob SW (blocked in most browsers — kept as best-effort)
+        try {
+          const blobUrl = URL.createObjectURL(
+            new Blob([getPwaSwSource()], { type: 'text/javascript' })
+          );
+          const reg = await navigator.serviceWorker.register(blobUrl, { scope });
+          console.info('OneWeb SW registered via blob:', reg.scope);
+          return reg;
+        } catch (err) {
+          console.warn(
+            'SW registration pending: upload sw.js next to this HTML on GitHub Pages (Settings → Download sw.js).',
+            err
+          );
+          return null;
+        }
+      }
+
+      function downloadServiceWorkerFile() {
+        const blob = new Blob([getPwaSwSource()], { type: 'application/javascript' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'sw.js';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('Downloaded sw.js — upload it next to your HTML on GitHub Pages, then refresh.', 'success', 5000);
       }
 
       function setupPwaInstall() {
@@ -4267,17 +4394,29 @@
         const btn = document.getElementById('btnPwaInstall');
         if (btn) {
           btn.addEventListener('click', async () => {
-            if (!deferredPwaPrompt) {
-              showToast('Install not available in this browser. Use the browser menu → Install App.', 'info', 4000);
+            if (deferredPwaPrompt) {
+              deferredPwaPrompt.prompt();
+              const choice = await deferredPwaPrompt.userChoice;
+              if (choice && choice.outcome === 'accepted') {
+                appendAudit('pwa_install', 'User accepted install prompt');
+              }
+              deferredPwaPrompt = null;
+              btn.classList.remove('visible');
               return;
             }
-            deferredPwaPrompt.prompt();
-            const choice = await deferredPwaPrompt.userChoice;
-            if (choice && choice.outcome === 'accepted') {
-              appendAudit('pwa_install', 'User accepted install prompt');
+            // No prompt yet — often means SW not registered on this origin
+            const secure =
+              location.protocol === 'https:' ||
+              location.hostname === 'localhost';
+            if (!secure) {
+              showToast('Open the GitHub Pages HTTPS link to install.', 'info', 4000);
+              return;
             }
-            deferredPwaPrompt = null;
-            btn.classList.remove('visible');
+            if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
+              showToast('Almost ready: Settings → Download sw.js, upload next to this HTML on GitHub, then refresh.', 'info', 6000);
+              return;
+            }
+            showToast('Use your browser menu → Install App / Add to Home Screen.', 'info', 4500);
           });
         }
       }
@@ -7129,6 +7268,10 @@
         document.getElementById('btnAuditLog')?.addEventListener('click', () => {
           if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
           openAuditModal();
+        });
+        document.getElementById('btnDownloadSw')?.addEventListener('click', () => {
+          closeAllDropdowns();
+          downloadServiceWorkerFile();
         });
         document.getElementById('btnIdleSettings')?.addEventListener('click', () => {
           if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
