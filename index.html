@@ -720,7 +720,13 @@
       align-items: center;
       gap: 8px;
       margin: 14px 0 12px;
-      overflow: visible; /* critical so File/Settings dropdowns are not clipped */
+      overflow: visible; /* desktop: keep dropdowns unclipped */
+    }
+    .toolbar .filter-select,
+    .toolbar .tool-btn,
+    .toolbar .btn-add,
+    .toolbar .dropdown {
+      flex-shrink: 0;
     }
     .search-wrap {
       position: relative;
@@ -2189,8 +2195,22 @@
       .stat-item { min-width: 33.333%; }
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
-      .toolbar { gap: 6px; }
-      .search-wrap { flex: 1 1 auto; min-width: 100px; max-width: none; }
+      .toolbar {
+        gap: 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .toolbar .search-wrap {
+        flex: 0 0 150px;
+        min-width: 130px;
+        max-width: 170px;
+        margin-left: 0;
+      }
+      .toolbar .filter-select {
+        flex: 0 0 auto;
+        min-width: 120px;
+      }
       .filter-select { min-width: 100px; }
     }
     /* Mobile / tablet: logo only + hamburger for header actions */
@@ -2271,6 +2291,42 @@
       .tool-btn, .btn-add { padding: 0 12px; font-size: 12px; height: 38px; }
       .table-hint { font-size: 11px; padding: 8px 12px; }
       .footer-note { font-size: 11px; padding: 0 8px 20px; }
+      /* Horizontal swipe for toolbar filters / buttons */
+      .toolbar {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.2) transparent;
+        padding-bottom: 2px;
+        margin-left: -2px;
+        margin-right: -2px;
+        padding-left: 2px;
+        padding-right: 2px;
+        gap: 8px;
+      }
+      .toolbar::-webkit-scrollbar {
+        height: 4px;
+      }
+      .toolbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .toolbar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.18);
+        border-radius: 99px;
+      }
+      .toolbar .filter-select {
+        flex: 0 0 auto;
+        min-width: 128px;
+        max-width: none;
+      }
+      .toolbar .search-wrap {
+        flex: 0 0 160px;
+        min-width: 140px;
+        max-width: 180px;
+        margin-left: 0;
+      }
     }
     @media (max-width: 480px) {
       body { padding: 12px !important; }
@@ -2280,12 +2336,15 @@
       .toolbar {
         gap: 6px;
         margin: 12px 0 10px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
       .tool-btn span, .btn-add span { display: none; }
       .tool-btn, .btn-add {
         padding: 0 11px;
         min-width: 40px;
         justify-content: center;
+        flex-shrink: 0;
       }
       .header-lock-btn span, .header-edit-btn span,
       .header-settings-btn span, .header-save-btn span { display: none; }
@@ -2293,9 +2352,18 @@
       .header-settings-btn, .header-save-btn {
         padding: 0 11px; min-width: 40px; justify-content: center;
       }
-      .search-wrap { flex: 1 1 auto; min-width: 90px; max-width: none; }
+      .toolbar .search-wrap {
+        flex: 0 0 140px;
+        min-width: 130px;
+        max-width: 160px;
+        margin-left: 0;
+      }
       .search-input { font-size: 16px; }
-      .filter-select { font-size: 13px; min-width: 90px; }
+      .toolbar .filter-select {
+        font-size: 13px;
+        min-width: 120px;
+        flex: 0 0 auto;
+      }
       /* Keep constrained height – vertical scrollbar remains the access method */
       .used-panel { width: 100vw; }
       .used-panel-header { padding: 16px 14px 14px; }
