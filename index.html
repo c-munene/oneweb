@@ -4198,14 +4198,27 @@
 
       function recordsFingerprint(rows) {
         if (!Array.isArray(rows)) return '0';
-        let fp = String(rows.length);
-        for (let i = 0; i < rows.length; i++) {
-          const r = rows[i] || {};
-          fp += '|' + (r.id || '') + ':' + (r.updatedAt || r.createdAt || '') + ':' +
-            (r.appStatus || '') + ':' + (r.studentName || r.name || '') + ':' +
-            (r.transcriptFile ? '1' : '0');
-        }
-        return fp;
+        // Stable, content-sensitive fingerprint (order-independent)
+        const parts = rows.map((r) => {
+          if (!r) return '';
+          return [
+            r.id || '',
+            r.name || r.studentName || '',
+            r.university || '',
+            r.appStatus || '',
+            r.transcriptStatus || '',
+            r.phone || '',
+            r.email || '',
+            r.ssn || '',
+            r.program || '',
+            r.highSchool || '',
+            r.gpa || '',
+            r.transcriptFile ? (r.transcriptFile.name || '1') : '0',
+            r.createdAt || ''
+          ].join(':');
+        });
+        parts.sort();
+        return parts.length + '#' + parts.join('|');
       }
 
       function stopLiveSync() {
@@ -4219,23 +4232,30 @@
       function startLiveSync() {
         stopLiveSync();
         if (!sessionPassword || !isUnlocked) return;
+        // First check soon, then every minute
+        setTimeout(() => pullCloudUpdates({ silent: true }), 5000);
         liveSyncTimer = setInterval(() => {
           pullCloudUpdates({ silent: true });
         }, LIVE_SYNC_INTERVAL_MS);
-        // First check shortly after unlock (not immediate to avoid racing save)
-        setTimeout(() => pullCloudUpdates({ silent: true }), 8000);
       }
 
       /**
-       * Pull encrypted vault from Supabase and apply if cloud is newer.
-       * Skips while saving or when local unsaved edits exist.
+       * Pull encrypted vault from Supabase and apply when cloud content differs.
+       * Never overwrites local unsaved edits (attempts a quick save first).
        */
       async function pullCloudUpdates(opts = {}) {
         const { silent = true, force = false } = opts;
         if (!sessionPassword || !isUnlocked) return false;
         if (!isOnline) return false;
         if (liveSyncInFlight || isSaving) return false;
-        if (localDirty && !force) return false;
+
+        // If we have local edits, try to flush them once before skipping the pull
+        if (localDirty && !force) {
+          try {
+            await saveToStorage(true, { silent: true });
+          } catch (_) {}
+          if (localDirty) return false;
+        }
 
         liveSyncInFlight = true;
         updateSyncStatusUI();
@@ -4249,11 +4269,17 @@
           if (error) throw error;
           if (!rows || !rows.payload) return false;
 
-          const remote = await decryptPayload(rows.payload, sessionPassword);
-          if (!remote) return false;
+          let remote;
+          try {
+            remote = await decryptPayload(rows.payload, sessionPassword);
+          } catch (decErr) {
+            console.warn('Live sync decrypt failed', decErr);
+            return false;
+          }
+          if (remote == null) return false;
 
           const remoteUpdated = (remote && typeof remote === 'object' && !Array.isArray(remote))
-            ? (remote.updatedAt || remote.lastSyncedAt || 0)
+            ? (Number(remote.updatedAt) || Number(remote.lastSyncedAt) || 0)
             : 0;
           const remoteRecords = Array.isArray(remote)
             ? remote
@@ -4261,48 +4287,49 @@
 
           const localFp = recordsFingerprint(data);
           const remoteFp = recordsFingerprint(remoteRecords);
-
-          const cloudIsNewer = remoteUpdated > localVaultUpdatedAt;
           const contentChanged = remoteFp !== localFp;
 
-          if (!force && !cloudIsNewer && !contentChanged) {
+          if (!force && !contentChanged) {
             lastLivePullAt = Date.now();
-            lastSyncedAt = Math.max(lastSyncedAt || 0, remoteUpdated || Date.now());
+            if (remoteUpdated) {
+              lastSyncedAt = Math.max(lastSyncedAt || 0, remoteUpdated);
+              localVaultUpdatedAt = Math.max(localVaultUpdatedAt, remoteUpdated);
+            }
             return false;
           }
 
-          // Prefer cloud only when it is newer or forced — never clobber local dirty edits
-          if (localDirty && !force) return false;
+          // Content differs — adopt cloud when forced, newer, or simply different and local is clean
+          const cloudIsNewer = remoteUpdated > localVaultUpdatedAt;
+          const shouldApply = force || contentChanged;
 
-          if (cloudIsNewer || (contentChanged && remoteUpdated >= localVaultUpdatedAt) || force) {
-            const prevCount = data.length;
-            applyVaultEnvelope(remote);
-            data.forEach(r => {
-              if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-              if (!r.createdAt) r.createdAt = Date.now();
-              if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
-              if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
-            });
-            localDirty = false;
-            lastSyncedAt = Date.now();
-            lastLivePullAt = lastSyncedAt;
-            rebuildDataIndex();
-            applyFilters();
-            updateStats();
-            updatePagination();
-            if (usedPanelOpen) scheduleUsedPanelRender();
-            updateSyncStatusUI('Updated from cloud');
-            if (!silent) {
-              const delta = data.length - prevCount;
-              if (delta > 0) showToast(`Cloud update: ${delta} new record(s)`, 'success', 2800);
-              else if (contentChanged) showToast('Records updated from cloud', 'info', 2500);
-            } else if (contentChanged) {
-              showToast('Live update · records refreshed', 'info', 2200);
-            }
-            return true;
+          if (!shouldApply) {
+            lastLivePullAt = Date.now();
+            return false;
           }
-          lastLivePullAt = Date.now();
-          return false;
+
+          const prevCount = data.length;
+          applyVaultEnvelope(remote);
+          data.forEach(r => {
+            if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+            if (!r.createdAt) r.createdAt = Date.now();
+            if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+            if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+          });
+          localDirty = false;
+          lastSyncedAt = Date.now();
+          localVaultUpdatedAt = Math.max(remoteUpdated || 0, lastSyncedAt);
+          lastLivePullAt = lastSyncedAt;
+          rebuildDataIndex();
+          applyFilters();
+          updateStats();
+          updatePagination();
+          if (typeof renderTable === 'function') renderTable();
+          if (usedPanelOpen) scheduleUsedPanelRender();
+          updateSyncStatusUI('Updated from cloud');
+          const delta = data.length - prevCount;
+          if (delta > 0) showToast(`Live update · ${delta} new record(s)`, 'success', 2800);
+          else if (contentChanged) showToast('Live update · records refreshed', 'info', 2400);
+          return true;
         } catch (err) {
           console.warn('Live sync pull failed', err);
           return false;
@@ -6771,14 +6798,13 @@ self.addEventListener('message', (event) => {
       function scheduleSave(immediate) {
         if (!sessionPassword) return;
         localDirty = true;
-        localVaultUpdatedAt = Date.now();
         updateSyncStatusUI();
         if (saveTimer) clearTimeout(saveTimer);
         if (immediate) {
-          saveToStorage(false);
+          saveToStorage(false, { silent: true });
           return;
         }
-        saveTimer = setTimeout(() => saveToStorage(false), SAVE_DEBOUNCE_MS);
+        saveTimer = setTimeout(() => saveToStorage(false, { silent: true }), SAVE_DEBOUNCE_MS);
       }
 
       async function cloudUpsert(payload) {
