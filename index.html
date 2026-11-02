@@ -608,6 +608,26 @@
       cursor: not-allowed;
       transform: none;
     }
+    /* Compact icon-only lock */
+    .header-lock-btn.header-lock-icon {
+      width: var(--control-h);
+      min-width: var(--control-h);
+      padding: 0;
+      justify-content: center;
+      gap: 0;
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+    }
+    .header-lock-btn.header-lock-icon:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.55);
+      color: #fecaca;
+      transform: translateY(-1px);
+    }
+    .header-lock-btn.header-lock-icon i {
+      font-size: 14px;
+    }
     /* Keep mode-badge styles for any residual refs but hide by default */
     .mode-badge { display: none !important; }
 
@@ -1290,9 +1310,9 @@
     }
     .legend-item:hover .legend-dot { transform: scale(1.2); }
     .legend-dot.accepted { background: #22c55e; }
-    .legend-dot.rejected { background: #ef4444; }
-    .legend-dot.id { background: #6366f1; }
-    .legend-dot.fee { background: #f59e0b; }
+    .legend-dot.rejected { background: #f97316; }
+    .legend-dot.id { background: #ef4444; }
+    .legend-dot.fee { background: #3b82f6; }
     .legend-dot.other { background: #64748b; }
     .table-scroll {
       overflow-x: auto;
@@ -1382,9 +1402,9 @@
     tbody tr { transition: background 0.12s ease; }
     .table-scroll.is-scrolling tbody tr { transition: none !important; }
     tbody tr.row-accepted { background: #14532d !important; }
-    tbody tr.row-rejected { background: #7f1d1d !important; }
-    tbody tr.row-id { background: #312e81 !important; }
-    tbody tr.row-fee { background: #78350f !important; }
+    tbody tr.row-rejected { background: #7c2d12 !important; }
+    tbody tr.row-id { background: #7f1d1d !important; }
+    tbody tr.row-fee { background: #1e3a8a !important; }
     tbody tr.row-other { background: #1e293b !important; }
     tbody tr.row-default { background: var(--surface) !important; }
     td {
@@ -1623,9 +1643,9 @@
       flex-shrink: 0;
     }
     #customSelectMenu .menu-item .dot.accepted { background: #22c55e; }
-    #customSelectMenu .menu-item .dot.rejected { background: #ef4444; }
-    #customSelectMenu .menu-item .dot.id { background: #6366f1; }
-    #customSelectMenu .menu-item .dot.fee { background: #f59e0b; }
+    #customSelectMenu .menu-item .dot.rejected { background: #f97316; }
+    #customSelectMenu .menu-item .dot.id { background: #ef4444; }
+    #customSelectMenu .menu-item .dot.fee { background: #3b82f6; }
     #customSelectMenu .menu-item .dot.other { background: #64748b; }
     #customSelectMenu .menu-item .dot.empty { background: transparent; border: 1px solid #555; }
     #customSelectMenu .menu-divider {
@@ -2446,7 +2466,7 @@
       right: 0;
       height: 50%;
       background: #0a0a0a;
-      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .eyelid.top {
       top: 0;
@@ -2973,8 +2993,8 @@
           <i class="fas fa-pen-to-square" aria-hidden="true"></i>
           <span class="edit-label">Enable Editing</span>
         </button>
-        <button type="button" class="header-lock-btn" id="btnLock" title="Lock & encrypt data">
-          <i class="fas fa-lock" aria-hidden="true"></i> <span>Lock</span>
+        <button type="button" class="header-lock-btn header-lock-icon" id="btnLock" title="Lock vault" aria-label="Lock vault">
+          <i class="fas fa-lock" aria-hidden="true"></i>
         </button>
       </div>
     </header>
@@ -3512,7 +3532,7 @@
       const VIRTUAL_THRESHOLD = 40;         /* virtualize once list is long enough */
       const HYSTERESIS_ROWS = 8;            /* only re-window when scroll crosses this many rows */
       const PAGE_SIZE = 100;
-      const PBKDF2_ITERATIONS = 120000;
+      const PBKDF2_ITERATIONS = 60000; /* balanced security vs unlock speed */
       const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
       const SAVE_DEBOUNCE_MS = 380;          /* slightly snappier auto-save */
       const FILTER_DEBOUNCE_MS = 140;
@@ -3548,6 +3568,7 @@
 
       let audioCtx = null;
       let sessionPassword = null;
+      let sessionVaultExists = false; // skip network check on lock when known
       let authMode = 'login';
       let isUnlocked = false;
       let isAdmin = false;
@@ -3624,11 +3645,14 @@
 
       async function hasEncryptedData() {
         try {
-          const { data, error } = await supabase
+          const query = supabase
             .from('vault')
             .select('id')
             .eq('id', 'main')
             .maybeSingle();
+          // Don't hang the auth UI if the network is slow
+          const timeout = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: 'timeout' }), 4000));
+          const { data, error } = await Promise.race([query, timeout]);
           if (error) return false;
           return !!(data && data.id);
         } catch {
@@ -4167,21 +4191,19 @@
       }
 
       async function lockApp() {
-        // Ensure any pending edits are flushed BEFORE we clear the session password
-        if (sessionPassword && data && data.length >= 0) {
+        // Flush pending save first (while password still available)
+        if (sessionPassword) {
           try {
             if (saveTimer) {
               clearTimeout(saveTimer);
               saveTimer = null;
             }
-            // Force a final encrypted write while we still have the password
             await saveToStorage(true);
           } catch (e) {
             console.warn('Final save on lock failed', e);
           }
         }
 
-        // Eyes-closing lock animation
         const eyelid = document.getElementById('eyelidOverlay');
         const overlay = document.getElementById('authOverlay');
         const appRoot = document.getElementById('appRoot');
@@ -4191,14 +4213,13 @@
           void eyelid.offsetWidth;
           eyelid.classList.add('closing');
         }
-        if (lockIcon) {
-          lockIcon.classList.add('locking');
-        }
-        appRoot.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        if (lockIcon) lockIcon.classList.add('locking');
+        appRoot.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
         appRoot.style.opacity = '0';
-        appRoot.style.transform = 'scale(0.97)';
+        appRoot.style.transform = 'scale(0.98)';
 
-        await new Promise(r => setTimeout(r, 580));
+        // Short animation only — no long artificial wait
+        await new Promise(r => setTimeout(r, 220));
 
         if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
         if (idleWarnTimer) { clearTimeout(idleWarnTimer); idleWarnTimer = null; }
@@ -4228,28 +4249,33 @@
         document.getElementById('authConfirm').value = '';
         clearAuthError();
 
-        // Correctly await the vault existence check
-        const hasVault = await hasEncryptedData();
-        setAuthMode(hasVault ? 'login' : 'signup');
+        // Skip network vault probe when we already know a vault exists
+        if (sessionVaultExists) {
+          setAuthMode('login');
+        } else {
+          try {
+            const hasVault = await hasEncryptedData();
+            sessionVaultExists = !!hasVault;
+            setAuthMode(hasVault ? 'login' : 'signup');
+          } catch (_) {
+            setAuthMode('login');
+          }
+        }
 
         overlay.classList.remove('hidden');
-        // Trigger entrance animation
         overlay.style.opacity = '0';
         requestAnimationFrame(() => {
-          overlay.style.transition = 'opacity 0.4s ease';
+          overlay.style.transition = 'opacity 0.25s ease';
           overlay.style.opacity = '1';
         });
 
         renderTable();
         updateStats();
         updatePagination();
-        showToast('Vault locked. Data remains encrypted in the cloud.', 'info', 2800);
+        showToast('Vault locked', 'info', 2200);
         if (lockIcon) lockIcon.classList.remove('locking');
-        // Reset eyelids after auth screen is visible
         if (eyelid) {
-          setTimeout(() => {
-            eyelid.classList.remove('closing', 'active');
-          }, 400);
+          setTimeout(() => eyelid.classList.remove('closing', 'active'), 280);
         }
       }
 
@@ -4303,6 +4329,7 @@
             if (error) throw error;
             LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
             sessionPassword = password;
+            sessionVaultExists = true;
             lastSyncedAt = Date.now();
             rebuildDataIndex();
             applyFilters();
@@ -4333,6 +4360,7 @@
             applyVaultEnvelope(decrypted);
             if (!Array.isArray(data)) throw new Error('Invalid data');
             sessionPassword = password;
+            sessionVaultExists = true;
             data.forEach(r => {
               if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
               if (!r.createdAt) r.createdAt = Date.now();
@@ -6303,6 +6331,7 @@
         dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
 
         hasEncryptedData().then(hasVault => {
+          sessionVaultExists = !!hasVault;
           setAuthMode(hasVault ? 'login' : 'signup');
           if (hasVault) {
             const tabSignup = document.getElementById('tabSignup');
