@@ -1807,6 +1807,13 @@
       transform: translateY(0) scale(1);
       animation: menuIn 0.18s ease forwards;
     }
+    /* Mobile: File menu must escape toolbar overflow scroll */
+    .dropdown-menu.fixed-mobile {
+      position: fixed !important;
+      z-index: 5000 !important;
+      right: auto;
+      margin-top: 0;
+    }
     @keyframes menuIn {
       from { opacity: 0; transform: translateY(-6px) scale(0.98); }
       to { opacity: 1; transform: translateY(0) scale(1); }
@@ -3758,6 +3765,24 @@
       let authMode = 'login';
       let isUnlocked = false;
       let isAdmin = false;
+      const SESSION_PW_KEY = 'oneweb_v1_session_pw';
+      const SESSION_ADMIN_KEY = 'oneweb_v1_session_admin';
+
+      function persistSessionPassword(password) {
+        try {
+          if (password) sessionStorage.setItem(SESSION_PW_KEY, password);
+          else sessionStorage.removeItem(SESSION_PW_KEY);
+        } catch (_) {}
+      }
+      function clearPersistedSession() {
+        try {
+          sessionStorage.removeItem(SESSION_PW_KEY);
+          sessionStorage.removeItem(SESSION_ADMIN_KEY);
+        } catch (_) {}
+      }
+      function getPersistedSessionPassword() {
+        try { return sessionStorage.getItem(SESSION_PW_KEY); } catch (_) { return null; }
+      }
       let adminResolve = null;
       let pendingTranscriptRowId = null;
 
@@ -4269,10 +4294,71 @@
 
       function unlockAdmin() {
         isAdmin = true;
+        try { sessionStorage.setItem(SESSION_ADMIN_KEY, '1'); } catch (_) {}
         updateEditUI();
         appendAudit('enable_editing', 'Admin password accepted — editing unlocked');
         scheduleSave();
         showToast('Editing unlocked for this session', 'success');
+      }
+
+      /** Restore vault after page refresh (same browser tab) */
+      async function tryRestoreSession() {
+        const password = getPersistedSessionPassword();
+        if (!password) return false;
+        showLoading(true);
+        try {
+          const { data: rows, error } = await supabase
+            .from('vault')
+            .select('payload')
+            .eq('id', 'main')
+            .maybeSingle();
+          if (error || !rows || !rows.payload) {
+            clearPersistedSession();
+            return false;
+          }
+          const decrypted = await decryptPayload(rows.payload, password);
+          applyVaultEnvelope(decrypted);
+          if (!Array.isArray(data)) {
+            clearPersistedSession();
+            return false;
+          }
+          sessionPassword = password;
+          sessionVaultExists = true;
+          data.forEach(r => {
+            if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+            if (!r.createdAt) r.createdAt = Date.now();
+            if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+            if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+          });
+          rebuildDataIndex();
+          applyFilters();
+
+          // Quiet show — no welcome animation on refresh
+          const overlay = document.getElementById('authOverlay');
+          const appRoot = document.getElementById('appRoot');
+          if (overlay) overlay.classList.add('hidden');
+          isUnlocked = true;
+          let adminOn = false;
+          try { adminOn = sessionStorage.getItem(SESSION_ADMIN_KEY) === '1'; } catch (_) {}
+          isAdmin = adminOn;
+          updateEditUI();
+          if (appRoot) {
+            appRoot.style.display = 'flex';
+            appRoot.setAttribute('aria-hidden', 'false');
+            appRoot.classList.add('ready');
+          }
+          resetIdleTimer();
+          updateSyncStatusUI();
+          updateStats();
+          updatePagination();
+          return true;
+        } catch (err) {
+          console.warn('Session restore failed', err);
+          clearPersistedSession();
+          return false;
+        } finally {
+          showLoading(false);
+        }
       }
 
       function updateEditUI() {
@@ -4429,6 +4515,7 @@
         const idleWarnEl = document.getElementById('idleWarning');
         if (idleWarnEl) idleWarnEl.classList.remove('visible');
         sessionPassword = null;
+        clearPersistedSession();
         data = [];
         dataById.clear();
         filteredData = [];
@@ -4533,6 +4620,7 @@
             LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
             sessionPassword = password;
             sessionVaultExists = true;
+            persistSessionPassword(password);
             lastSyncedAt = Date.now();
             rebuildDataIndex();
             applyFilters();
@@ -4564,6 +4652,7 @@
             if (!Array.isArray(data)) throw new Error('Invalid data');
             sessionPassword = password;
             sessionVaultExists = true;
+            persistSessionPassword(password);
             data.forEach(r => {
               if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
               if (!r.createdAt) r.createdAt = Date.now();
@@ -6533,13 +6622,17 @@
         const dl = document.getElementById('usUniversities');
         dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
 
-        hasEncryptedData().then(hasVault => {
-          sessionVaultExists = !!hasVault;
-          setAuthMode(hasVault ? 'login' : 'signup');
-          if (hasVault) {
-            const tabSignup = document.getElementById('tabSignup');
-            if (tabSignup) tabSignup.style.display = 'none';
-          }
+        // Restore unlocked session after refresh (same tab) — skip login when possible
+        tryRestoreSession().then(restored => {
+          if (restored) return;
+          hasEncryptedData().then(hasVault => {
+            sessionVaultExists = !!hasVault;
+            setAuthMode(hasVault ? 'login' : 'signup');
+            if (hasVault) {
+              const tabSignup = document.getElementById('tabSignup');
+              if (tabSignup) tabSignup.style.display = 'none';
+            }
+          });
         });
         document.getElementById('tabLogin').addEventListener('click', () => setAuthMode('login'));
         document.getElementById('tabSignup').addEventListener('click', () => setAuthMode('signup'));
@@ -6717,9 +6810,36 @@
         const settingsMenuBtn = document.getElementById('btnSettingsMenu');
         const settingsMenu = document.getElementById('settingsMenu');
 
+        function positionFileMenu() {
+          if (!fileMenu || !fileMenuBtn) return;
+          // On narrow / scrollable toolbars, pin the menu in the viewport
+          if (window.innerWidth <= 900) {
+            const r = fileMenuBtn.getBoundingClientRect();
+            fileMenu.classList.add('fixed-mobile');
+            const menuW = Math.min(220, window.innerWidth - 16);
+            let left = r.left;
+            if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+            if (left < 8) left = 8;
+            fileMenu.style.left = left + 'px';
+            fileMenu.style.top = (r.bottom + 6) + 'px';
+            fileMenu.style.minWidth = menuW + 'px';
+            fileMenu.style.right = 'auto';
+          } else {
+            fileMenu.classList.remove('fixed-mobile');
+            fileMenu.style.left = '';
+            fileMenu.style.top = '';
+            fileMenu.style.minWidth = '';
+            fileMenu.style.right = '';
+          }
+        }
+
         function closeAllDropdowns() {
           if (fileMenu) {
-            fileMenu.classList.remove('show');
+            fileMenu.classList.remove('show', 'fixed-mobile');
+            fileMenu.style.left = '';
+            fileMenu.style.top = '';
+            fileMenu.style.minWidth = '';
+            fileMenu.style.right = '';
             if (fileMenuBtn) fileMenuBtn.setAttribute('aria-expanded', 'false');
           }
           if (settingsMenu) {
@@ -6730,11 +6850,13 @@
 
         fileMenuBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          e.preventDefault();
           const willOpen = !fileMenu.classList.contains('show');
           closeAllDropdowns();
           if (willOpen) {
             fileMenu.classList.add('show');
             fileMenuBtn.setAttribute('aria-expanded', 'true');
+            positionFileMenu();
           }
         });
         settingsMenuBtn.addEventListener('click', (e) => {
@@ -6746,6 +6868,11 @@
             settingsMenuBtn.setAttribute('aria-expanded', 'true');
           }
         });
+        window.addEventListener('resize', () => {
+          if (fileMenu && fileMenu.classList.contains('show')) positionFileMenu();
+        });
+        document.getElementById('tableScroll')?.addEventListener('scroll', closeAllDropdowns, { passive: true });
+        document.querySelector('.toolbar')?.addEventListener('scroll', closeAllDropdowns, { passive: true });
         document.getElementById('btnImport').addEventListener('click', () => {
           closeAllDropdowns();
           document.getElementById('excelInput').click();
