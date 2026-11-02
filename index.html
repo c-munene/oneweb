@@ -508,12 +508,13 @@
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-shrink: 0;
+      flex-wrap: nowrap;
     }
-    .header-lock-btn, .header-edit-btn {
+    .header-lock-btn, .header-edit-btn, .header-settings-btn, .header-save-btn {
       height: 40px;
-      padding: 0 16px;
+      padding: 0 14px;
       border: 1px solid var(--border-soft);
       border-radius: 10px;
       background: var(--input-bg);
@@ -523,7 +524,7 @@
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       transition: all 0.22s ease;
       white-space: nowrap;
       user-select: none;
@@ -556,6 +557,49 @@
     }
     .header-edit-btn .edit-label {
       transition: opacity 0.15s ease;
+    }
+    /* Settings in header */
+    .header-settings-btn {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.35);
+      color: #a5b4fc;
+    }
+    .header-settings-btn:hover {
+      background: rgba(99, 102, 241, 0.22);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #c7d2fe;
+      transform: translateY(-1px);
+    }
+    .header-settings-btn .fa-gear {
+      transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+    .header-settings-btn:hover .fa-gear {
+      transform: rotate(45deg);
+    }
+    .header-dropdown {
+      position: relative;
+    }
+    .header-dropdown .dropdown-menu {
+      right: 0;
+      left: auto;
+      min-width: 210px;
+    }
+    /* Save in header */
+    .header-save-btn {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.35);
+      color: #86efac;
+    }
+    .header-save-btn:hover:not(:disabled) {
+      background: rgba(34, 197, 94, 0.25);
+      border-color: rgba(34, 197, 94, 0.5);
+      color: #bbf7d0;
+      transform: translateY(-1px);
+    }
+    .header-save-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
     }
     /* Keep mode-badge styles for any residual refs but hide by default */
     .mode-badge { display: none !important; }
@@ -598,41 +642,64 @@
 
     .toolbar {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
-      gap: 10px;
-      margin: 16px 0 12px;
+      gap: 8px;
+      margin: 14px 0 12px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
-    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
+    .toolbar::-webkit-scrollbar { display: none; height: 0; }
+    .search-wrap {
+      position: relative;
+      flex: 0 0 168px;
+      min-width: 140px;
+      max-width: 168px;
+    }
     .search-input {
       width: 100%;
-      height: 40px;
-      padding: 0 14px 0 40px;
+      height: 38px;
+      padding: 0 10px 0 34px;
       border: 1px solid var(--border-soft);
       border-radius: 10px;
       background: var(--input-bg);
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text);
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      /* Hard-block password managers / browser autofill chrome */
+      -webkit-text-security: none;
     }
     .search-input:focus {
       border-color: #555;
       box-shadow: 0 0 0 3px rgba(80,80,80,0.3);
     }
+    /* Kill autofill yellow/blue backgrounds */
+    .search-input:-webkit-autofill,
+    .search-input:-webkit-autofill:hover,
+    .search-input:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0 40px var(--input-bg) inset !important;
+      -webkit-text-fill-color: var(--text) !important;
+      caret-color: var(--text);
+      transition: background-color 99999s ease-in-out 0s;
+    }
     .search-wrap i {
       position: absolute;
-      left: 14px;
+      left: 11px;
       top: 50%;
       transform: translateY(-50%);
       color: var(--text-faint);
-      font-size: 14px;
+      font-size: 13px;
       pointer-events: none;
       transition: color 0.2s ease;
     }
     .filter-select {
-      height: 40px;
-      padding: 0 32px 0 12px;
+      height: 38px;
+      padding: 0 28px 0 10px;
+      flex: 0 0 auto;
+      min-width: 0;
       border: 1px solid var(--border-soft);
       border-radius: 10px;
       background-color: var(--input-bg);
@@ -659,21 +726,22 @@
       padding: 8px 12px;
     }
     .tool-btn {
-      height: 40px;
-      padding: 0 14px;
+      height: 38px;
+      padding: 0 12px;
       border: 1px solid var(--border-soft);
       border-radius: 10px;
       background: var(--input-bg);
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 500;
       color: var(--text);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       transition: all 0.2s ease;
       white-space: nowrap;
       user-select: none;
+      flex-shrink: 0;
     }
     .tool-btn:hover:not(:disabled) {
       background: var(--surface-alt);
@@ -708,20 +776,21 @@
       transform: none !important;
     }
     .btn-add {
-      height: 40px;
-      padding: 0 16px;
+      height: 38px;
+      padding: 0 14px;
       border: none;
       border-radius: 10px;
       background: #e8e8e8;
       color: #0a0a0a;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       transition: background 0.2s ease, transform 0.15s ease;
       user-select: none;
+      flex-shrink: 0;
     }
     .btn-add:hover:not(:disabled) { background: #d0d0d0; transform: translateY(-1px); }
     .btn-add:active:not(:disabled) { transform: translateY(0); }
@@ -1675,24 +1744,6 @@
     }
     .dropdown-item:hover { background: var(--surface-alt); }
 
-    /* Optimized Settings button */
-    .tool-btn.settings-btn {
-      background: rgba(99, 102, 241, 0.12);
-      border-color: rgba(99, 102, 241, 0.35);
-      color: #a5b4fc;
-    }
-    .tool-btn.settings-btn:hover:not(:disabled) {
-      background: rgba(99, 102, 241, 0.22);
-      border-color: rgba(99, 102, 241, 0.5);
-      color: #c7d2fe;
-      transform: translateY(-1px);
-    }
-    .tool-btn.settings-btn .fa-gear {
-      transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
-    }
-    .tool-btn.settings-btn:hover .fa-gear {
-      transform: rotate(45deg);
-    }
     #settingsMenu {
       min-width: 210px;
     }
@@ -1701,50 +1752,27 @@
       text-align: center;
     }
 
-    /* Super scroll animation for table rows */
+    /* Professional list scroll motion — subtle, fast, no blur/scale */
     @keyframes rowEnterUp {
-      from {
-        opacity: 0;
-        transform: translateY(18px) scale(0.985);
-        filter: blur(1.5px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-        filter: blur(0);
-      }
+      from { opacity: 0.35; transform: translateY(6px); }
+      to   { opacity: 1;    transform: translateY(0); }
     }
     @keyframes rowEnterDown {
-      from {
-        opacity: 0;
-        transform: translateY(-18px) scale(0.985);
-        filter: blur(1.5px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-        filter: blur(0);
-      }
+      from { opacity: 0.35; transform: translateY(-6px); }
+      to   { opacity: 1;    transform: translateY(0); }
     }
     tbody tr.row-enter-up {
-      animation: rowEnterUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation: rowEnterUp 0.22s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+      will-change: transform, opacity;
     }
     tbody tr.row-enter-down {
-      animation: rowEnterDown 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation: rowEnterDown 0.22s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+      will-change: transform, opacity;
     }
-    /* Stagger children slightly for polish */
-    tbody tr.row-enter-up:nth-child(odd),
-    tbody tr.row-enter-down:nth-child(odd) {
-      animation-delay: 0.02s;
-    }
-    tbody tr.row-enter-up:nth-child(even),
-    tbody tr.row-enter-down:nth-child(even) {
-      animation-delay: 0.05s;
-    }
-    /* Soft velocity glow on the table scroll edge while scrolling */
+    /* Quiet edge highlight while scrolling (no colored glow) */
     .table-scroll.is-scrolling {
-      box-shadow: inset 0 12px 18px -14px rgba(232,232,232,0.08),
-                  inset 0 -12px 18px -14px rgba(232,232,232,0.08);
+      box-shadow: inset 0 10px 14px -12px rgba(0,0,0,0.35),
+                  inset 0 -10px 14px -12px rgba(0,0,0,0.35);
     }
     .table-wrap.scrolling-up::before,
     .table-wrap.scrolling-down::after {
@@ -1752,22 +1780,22 @@
       position: absolute;
       left: 0;
       right: 6px;
-      height: 36px;
+      height: 22px;
       pointer-events: none;
       z-index: 16;
       opacity: 0;
-      transition: opacity 0.25s ease;
+      transition: opacity 0.2s ease;
     }
     .table-wrap.scrolling-up::before {
       top: 0;
-      background: linear-gradient(to bottom, rgba(59,130,246,0.18), transparent);
-      opacity: 0.85;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.04), transparent);
+      opacity: 1;
       border-radius: 12px 12px 0 0;
     }
     .table-wrap.scrolling-down::after {
       bottom: 0;
-      background: linear-gradient(to top, rgba(99,102,241,0.18), transparent);
-      opacity: 0.85;
+      background: linear-gradient(to top, rgba(255,255,255,0.04), transparent);
+      opacity: 1;
       border-radius: 0 0 12px 12px;
     }
 
@@ -2000,8 +2028,12 @@
       .auth-header { padding: 28px 22px 18px; }
       .auth-body { padding: 22px; }
       .auth-title { font-size: 22px; }
-      .header-lock-btn span, .header-edit-btn span { display: none; }
-      .header-lock-btn, .header-edit-btn { padding: 0 12px; min-width: 40px; justify-content: center; }
+      .header-lock-btn span, .header-edit-btn span,
+      .header-settings-btn span, .header-save-btn span { display: none; }
+      .header-lock-btn, .header-edit-btn,
+      .header-settings-btn, .header-save-btn {
+        padding: 0 12px; min-width: 40px; justify-content: center;
+      }
       /* mode-badge removed */
     }
     @media (max-width: 1200px) {
@@ -2017,10 +2049,9 @@
       .stat-item { min-width: 33.333%; }
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
-      /* Keep constrained height so vertical scroll works on tablets */
-      .toolbar { gap: 8px; }
-      .search-wrap { min-width: 100%; max-width: 100%; }
-      .filter-select { flex: 1 1 auto; min-width: 120px; }
+      .toolbar { gap: 6px; }
+      .search-wrap { flex: 0 0 140px; min-width: 120px; max-width: 140px; }
+      .filter-select { min-width: 100px; }
     }
     @media (max-width: 700px) {
       .stats-bar { border-radius: 12px; }
@@ -2053,10 +2084,15 @@
         min-width: 40px;
         justify-content: center;
       }
-      .header-lock-btn span, .header-edit-btn span { display: none; }
-      .header-lock-btn, .header-edit-btn { padding: 0 11px; min-width: 40px; justify-content: center; }
+      .header-lock-btn span, .header-edit-btn span,
+      .header-settings-btn span, .header-save-btn span { display: none; }
+      .header-lock-btn, .header-edit-btn,
+      .header-settings-btn, .header-save-btn {
+        padding: 0 11px; min-width: 40px; justify-content: center;
+      }
+      .search-wrap { flex: 0 0 120px; min-width: 110px; max-width: 120px; }
       .search-input { font-size: 16px; }
-      .filter-select { font-size: 13px; min-width: 100px; }
+      .filter-select { font-size: 13px; min-width: 90px; }
       /* Keep constrained height – vertical scrollbar remains the access method */
       .used-panel { width: 100vw; }
       .used-panel-header { padding: 16px 14px 14px; }
@@ -2441,8 +2477,8 @@
       .stats-bar { border-radius: 14px; }
       .stat-item { padding: 12px 6px; }
       .stat-value { font-size: 18px; }
-      .toolbar { gap: 8px; }
-      .search-wrap { max-width: 280px; }
+      .toolbar { gap: 6px; }
+      .search-wrap { flex: 0 0 150px; max-width: 150px; }
     }
 
     /* Ensure table remains usable: sticky first column + smooth horizontal scroll */
@@ -2836,6 +2872,30 @@
         <button type="button" class="pwa-install-btn" id="btnPwaInstall" title="Install OneWeb as an app">
           <i class="fas fa-download" aria-hidden="true"></i> Install App
         </button>
+        <div class="dropdown header-dropdown">
+          <button type="button" class="header-settings-btn" id="btnSettingsMenu" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenu" title="Settings & tools">
+            <i class="fas fa-gear" aria-hidden="true"></i>
+            <span>Settings</span>
+          </button>
+          <div class="dropdown-menu" id="settingsMenu" role="menu" aria-labelledby="btnSettingsMenu">
+            <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
+              <i class="fas fa-database" style="color:#22c55e" aria-hidden="true"></i> Load Sample Data
+            </button>
+            <button type="button" class="dropdown-item" role="menuitem" id="btnBackupJson">
+              <i class="fas fa-file-code" style="color:#a78bfa" aria-hidden="true"></i> Backup to JSON
+            </button>
+            <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
+              <i class="fas fa-clipboard-list" style="color:#60a5fa" aria-hidden="true"></i> Audit Log
+            </button>
+            <button type="button" class="dropdown-item" role="menuitem" id="btnIdleSettings">
+              <i class="fas fa-clock" style="color:#fbbf24" aria-hidden="true"></i> Auto-Lock Settings
+            </button>
+          </div>
+        </div>
+        <button type="button" class="header-save-btn" id="btnSave" title="Save all data (encrypted)">
+          <i class="fas fa-save" aria-hidden="true"></i>
+          <span>Save</span>
+        </button>
         <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing with admin password" aria-pressed="false">
           <i class="fas fa-pen-to-square" aria-hidden="true"></i>
           <span class="edit-label">Enable Editing</span>
@@ -2888,7 +2948,7 @@
     <div class="toolbar" role="toolbar" aria-label="Table controls">
       <div class="search-wrap">
         <i class="fas fa-search" aria-hidden="true"></i>
-        <input type="search" class="search-input" id="searchInput" name="q_oneweb_search_x9k2" placeholder="Search name, school, email..." aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" inputmode="search" />
+        <input type="search" class="search-input" id="searchInput" name="search_oneweb_x9k2_nofill" placeholder="Search…" aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" data-google-places="false" inputmode="search" role="searchbox" />
       </div>
 
       <select class="filter-select" id="statusFilter" aria-label="Filter by status">
@@ -2943,32 +3003,8 @@
         </div>
       </div>
 
-      <div class="dropdown">
-        <button type="button" class="tool-btn settings-btn" id="btnSettingsMenu" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenu" title="Settings & tools">
-          <i class="fas fa-gear" aria-hidden="true"></i> <span>Settings</span>
-        </button>
-        <div class="dropdown-menu" id="settingsMenu" role="menu" aria-labelledby="btnSettingsMenu">
-          <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
-            <i class="fas fa-database" style="color:#22c55e" aria-hidden="true"></i> Load Sample Data
-          </button>
-          <button type="button" class="dropdown-item" role="menuitem" id="btnBackupJson">
-            <i class="fas fa-file-code" style="color:#a78bfa" aria-hidden="true"></i> Backup to JSON
-          </button>
-          <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
-            <i class="fas fa-clipboard-list" style="color:#60a5fa" aria-hidden="true"></i> Audit Log
-          </button>
-          <button type="button" class="dropdown-item" role="menuitem" id="btnIdleSettings">
-            <i class="fas fa-clock" style="color:#fbbf24" aria-hidden="true"></i> Auto-Lock Settings
-          </button>
-        </div>
-      </div>
-
       <input type="file" id="excelInput" class="file-input-hidden" accept=".xlsx,.xls,.csv" aria-hidden="true" />
       <input type="file" id="transcriptsImportInput" class="file-input-hidden" accept=".json,application/json,.pdf,image/*,.jpg,.jpeg,.png,.webp" multiple aria-hidden="true" />
-
-      <button type="button" class="tool-btn save-btn" id="btnSave" title="Save all data (encrypted)">
-        <i class="fas fa-save" aria-hidden="true"></i> <span>Save</span>
-      </button>
 
       <button type="button" class="tool-btn danger" id="btnClear" title="Clear all records">
         <i class="fas fa-trash-alt" aria-hidden="true"></i> <span>Clear</span>
