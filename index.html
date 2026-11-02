@@ -3875,8 +3875,15 @@
       let lastActivityAt = Date.now();
       let auditLog = [];           // { ts, action, detail, actor }
       let lastSyncedAt = null;     // ms epoch of last successful cloud write
+      let localVaultUpdatedAt = 0; // revision of local vault data
       let pendingCloudSave = false;
       let isOnline = navigator.onLine;
+      let localDirty = false;      // true after local edits until cloud save succeeds
+      let liveSyncTimer = null;
+      let liveSyncInFlight = false;
+      let lastLivePullAt = 0;
+      const LIVE_SYNC_INTERVAL_MS = 60 * 1000; // 1 minute
+      let syncStatusDetailTimer = null;
       let deferredPwaPrompt = null;
       let vaultMeta = { version: 2 }; // envelope for records + audit + settings
 
@@ -4097,22 +4104,37 @@
         resetIdleTimer();
       }
 
-      function updateSyncStatusUI() {
+      function updateSyncStatusUI(detail) {
         const el = document.getElementById('syncStatus');
         const txt = document.getElementById('syncStatusText');
         if (!el || !txt) return;
         el.classList.remove('online', 'offline', 'syncing');
+        if (detail) {
+          el.classList.add('syncing');
+          txt.textContent = detail;
+          if (syncStatusDetailTimer) clearTimeout(syncStatusDetailTimer);
+          syncStatusDetailTimer = setTimeout(() => {
+            syncStatusDetailTimer = null;
+            updateSyncStatusUI();
+          }, 2200);
+          return;
+        }
+        if (syncStatusDetailTimer) return; // keep temporary detail visible
         if (!isOnline) {
           el.classList.add('offline');
           txt.textContent = 'Offline — changes queued';
           return;
         }
-        if (isSaving || pendingCloudSave) {
+        if (isSaving || pendingCloudSave || liveSyncInFlight) {
           el.classList.add('syncing');
-          txt.textContent = 'Syncing…';
+          txt.textContent = isSaving || pendingCloudSave ? 'Saving to cloud…' : 'Checking for updates…';
           return;
         }
         el.classList.add('online');
+        if (localDirty) {
+          txt.textContent = 'Unsaved local changes';
+          return;
+        }
         if (!lastSyncedAt) {
           txt.textContent = 'Online — not yet synced';
           return;
@@ -4127,11 +4149,13 @@
       }
 
       function startSyncStatusTicker() {
-        setInterval(updateSyncStatusUI, 15000);
+        setInterval(updateSyncStatusUI, 10000);
         updateSyncStatusUI();
       }
 
       function buildVaultEnvelope() {
+        const now = Date.now();
+        localVaultUpdatedAt = Math.max(localVaultUpdatedAt, now);
         return {
           version: 2,
           records: data,
@@ -4139,7 +4163,8 @@
           settings: {
             idleTimeoutMinutes: idleTimeoutMinutes
           },
-          lastSyncedAt: lastSyncedAt || Date.now()
+          lastSyncedAt: now,
+          updatedAt: localVaultUpdatedAt
         };
       }
 
@@ -4150,6 +4175,7 @@
           auditLog = [];
           idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
           lastSyncedAt = Date.now();
+          localVaultUpdatedAt = lastSyncedAt;
           return;
         }
         if (obj && typeof obj === 'object') {
@@ -4160,13 +4186,130 @@
           } else {
             idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
           }
-          lastSyncedAt = obj.lastSyncedAt || Date.now();
+          lastSyncedAt = obj.lastSyncedAt || obj.updatedAt || Date.now();
+          localVaultUpdatedAt = obj.updatedAt || obj.lastSyncedAt || lastSyncedAt;
           vaultMeta = { version: obj.version || 2 };
           return;
         }
         data = [];
         auditLog = [];
         idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
+      }
+
+      function recordsFingerprint(rows) {
+        if (!Array.isArray(rows)) return '0';
+        let fp = String(rows.length);
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || {};
+          fp += '|' + (r.id || '') + ':' + (r.updatedAt || r.createdAt || '') + ':' +
+            (r.appStatus || '') + ':' + (r.studentName || r.name || '') + ':' +
+            (r.transcriptFile ? '1' : '0');
+        }
+        return fp;
+      }
+
+      function stopLiveSync() {
+        if (liveSyncTimer) {
+          clearInterval(liveSyncTimer);
+          liveSyncTimer = null;
+        }
+        liveSyncInFlight = false;
+      }
+
+      function startLiveSync() {
+        stopLiveSync();
+        if (!sessionPassword || !isUnlocked) return;
+        liveSyncTimer = setInterval(() => {
+          pullCloudUpdates({ silent: true });
+        }, LIVE_SYNC_INTERVAL_MS);
+        // First check shortly after unlock (not immediate to avoid racing save)
+        setTimeout(() => pullCloudUpdates({ silent: true }), 8000);
+      }
+
+      /**
+       * Pull encrypted vault from Supabase and apply if cloud is newer.
+       * Skips while saving or when local unsaved edits exist.
+       */
+      async function pullCloudUpdates(opts = {}) {
+        const { silent = true, force = false } = opts;
+        if (!sessionPassword || !isUnlocked) return false;
+        if (!isOnline) return false;
+        if (liveSyncInFlight || isSaving) return false;
+        if (localDirty && !force) return false;
+
+        liveSyncInFlight = true;
+        updateSyncStatusUI();
+        try {
+          const { data: rows, error } = await supabase
+            .from('vault')
+            .select('payload')
+            .eq('id', 'main')
+            .maybeSingle();
+
+          if (error) throw error;
+          if (!rows || !rows.payload) return false;
+
+          const remote = await decryptPayload(rows.payload, sessionPassword);
+          if (!remote) return false;
+
+          const remoteUpdated = (remote && typeof remote === 'object' && !Array.isArray(remote))
+            ? (remote.updatedAt || remote.lastSyncedAt || 0)
+            : 0;
+          const remoteRecords = Array.isArray(remote)
+            ? remote
+            : (Array.isArray(remote.records) ? remote.records : (Array.isArray(remote.data) ? remote.data : []));
+
+          const localFp = recordsFingerprint(data);
+          const remoteFp = recordsFingerprint(remoteRecords);
+
+          const cloudIsNewer = remoteUpdated > localVaultUpdatedAt;
+          const contentChanged = remoteFp !== localFp;
+
+          if (!force && !cloudIsNewer && !contentChanged) {
+            lastLivePullAt = Date.now();
+            lastSyncedAt = Math.max(lastSyncedAt || 0, remoteUpdated || Date.now());
+            return false;
+          }
+
+          // Prefer cloud only when it is newer or forced — never clobber local dirty edits
+          if (localDirty && !force) return false;
+
+          if (cloudIsNewer || (contentChanged && remoteUpdated >= localVaultUpdatedAt) || force) {
+            const prevCount = data.length;
+            applyVaultEnvelope(remote);
+            data.forEach(r => {
+              if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+              if (!r.createdAt) r.createdAt = Date.now();
+              if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+              if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+            });
+            localDirty = false;
+            lastSyncedAt = Date.now();
+            lastLivePullAt = lastSyncedAt;
+            rebuildDataIndex();
+            applyFilters();
+            updateStats();
+            updatePagination();
+            if (usedPanelOpen) scheduleUsedPanelRender();
+            updateSyncStatusUI('Updated from cloud');
+            if (!silent) {
+              const delta = data.length - prevCount;
+              if (delta > 0) showToast(`Cloud update: ${delta} new record(s)`, 'success', 2800);
+              else if (contentChanged) showToast('Records updated from cloud', 'info', 2500);
+            } else if (contentChanged) {
+              showToast('Live update · records refreshed', 'info', 2200);
+            }
+            return true;
+          }
+          lastLivePullAt = Date.now();
+          return false;
+        } catch (err) {
+          console.warn('Live sync pull failed', err);
+          return false;
+        } finally {
+          liveSyncInFlight = false;
+          updateSyncStatusUI();
+        }
       }
 
       /* ========== PWA: icons, manifest, service worker, install ========== */
@@ -4422,20 +4565,20 @@ self.addEventListener('message', (event) => {
       }
 
       function setupOnlineHandlers() {
-        window.addEventListener('online', () => {
+        window.addEventListener('online', async () => {
           isOnline = true;
           updateSyncStatusUI();
           showToast('Back online — syncing…', 'info', 2000);
           if (isUnlocked && sessionPassword) {
-            pendingCloudSave = true;
-            saveToStorage(true).then(() => {
-              // Request background sync if SW supports it
-              if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-                navigator.serviceWorker.ready.then(reg => {
-                  if (reg.sync) reg.sync.register('oneweb-sync').catch(() => {});
-                });
-              }
-            });
+            if (localDirty) {
+              await saveToStorage(true, { silent: true });
+            }
+            await pullCloudUpdates({ silent: false });
+            if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+              navigator.serviceWorker.ready.then(reg => {
+                if (reg.sync) reg.sync.register('oneweb-sync').catch(() => {});
+              });
+            }
           }
         });
         window.addEventListener('offline', () => {
@@ -4560,6 +4703,7 @@ self.addEventListener('message', (event) => {
           updatePagination();
           resetIdleTimer();
           updateSyncStatusUI();
+          startLiveSync();
           showLoading(false);
 
           // Opening animation on refresh — never flash the login form
@@ -4683,6 +4827,7 @@ self.addEventListener('message', (event) => {
         isUnlocked = true;
         isAdmin = false;
         updateEditUI();
+        startLiveSync();
         // Welcome covers the screen first; reveal app only after it ends
         playWelcomeAnimation(() => {
           appRoot.style.display = 'flex';
@@ -4719,6 +4864,8 @@ self.addEventListener('message', (event) => {
       }
 
       async function lockApp() {
+        stopLiveSync();
+        localDirty = false;
         // Flush pending save first (while password still available)
         if (sessionPassword) {
           try {
@@ -6623,6 +6770,9 @@ self.addEventListener('message', (event) => {
 
       function scheduleSave(immediate) {
         if (!sessionPassword) return;
+        localDirty = true;
+        localVaultUpdatedAt = Date.now();
+        updateSyncStatusUI();
         if (saveTimer) clearTimeout(saveTimer);
         if (immediate) {
           saveToStorage(false);
@@ -6680,7 +6830,9 @@ self.addEventListener('message', (event) => {
               const { error } = await cloudUpsert(payload);
               if (error) throw error;
               lastSyncedAt = Date.now();
+              localVaultUpdatedAt = Math.max(localVaultUpdatedAt, lastSyncedAt);
               pendingCloudSave = false;
+              localDirty = false;
               success = true;
               lastError = null;
               break;
