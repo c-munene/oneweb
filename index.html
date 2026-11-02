@@ -2244,48 +2244,66 @@
         z-index: 4500;
         flex-direction: column;
         align-items: stretch;
-        gap: 4px;
-        width: min(280px, calc(100vw - 24px));
-        padding: 10px;
-        background: linear-gradient(165deg, #1c1c1c 0%, #111 100%);
+        gap: 8px;
+        width: min(300px, calc(100vw - 20px));
+        max-height: min(72vh, 520px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 12px;
+        background: #141414;
         border: 1px solid rgba(255,255,255,0.1);
         border-radius: 16px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);
-        animation: hbMenuIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.65);
+        animation: hbMenuIn 0.2s ease;
       }
       @keyframes hbMenuIn {
-        from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       .header-actions.open {
         display: flex;
       }
+      .header-actions > * {
+        flex-shrink: 0;
+        width: 100%;
+        position: relative;
+      }
       .header-actions .sync-status {
+        display: flex;
         justify-content: flex-start;
+        align-items: center;
         max-width: none;
         width: 100%;
-        padding: 8px 12px;
-        margin-bottom: 4px;
+        padding: 10px 12px;
         border-radius: 10px;
-        background: rgba(255,255,255,0.03);
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        box-sizing: border-box;
       }
       .header-actions .header-settings-btn,
       .header-actions .header-save-btn,
       .header-actions .header-edit-btn,
       .header-actions .header-lock-btn,
       .header-actions .pwa-install-btn {
+        display: flex;
         width: 100%;
         justify-content: flex-start;
+        align-items: center;
+        gap: 10px;
         min-width: 0;
         height: 44px;
         padding: 0 14px;
         border-radius: 10px;
         font-size: 13.5px;
+        box-sizing: border-box;
+        margin: 0;
       }
       .header-actions .header-lock-btn.header-lock-icon {
         width: 100%;
         min-width: 0;
-        gap: 8px;
+        padding: 0 14px;
+        gap: 10px;
       }
       .header-actions .header-lock-btn.header-lock-icon::after {
         content: 'Lock vault';
@@ -2297,32 +2315,51 @@
       .header-actions .header-edit-btn span {
         display: inline !important;
       }
+      /* Nested File / Settings: flow in document, never float/overlap */
       .header-actions .header-dropdown {
         width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        position: relative;
       }
-      .header-dropdown {
-        width: 100%;
-      }
-      .header-dropdown .dropdown-menu {
-        position: static;
-        transform: none;
-        opacity: 1;
-        box-shadow: none;
-        border: 1px solid rgba(255,255,255,0.06);
-        margin-top: 4px;
-        margin-bottom: 2px;
-        min-width: 0;
-        width: 100%;
+      .header-actions .header-dropdown .dropdown-menu {
+        position: static !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        transform: none !important;
+        opacity: 1 !important;
+        box-shadow: none !important;
+        margin: 6px 0 0 0;
+        min-width: 0 !important;
+        width: 100% !important;
         border-radius: 10px;
-        background: rgba(0,0,0,0.25);
+        border: 1px solid rgba(255,255,255,0.08);
+        background: #0c0c0c;
+        overflow: hidden;
+        animation: none !important;
       }
-      .header-dropdown .dropdown-menu:not(.show) {
-        display: none;
+      .header-actions .header-dropdown .dropdown-menu.fixed-mobile {
+        position: static !important;
       }
-      .header-dropdown .dropdown-item {
-        padding: 11px 14px;
+      .header-actions .header-dropdown .dropdown-menu:not(.show) {
+        display: none !important;
+      }
+      .header-actions .header-dropdown .dropdown-menu.show {
+        display: block !important;
+      }
+      .header-actions .dropdown-item {
+        width: 100%;
+        padding: 12px 14px;
         font-size: 13px;
         border-radius: 0;
+        border: none;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+      }
+      .header-actions .dropdown-item:last-child {
+        border-bottom: none;
       }
     }
     @media (max-width: 700px) {
@@ -6917,25 +6954,24 @@
 
         function positionFileMenu() {
           if (!fileMenu || !fileMenuBtn) return;
-          // On narrow / scrollable toolbars, pin the menu in the viewport
-          if (window.innerWidth <= 900) {
-            const r = fileMenuBtn.getBoundingClientRect();
-            fileMenu.classList.add('fixed-mobile');
-            const menuW = Math.min(220, window.innerWidth - 16);
-            let left = r.left;
-            if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
-            if (left < 8) left = 8;
-            fileMenu.style.left = left + 'px';
-            fileMenu.style.top = (r.bottom + 6) + 'px';
-            fileMenu.style.minWidth = menuW + 'px';
-            fileMenu.style.right = 'auto';
-          } else {
+          // Inside the hamburger panel: keep menu in normal document flow (no fixed overlay)
+          const inHamburger = window.innerWidth <= 768 &&
+            document.getElementById('headerActions')?.classList.contains('open');
+          if (inHamburger) {
             fileMenu.classList.remove('fixed-mobile');
             fileMenu.style.left = '';
             fileMenu.style.top = '';
             fileMenu.style.minWidth = '';
             fileMenu.style.right = '';
+            fileMenu.style.position = '';
+            return;
           }
+          // Desktop header: default absolute under the button
+          fileMenu.classList.remove('fixed-mobile');
+          fileMenu.style.left = '';
+          fileMenu.style.top = '';
+          fileMenu.style.minWidth = '';
+          fileMenu.style.right = '';
         }
 
         function closeAllDropdowns() {
