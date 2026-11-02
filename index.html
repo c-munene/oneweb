@@ -3082,7 +3082,7 @@
         <h1 class="auth-title" id="authTitle">OneWeb V.1.0</h1>
         <p class="auth-sub" id="authSub">OneWeb V.1.0 · Encrypted student records · Protected by your master password</p>
       </div>
-      <div class="auth-tabs" role="tablist" id="authTabs">
+      <div class="auth-tabs" role="tablist" id="authTabs" style="display:none" hidden>
         <button type="button" class="auth-tab active" id="tabLogin" role="tab" aria-selected="true" data-mode="login">Log In</button>
         <button type="button" class="auth-tab" id="tabSignup" role="tab" aria-selected="false" data-mode="signup" style="display:none" hidden>Create Account</button>
       </div>
@@ -4448,7 +4448,10 @@
           const showSignup = !sessionVaultExists;
           tabSignup.style.display = showSignup ? '' : 'none';
           tabSignup.hidden = !showSignup;
-          if (authTabs) authTabs.style.display = showSignup ? '' : 'none';
+          if (authTabs) {
+            authTabs.style.display = showSignup ? '' : 'none';
+            authTabs.hidden = !showSignup;
+          }
         }
         document.getElementById('confirmField').style.display = isSignup ? 'block' : 'none';
         document.getElementById('emailField').style.display = isSignup ? 'block' : 'none';
@@ -6713,20 +6716,7 @@
           document.documentElement.classList.remove('session-restore');
           hasEncryptedData().then(hasVault => {
             sessionVaultExists = !!hasVault;
-            const tabSignup = document.getElementById('tabSignup');
-            if (hasVault) {
-              setAuthMode('login');
-              if (tabSignup) {
-                tabSignup.style.display = 'none';
-                tabSignup.hidden = true;
-              }
-            } else {
-              setAuthMode('signup');
-              if (tabSignup) {
-                tabSignup.style.display = '';
-                tabSignup.hidden = false;
-              }
-            }
+            setAuthMode(hasVault ? 'login' : 'signup');
           });
         });
         document.getElementById('tabLogin').addEventListener('click', () => setAuthMode('login'));
