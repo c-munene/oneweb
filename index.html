@@ -50,6 +50,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="dns-prefetch" href="https://wqmgciavxiteqwtxavqc.supabase.co" />
+  <script>
+    /* Prevent login flash when restoring a tab session */
+    (function () {
+      try {
+        if (sessionStorage.getItem('oneweb_v1_session_pw')) {
+          document.documentElement.classList.add('session-restore');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <!-- Non-blocking Inter (avoids @import render delay) -->
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" /></noscript>
@@ -147,6 +157,12 @@
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
+    }
+    /* Hide auth UI immediately while session is restoring (no login flash) */
+    html.session-restore .auth-overlay {
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
     }
 
     /* Lock / unlock animations */
@@ -2269,6 +2285,9 @@
       .header-actions .header-edit-btn span {
         display: inline !important;
       }
+      .header-actions .header-dropdown {
+        width: 100%;
+      }
       .header-dropdown {
         width: 100%;
       }
@@ -3063,9 +3082,9 @@
         <h1 class="auth-title" id="authTitle">OneWeb V.1.0</h1>
         <p class="auth-sub" id="authSub">OneWeb V.1.0 · Encrypted student records · Protected by your master password</p>
       </div>
-      <div class="auth-tabs" role="tablist">
+      <div class="auth-tabs" role="tablist" id="authTabs">
         <button type="button" class="auth-tab active" id="tabLogin" role="tab" aria-selected="true" data-mode="login">Log In</button>
-        <button type="button" class="auth-tab" id="tabSignup" role="tab" aria-selected="false" data-mode="signup">Create Account</button>
+        <button type="button" class="auth-tab" id="tabSignup" role="tab" aria-selected="false" data-mode="signup" style="display:none" hidden>Create Account</button>
       </div>
       <div class="auth-body">
         <div class="auth-error" id="authError" role="alert">
@@ -3156,6 +3175,29 @@
           <button type="button" class="pwa-install-btn" id="btnPwaInstall" title="Install OneWeb as an app">
             <i class="fas fa-download" aria-hidden="true"></i> Install App
           </button>
+          <div class="dropdown header-dropdown">
+            <button type="button" class="header-settings-btn" id="btnFileMenu" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu" title="File">
+              <i class="fas fa-file" aria-hidden="true"></i>
+              <span>File</span>
+            </button>
+            <div class="dropdown-menu" id="fileMenu" role="menu" aria-labelledby="btnFileMenu">
+              <button type="button" class="dropdown-item" role="menuitem" id="btnImport">
+                <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Import Excel
+              </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnExportExcel">
+                <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Export Excel
+              </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnExportCSV">
+                <i class="fas fa-file-csv" style="color:#64748b" aria-hidden="true"></i> Export CSV
+              </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnExportTranscripts">
+                <i class="fas fa-file-export" style="color:#3b82f6" aria-hidden="true"></i> Export Transcripts
+              </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnImportTranscripts">
+                <i class="fas fa-file-import" style="color:#6366f1" aria-hidden="true"></i> Import Transcripts
+              </button>
+            </div>
+          </div>
           <div class="dropdown header-dropdown">
             <button type="button" class="header-settings-btn" id="btnSettingsMenu" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenu" title="Settings & tools">
               <i class="fas fa-gear" aria-hidden="true"></i>
@@ -3259,29 +3301,6 @@
       <button type="button" class="tool-btn" id="btnUsedPanel" aria-expanded="false" aria-controls="usedPanel">
         <i class="fas fa-list-ul" aria-hidden="true"></i> <span>Already Used</span>
       </button>
-
-      <div class="dropdown">
-        <button type="button" class="tool-btn" id="btnFileMenu" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu">
-          <i class="fas fa-file" aria-hidden="true"></i> <span>File</span>
-        </button>
-        <div class="dropdown-menu" id="fileMenu" role="menu" aria-labelledby="btnFileMenu">
-          <button type="button" class="dropdown-item" role="menuitem" id="btnImport">
-            <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Import Excel
-          </button>
-          <button type="button" class="dropdown-item" role="menuitem" id="btnExportExcel">
-            <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Export Excel
-          </button>
-          <button type="button" class="dropdown-item" role="menuitem" id="btnExportCSV">
-            <i class="fas fa-file-csv" style="color:#64748b" aria-hidden="true"></i> Export CSV
-          </button>
-          <button type="button" class="dropdown-item" role="menuitem" id="btnExportTranscripts">
-            <i class="fas fa-file-export" style="color:#3b82f6" aria-hidden="true"></i> Export Transcripts
-          </button>
-          <button type="button" class="dropdown-item" role="menuitem" id="btnImportTranscripts">
-            <i class="fas fa-file-import" style="color:#6366f1" aria-hidden="true"></i> Import Transcripts
-          </button>
-        </div>
-      </div>
 
       <input type="file" id="excelInput" class="file-input-hidden" accept=".xlsx,.xls,.csv" aria-hidden="true" />
       <input type="file" id="transcriptsImportInput" class="file-input-hidden" accept=".json,application/json,.pdf,image/*,.jpg,.jpeg,.png,.webp" multiple aria-hidden="true" />
@@ -4333,7 +4352,6 @@
           rebuildDataIndex();
           applyFilters();
 
-          // Quiet show — no welcome animation on refresh
           const overlay = document.getElementById('authOverlay');
           const appRoot = document.getElementById('appRoot');
           if (overlay) overlay.classList.add('hidden');
@@ -4342,19 +4360,30 @@
           try { adminOn = sessionStorage.getItem(SESSION_ADMIN_KEY) === '1'; } catch (_) {}
           isAdmin = adminOn;
           updateEditUI();
-          if (appRoot) {
-            appRoot.style.display = 'flex';
-            appRoot.setAttribute('aria-hidden', 'false');
-            appRoot.classList.add('ready');
-          }
-          resetIdleTimer();
-          updateSyncStatusUI();
           updateStats();
           updatePagination();
+          resetIdleTimer();
+          updateSyncStatusUI();
+          showLoading(false);
+
+          // Opening animation on refresh — never flash the login form
+          await new Promise((resolve) => {
+            playWelcomeAnimation(() => {
+              document.documentElement.classList.remove('session-restore');
+              if (appRoot) {
+                appRoot.style.display = 'flex';
+                appRoot.setAttribute('aria-hidden', 'false');
+                void appRoot.offsetWidth;
+                requestAnimationFrame(() => appRoot.classList.add('ready'));
+              }
+              resolve();
+            });
+          });
           return true;
         } catch (err) {
           console.warn('Session restore failed', err);
           clearPersistedSession();
+          document.documentElement.classList.remove('session-restore');
           return false;
         } finally {
           showLoading(false);
@@ -4405,10 +4434,22 @@
       function setAuthMode(mode) {
         authMode = mode;
         const isSignup = mode === 'signup';
-        document.getElementById('tabLogin').classList.toggle('active', !isSignup);
-        document.getElementById('tabSignup').classList.toggle('active', isSignup);
-        document.getElementById('tabLogin').setAttribute('aria-selected', !isSignup ? 'true' : 'false');
-        document.getElementById('tabSignup').setAttribute('aria-selected', isSignup ? 'true' : 'false');
+        const tabLogin = document.getElementById('tabLogin');
+        const tabSignup = document.getElementById('tabSignup');
+        const authTabs = document.getElementById('authTabs');
+        if (tabLogin) {
+          tabLogin.classList.toggle('active', !isSignup);
+          tabLogin.setAttribute('aria-selected', !isSignup ? 'true' : 'false');
+        }
+        if (tabSignup) {
+          tabSignup.classList.toggle('active', isSignup);
+          tabSignup.setAttribute('aria-selected', isSignup ? 'true' : 'false');
+          // Only show Create Account when a vault does not exist yet
+          const showSignup = !sessionVaultExists;
+          tabSignup.style.display = showSignup ? '' : 'none';
+          tabSignup.hidden = !showSignup;
+          if (authTabs) authTabs.style.display = showSignup ? '' : 'none';
+        }
         document.getElementById('confirmField').style.display = isSignup ? 'block' : 'none';
         document.getElementById('emailField').style.display = isSignup ? 'block' : 'none';
         document.getElementById('authSubmitText').textContent = isSignup ? 'Create Encrypted Vault' : 'Unlock Records';
@@ -4419,7 +4460,6 @@
         document.getElementById('passHint').textContent = isSignup
           ? 'Choose a strong password (min 8 chars). It encrypts all data.'
           : 'Enter the master password used to encrypt your records.';
-        // Reset password visibility to hidden
         const pwInput = document.getElementById('authPassword');
         const toggleBtn = document.getElementById('togglePass');
         if (pwInput && toggleBtn) {
@@ -6625,12 +6665,22 @@
         // Restore unlocked session after refresh (same tab) — skip login when possible
         tryRestoreSession().then(restored => {
           if (restored) return;
+          document.documentElement.classList.remove('session-restore');
           hasEncryptedData().then(hasVault => {
             sessionVaultExists = !!hasVault;
-            setAuthMode(hasVault ? 'login' : 'signup');
+            const tabSignup = document.getElementById('tabSignup');
             if (hasVault) {
-              const tabSignup = document.getElementById('tabSignup');
-              if (tabSignup) tabSignup.style.display = 'none';
+              setAuthMode('login');
+              if (tabSignup) {
+                tabSignup.style.display = 'none';
+                tabSignup.hidden = true;
+              }
+            } else {
+              setAuthMode('signup');
+              if (tabSignup) {
+                tabSignup.style.display = '';
+                tabSignup.hidden = false;
+              }
             }
           });
         });
