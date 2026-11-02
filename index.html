@@ -477,6 +477,8 @@
       gap: 16px;
       margin-bottom: 14px;
       flex-wrap: nowrap;
+      position: relative;
+      z-index: 40;
     }
     .brand-left {
       display: flex;
@@ -512,12 +514,57 @@
       color: var(--text-muted);
       margin-top: 1px;
     }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      position: relative;
+    }
     .header-actions {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
       flex-wrap: nowrap;
+    }
+    .header-hamburger {
+      display: none;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-md);
+      background: var(--input-bg);
+      color: var(--text);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 5px;
+      transition: background 0.2s ease, border-color 0.2s ease;
+      flex-shrink: 0;
+    }
+    .header-hamburger:hover {
+      background: var(--surface-alt);
+      border-color: var(--border);
+    }
+    .header-hamburger .hb-line {
+      display: block;
+      width: 18px;
+      height: 2px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: transform 0.25s ease, opacity 0.2s ease;
+    }
+    .header-hamburger.open .hb-line:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+    .header-hamburger.open .hb-line:nth-child(2) {
+      opacity: 0;
+    }
+    .header-hamburger.open .hb-line:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
     }
     .header-lock-btn, .header-edit-btn, .header-settings-btn, .header-save-btn {
       height: var(--control-h);
@@ -2146,6 +2193,72 @@
       .search-wrap { flex: 1 1 auto; min-width: 100px; max-width: none; }
       .filter-select { min-width: 100px; }
     }
+    /* Mobile / tablet: logo only + hamburger for header actions */
+    @media (max-width: 768px) {
+      .brand-text { display: none !important; }
+      .brand-logo { width: 40px; height: 40px; font-size: 17px; border-radius: 11px; }
+      .header-hamburger { display: inline-flex; }
+      .header-actions {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        z-index: 4500;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        min-width: 220px;
+        padding: 12px;
+        background: linear-gradient(165deg, #1a1a1a 0%, #121212 100%);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 14px;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+      }
+      .header-actions.open {
+        display: flex;
+      }
+      .header-actions .sync-status {
+        justify-content: center;
+        max-width: none;
+        width: 100%;
+      }
+      .header-actions .header-settings-btn,
+      .header-actions .header-save-btn,
+      .header-actions .header-edit-btn,
+      .header-actions .header-lock-btn,
+      .header-actions .pwa-install-btn {
+        width: 100%;
+        justify-content: flex-start;
+        min-width: 0;
+        height: 42px;
+        padding: 0 14px;
+      }
+      .header-actions .header-lock-btn.header-lock-icon {
+        width: 100%;
+        min-width: 0;
+      }
+      .header-actions .header-settings-btn span,
+      .header-actions .header-save-btn span,
+      .header-actions .header-edit-btn span {
+        display: inline !important;
+      }
+      .header-dropdown {
+        width: 100%;
+      }
+      .header-dropdown .dropdown-menu {
+        position: static;
+        transform: none;
+        opacity: 1;
+        box-shadow: none;
+        border: 1px solid rgba(255,255,255,0.06);
+        margin-top: 6px;
+        min-width: 0;
+        width: 100%;
+      }
+      .header-dropdown .dropdown-menu:not(.show) {
+        display: none;
+      }
+    }
     @media (max-width: 700px) {
       .stats-bar { border-radius: 12px; }
       .stat-item {
@@ -2155,10 +2268,7 @@
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
       .stat-value { font-size: 17px; }
-      .brand-name { font-size: 18px; }
-      .brand-logo { width: 36px; height: 36px; font-size: 16px; }
       .tool-btn, .btn-add { padding: 0 12px; font-size: 12px; height: 38px; }
-      .header-lock-btn, .header-edit-btn { height: 38px; padding: 0 12px; font-size: 12px; }
       .table-hint { font-size: 11px; padding: 8px 12px; }
       .footer-note { font-size: 11px; padding: 0 8px 20px; }
     }
@@ -2952,50 +3062,57 @@
     <header class="brand" role="banner">
       <div class="brand-left">
         <div class="brand-logo" aria-hidden="true">Ow</div>
-        <div>
+        <div class="brand-text">
           <div class="brand-name">OneWeb V.1.0</div>
           <div class="brand-sub">Student Records Management · Encrypted · V.1.0</div>
         </div>
       </div>
-      <div class="header-actions">
-        <div class="sync-status online" id="syncStatus" title="Cloud sync status">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="sync-text" id="syncStatusText">Synced — just now</span>
-        </div>
-        <button type="button" class="pwa-install-btn" id="btnPwaInstall" title="Install OneWeb as an app">
-          <i class="fas fa-download" aria-hidden="true"></i> Install App
+      <div class="header-right">
+        <button type="button" class="header-hamburger" id="btnHeaderMenu" aria-label="Open menu" aria-expanded="false" aria-controls="headerActions">
+          <span class="hb-line"></span>
+          <span class="hb-line"></span>
+          <span class="hb-line"></span>
         </button>
-        <div class="dropdown header-dropdown">
-          <button type="button" class="header-settings-btn" id="btnSettingsMenu" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenu" title="Settings & tools">
-            <i class="fas fa-gear" aria-hidden="true"></i>
-            <span>Settings</span>
-          </button>
-          <div class="dropdown-menu" id="settingsMenu" role="menu" aria-labelledby="btnSettingsMenu">
-            <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
-              <i class="fas fa-database" style="color:#22c55e" aria-hidden="true"></i> Load Sample Data
-            </button>
-            <button type="button" class="dropdown-item" role="menuitem" id="btnBackupJson">
-              <i class="fas fa-file-code" style="color:#a78bfa" aria-hidden="true"></i> Backup to JSON
-            </button>
-            <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
-              <i class="fas fa-clipboard-list" style="color:#60a5fa" aria-hidden="true"></i> Audit Log
-            </button>
-            <button type="button" class="dropdown-item" role="menuitem" id="btnIdleSettings">
-              <i class="fas fa-clock" style="color:#fbbf24" aria-hidden="true"></i> Auto-Lock Settings
-            </button>
+        <div class="header-actions" id="headerActions">
+          <div class="sync-status online" id="syncStatus" title="Cloud sync status">
+            <span class="dot" aria-hidden="true"></span>
+            <span class="sync-text" id="syncStatusText">Synced — just now</span>
           </div>
+          <button type="button" class="pwa-install-btn" id="btnPwaInstall" title="Install OneWeb as an app">
+            <i class="fas fa-download" aria-hidden="true"></i> Install App
+          </button>
+          <div class="dropdown header-dropdown">
+            <button type="button" class="header-settings-btn" id="btnSettingsMenu" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenu" title="Settings & tools">
+              <i class="fas fa-gear" aria-hidden="true"></i>
+              <span>Settings</span>
+            </button>
+            <div class="dropdown-menu" id="settingsMenu" role="menu" aria-labelledby="btnSettingsMenu">
+              <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
+                <i class="fas fa-database" style="color:#22c55e" aria-hidden="true"></i> Load Sample Data
+              </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnBackupJson">
+                <i class="fas fa-file-code" style="color:#a78bfa" aria-hidden="true"></i> Backup to JSON
+              </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
+                <i class="fas fa-clipboard-list" style="color:#60a5fa" aria-hidden="true"></i> Audit Log
+              </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnIdleSettings">
+                <i class="fas fa-clock" style="color:#fbbf24" aria-hidden="true"></i> Auto-Lock Settings
+              </button>
+            </div>
+          </div>
+          <button type="button" class="header-save-btn" id="btnSave" title="Save all data (encrypted)">
+            <i class="fas fa-save" aria-hidden="true"></i>
+            <span>Save</span>
+          </button>
+          <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing with admin password" aria-pressed="false">
+            <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+            <span class="edit-label">Enable Editing</span>
+          </button>
+          <button type="button" class="header-lock-btn header-lock-icon" id="btnLock" title="Lock vault" aria-label="Lock vault">
+            <i class="fas fa-lock" aria-hidden="true"></i>
+          </button>
         </div>
-        <button type="button" class="header-save-btn" id="btnSave" title="Save all data (encrypted)">
-          <i class="fas fa-save" aria-hidden="true"></i>
-          <span>Save</span>
-        </button>
-        <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing with admin password" aria-pressed="false">
-          <i class="fas fa-pen-to-square" aria-hidden="true"></i>
-          <span class="edit-label">Enable Editing</span>
-        </button>
-        <button type="button" class="header-lock-btn header-lock-icon" id="btnLock" title="Lock vault" aria-label="Lock vault">
-          <i class="fas fa-lock" aria-hidden="true"></i>
-        </button>
       </div>
     </header>
 
@@ -6379,6 +6496,40 @@
             try { await saveToStorage(true); } catch (_) {}
             await lockApp();
           }
+        });
+
+        // Mobile header hamburger
+        const hbBtn = document.getElementById('btnHeaderMenu');
+        const headerActions = document.getElementById('headerActions');
+        function closeHeaderMenu() {
+          if (!hbBtn || !headerActions) return;
+          hbBtn.classList.remove('open');
+          headerActions.classList.remove('open');
+          hbBtn.setAttribute('aria-expanded', 'false');
+          hbBtn.setAttribute('aria-label', 'Open menu');
+        }
+        function toggleHeaderMenu() {
+          if (!hbBtn || !headerActions) return;
+          const open = !headerActions.classList.contains('open');
+          hbBtn.classList.toggle('open', open);
+          headerActions.classList.toggle('open', open);
+          hbBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          hbBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+        }
+        if (hbBtn) {
+          hbBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleHeaderMenu();
+          });
+        }
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.header-right')) closeHeaderMenu();
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') closeHeaderMenu();
+        });
+        window.addEventListener('resize', () => {
+          if (window.innerWidth > 768) closeHeaderMenu();
         });
 
         // Admin modal handlers
