@@ -646,17 +646,14 @@
       align-items: center;
       gap: 8px;
       margin: 14px 0 12px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
+      overflow: visible; /* critical so File/Settings dropdowns are not clipped */
     }
-    .toolbar::-webkit-scrollbar { display: none; height: 0; }
     .search-wrap {
       position: relative;
-      flex: 0 0 168px;
-      min-width: 140px;
-      max-width: 168px;
+      flex: 1 1 auto;
+      min-width: 120px;
+      max-width: none;
+      margin-left: auto; /* push search to the right edge of remaining space */
     }
     .search-input {
       width: 100%;
@@ -1700,6 +1697,11 @@
     .dropdown {
       position: relative;
       display: inline-block;
+      z-index: 20;
+      flex-shrink: 0;
+    }
+    .dropdown:has(.dropdown-menu.show) {
+      z-index: 4001;
     }
     .dropdown-menu {
       display: none;
@@ -1712,7 +1714,7 @@
       border-radius: 10px;
       box-shadow: 0 12px 32px rgba(0,0,0,0.35);
       min-width: 200px;
-      z-index: 50;
+      z-index: 4000;
       overflow: hidden;
       opacity: 0;
       transform: translateY(-6px) scale(0.98);
@@ -1752,51 +1754,21 @@
       text-align: center;
     }
 
-    /* Professional list scroll motion — subtle, fast, no blur/scale */
-    @keyframes rowEnterUp {
-      from { opacity: 0.35; transform: translateY(6px); }
-      to   { opacity: 1;    transform: translateY(0); }
+    /* Fade-In + Slide-Up for list rows */
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    @keyframes rowEnterDown {
-      from { opacity: 0.35; transform: translateY(-6px); }
-      to   { opacity: 1;    transform: translateY(0); }
-    }
-    tbody tr.row-enter-up {
-      animation: rowEnterUp 0.22s cubic-bezier(0.25, 0.1, 0.25, 1) both;
-      will-change: transform, opacity;
-    }
+    tbody tr.row-enter-up,
     tbody tr.row-enter-down {
-      animation: rowEnterDown 0.22s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+      animation: fadeSlideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
       will-change: transform, opacity;
-    }
-    /* Quiet edge highlight while scrolling (no colored glow) */
-    .table-scroll.is-scrolling {
-      box-shadow: inset 0 10px 14px -12px rgba(0,0,0,0.35),
-                  inset 0 -10px 14px -12px rgba(0,0,0,0.35);
-    }
-    .table-wrap.scrolling-up::before,
-    .table-wrap.scrolling-down::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 6px;
-      height: 22px;
-      pointer-events: none;
-      z-index: 16;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-    .table-wrap.scrolling-up::before {
-      top: 0;
-      background: linear-gradient(to bottom, rgba(255,255,255,0.04), transparent);
-      opacity: 1;
-      border-radius: 12px 12px 0 0;
-    }
-    .table-wrap.scrolling-down::after {
-      bottom: 0;
-      background: linear-gradient(to top, rgba(255,255,255,0.04), transparent);
-      opacity: 1;
-      border-radius: 0 0 12px 12px;
     }
 
     .file-input-hidden { display: none; }
@@ -2050,7 +2022,7 @@
       .stat-item:nth-child(3n) { border-right: none; }
       .stat-item:nth-last-child(-n+3) { border-bottom: none; }
       .toolbar { gap: 6px; }
-      .search-wrap { flex: 0 0 140px; min-width: 120px; max-width: 140px; }
+      .search-wrap { flex: 1 1 auto; min-width: 100px; max-width: none; }
       .filter-select { min-width: 100px; }
     }
     @media (max-width: 700px) {
@@ -2090,7 +2062,7 @@
       .header-settings-btn, .header-save-btn {
         padding: 0 11px; min-width: 40px; justify-content: center;
       }
-      .search-wrap { flex: 0 0 120px; min-width: 110px; max-width: 120px; }
+      .search-wrap { flex: 1 1 auto; min-width: 90px; max-width: none; }
       .search-input { font-size: 16px; }
       .filter-select { font-size: 13px; min-width: 90px; }
       /* Keep constrained height – vertical scrollbar remains the access method */
@@ -2478,7 +2450,7 @@
       .stat-item { padding: 12px 6px; }
       .stat-value { font-size: 18px; }
       .toolbar { gap: 6px; }
-      .search-wrap { flex: 0 0 150px; max-width: 150px; }
+      .search-wrap { flex: 1 1 auto; max-width: none; }
     }
 
     /* Ensure table remains usable: sticky first column + smooth horizontal scroll */
@@ -2946,11 +2918,6 @@
     </div>
 
     <div class="toolbar" role="toolbar" aria-label="Table controls">
-      <div class="search-wrap">
-        <i class="fas fa-search" aria-hidden="true"></i>
-        <input type="search" class="search-input" id="searchInput" name="search_oneweb_x9k2_nofill" placeholder="Search…" aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" data-google-places="false" inputmode="search" role="searchbox" />
-      </div>
-
       <select class="filter-select" id="statusFilter" aria-label="Filter by status">
         <option value="">All statuses</option>
         <option value="Accepted">Accepted</option>
@@ -3013,6 +2980,11 @@
       <button type="button" class="btn-add" id="btnAdd" title="Add new student (Ctrl/Cmd+N)">
         <i class="fas fa-plus" aria-hidden="true"></i> <span>Add</span>
       </button>
+
+      <div class="search-wrap">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" class="search-input" id="searchInput" name="search_oneweb_x9k2_nofill" placeholder="Search…" aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" data-google-places="false" inputmode="search" role="searchbox" />
+      </div>
     </div>
 
     <div class="used-backdrop" id="usedBackdrop" aria-hidden="true"></div>
@@ -5060,16 +5032,14 @@
         const tbody = document.getElementById('tableBody');
         const topPad = start * ROW_HEIGHT;
         const bottomPad = Math.max(0, (total - end) * ROW_HEIGHT);
-        const enterClass = scrollDirection === 'up' ? 'row-enter-up' : 'row-enter-down';
-
         let html = '';
         if (topPad > 0) {
           html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="22" style="height:${topPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
         }
         for (let i = start; i < end; i++) {
-          // Inject enter animation class into the row for buttery scroll feel
+          // Fade-In + Slide-Up on newly rendered rows
           const rowHtml = buildRowHtml(pageData[i], pageOffset + i);
-          html += rowHtml.replace('<tr class="', `<tr class="${enterClass} `);
+          html += rowHtml.replace('<tr class="', '<tr class="row-enter-up ');
         }
         if (bottomPad > 0) {
           html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="22" style="height:${bottomPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
@@ -5117,10 +5087,9 @@
           virtualEnd = -1;
           renderVirtualRows(pageData, pageOffset);
         } else {
-          const enterClass = scrollDirection === 'up' ? 'row-enter-up' : 'row-enter-down';
           tbody.innerHTML = pageData.map((row, idx) => {
             const rowHtml = buildRowHtml(row, pageOffset + idx);
-            return rowHtml.replace('<tr class="', `<tr class="${enterClass} `);
+            return rowHtml.replace('<tr class="', '<tr class="row-enter-up ');
           }).join('');
           document.getElementById('dataTable').setAttribute('aria-rowcount', String(pageData.length));
         }
@@ -6035,17 +6004,6 @@
 
         markScrolling(scrollEl);
 
-        // Directional edge glow while actively scrolling
-        const wrap = scrollEl.closest('.table-wrap');
-        if (wrap) {
-          wrap.classList.toggle('scrolling-up', scrollDirection === 'up');
-          wrap.classList.toggle('scrolling-down', scrollDirection === 'down');
-          clearTimeout(wrap._glowTimer);
-          wrap._glowTimer = setTimeout(() => {
-            wrap.classList.remove('scrolling-up', 'scrolling-down');
-          }, 420);
-        }
-
         if (scrollRaf) return;
         scrollRaf = requestAnimationFrame(() => {
           scrollRaf = null;
@@ -6058,6 +6016,7 @@
           if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
 
           // Hide bottom fade when user reaches end of list (only toggle when state changes)
+          const wrap = scrollEl && scrollEl.closest('.table-wrap');
           if (scrollEl && wrap) {
             const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
             if (atBottom !== _lastAtBottom) {
