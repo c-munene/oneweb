@@ -3532,7 +3532,8 @@
       const VIRTUAL_THRESHOLD = 40;         /* virtualize once list is long enough */
       const HYSTERESIS_ROWS = 8;            /* only re-window when scroll crosses this many rows */
       const PAGE_SIZE = 100;
-      const PBKDF2_ITERATIONS = 60000; /* balanced security vs unlock speed */
+      const PBKDF2_ITERATIONS = 60000; /* new encrypts — faster unlock */
+      const PBKDF2_LEGACY_ITERATIONS = 120000; /* vaults created before iteration change */
       const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024; // 5 MB
       const SAVE_DEBOUNCE_MS = 380;          /* slightly snappier auto-save */
       const FILTER_DEBOUNCE_MS = 140;
@@ -3605,13 +3606,14 @@
         return bytes.buffer;
       }
 
-      async function deriveKey(password, salt) {
+      async function deriveKey(password, salt, iterations) {
+        const iters = iterations || PBKDF2_ITERATIONS;
         const enc = new TextEncoder();
         const keyMaterial = await crypto.subtle.importKey(
           'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
         );
         return crypto.subtle.deriveKey(
-          { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+          { name: 'PBKDF2', salt, iterations: iters, hash: 'SHA-256' },
           keyMaterial,
           { name: 'AES-GCM', length: 256 },
           false,
@@ -3622,11 +3624,12 @@
       async function encryptPayload(plainObj, password) {
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const key = await deriveKey(password, salt);
+        const key = await deriveKey(password, salt, PBKDF2_ITERATIONS);
         const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
         const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
         return {
           v: 1,
+          iter: PBKDF2_ITERATIONS,
           salt: bufToBase64(salt),
           iv: bufToBase64(iv),
           ct: bufToBase64(ciphertext)
@@ -3638,9 +3641,24 @@
         const salt = new Uint8Array(base64ToBuf(payload.salt));
         const iv = new Uint8Array(base64ToBuf(payload.iv));
         const ct = base64ToBuf(payload.ct);
-        const key = await deriveKey(password, salt);
-        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
-        return JSON.parse(new TextDecoder().decode(decrypted));
+
+        // Prefer iterations stored with the payload; otherwise try legacy then current
+        const tryIters = [];
+        if (payload.iter) tryIters.push(payload.iter);
+        tryIters.push(PBKDF2_LEGACY_ITERATIONS, PBKDF2_ITERATIONS);
+        const uniqueIters = [...new Set(tryIters)];
+
+        let lastErr = null;
+        for (const iters of uniqueIters) {
+          try {
+            const key = await deriveKey(password, salt, iters);
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+            return JSON.parse(new TextDecoder().decode(decrypted));
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        throw lastErr || new Error('Decrypt failed');
       }
 
       async function hasEncryptedData() {
