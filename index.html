@@ -4653,9 +4653,7 @@
             appendAudit('vault_created', 'New encrypted vault created');
             const envelope = buildVaultEnvelope();
             const payload = await encryptPayload(envelope, password);
-            const { error } = await supabase
-              .from('vault')
-              .upsert({ id: 'main', payload: payload });
+            const { error } = await cloudUpsert(payload);
             if (error) throw error;
             LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
             sessionPassword = password;
@@ -5967,31 +5965,13 @@
           showToast('Vault is locked. Unlock first.', 'error');
           return;
         }
-        if (isSaving) {
-          showToast('Save already in progress…', 'info', 1500);
-          return;
-        }
         const btn = document.getElementById('btnSave');
         if (btn) {
           btn.disabled = true;
           btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> <span>Saving…</span>';
         }
         try {
-          const envelope = buildVaultEnvelope();
-          const payload = await encryptPayload(envelope, sessionPassword);
-          const { error } = await supabase
-            .from('vault')
-            .upsert({ id: 'main', payload: payload });
-          if (error) throw error;
-          lastSyncedAt = Date.now();
-          pendingCloudSave = false;
-          updateSyncStatusUI();
-          showToast(`Encrypted & saved ${data.length} record(s)`, 'success', 2500);
-        } catch (e) {
-          console.warn('save failed', e);
-          pendingCloudSave = true;
-          updateSyncStatusUI();
-          showToast('Could not save to cloud. Check your internet.', 'error', 4000);
+          await saveToStorage(true, { isManual: true });
         } finally {
           if (btn) {
             btn.disabled = false;
@@ -6438,50 +6418,115 @@
         showToast('Sample data loaded', 'success');
       }
 
+      let saveQueued = false;
+      let lastSaveErrorAt = 0;
+      const SAVE_RETRY_MAX = 3;
+
       function scheduleSave(immediate) {
         if (!sessionPassword) return;
         if (saveTimer) clearTimeout(saveTimer);
         if (immediate) {
-          saveToStorage();
+          saveToStorage(false);
           return;
         }
-        saveTimer = setTimeout(saveToStorage, SAVE_DEBOUNCE_MS);
+        saveTimer = setTimeout(() => saveToStorage(false), SAVE_DEBOUNCE_MS);
       }
 
-      async function saveToStorage(force = false) {
-        if (!sessionPassword) return;
-        if (isSaving && !force) return;
-        if (isSaving && force) {
-          let waited = 0;
-          while (isSaving && waited < 4000) {
-            await new Promise(r => setTimeout(r, 80));
-            waited += 80;
+      async function cloudUpsert(payload) {
+        // Prefer onConflict for stable re-saves of the same vault row
+        let result = await supabase
+          .from('vault')
+          .upsert({ id: 'main', payload: payload }, { onConflict: 'id' });
+        if (result.error) {
+          // Fallback for older schemas / missing constraint name
+          result = await supabase
+            .from('vault')
+            .upsert({ id: 'main', payload: payload });
+        }
+        return result;
+      }
+
+      async function saveToStorage(force = false, opts = {}) {
+        const { silent = false, isManual = false } = opts;
+        if (!sessionPassword) return false;
+
+        // If a save is already running, queue one more pass with latest data
+        if (isSaving) {
+          saveQueued = true;
+          if (force) {
+            let waited = 0;
+            while (isSaving && waited < 8000) {
+              await new Promise(r => setTimeout(r, 60));
+              waited += 60;
+            }
+          } else {
+            return false;
           }
         }
-        if (!sessionPassword) return;
+        if (!sessionPassword) return false;
+
         isSaving = true;
         pendingCloudSave = true;
         updateSyncStatusUI();
+
+        let success = false;
+        let lastError = null;
+
         try {
-          await new Promise(r => setTimeout(r, 0));
-          const envelope = buildVaultEnvelope();
-          const payload = await encryptPayload(envelope, sessionPassword);
-          const { error } = await supabase
-            .from('vault')
-            .upsert({ id: 'main', payload: payload });
-          if (error) throw error;
-          lastSyncedAt = Date.now();
-          pendingCloudSave = false;
-          updateSyncStatusUI();
-        } catch (e) {
-          console.warn('Cloud save failed', e);
-          pendingCloudSave = true;
-          updateSyncStatusUI();
-          if (isOnline) showToast('Could not save to cloud. Check your internet.', 'error');
+          for (let attempt = 1; attempt <= SAVE_RETRY_MAX; attempt++) {
+            if (!sessionPassword) break;
+            try {
+              const envelope = buildVaultEnvelope();
+              const payload = await encryptPayload(envelope, sessionPassword);
+              const { error } = await cloudUpsert(payload);
+              if (error) throw error;
+              lastSyncedAt = Date.now();
+              pendingCloudSave = false;
+              success = true;
+              lastError = null;
+              break;
+            } catch (e) {
+              lastError = e;
+              // Brief backoff before retry (network blips / rate limits)
+              if (attempt < SAVE_RETRY_MAX) {
+                await new Promise(r => setTimeout(r, 280 * attempt));
+              }
+            }
+          }
+
+          if (success) {
+            updateSyncStatusUI();
+            if (isManual && !silent) {
+              showToast(`Encrypted & saved ${data.length} record(s)`, 'success', 2200);
+            }
+          } else {
+            pendingCloudSave = true;
+            updateSyncStatusUI();
+            console.warn('Cloud save failed', lastError);
+            // Don't spam error toasts — at most once every 8s, and never offline noise
+            const now = Date.now();
+            if (!silent && isOnline && now - lastSaveErrorAt > 8000) {
+              lastSaveErrorAt = now;
+              const msg = (lastError && lastError.message) ? String(lastError.message) : '';
+              if (/payload|too large|413|request entity/i.test(msg)) {
+                showToast('Save failed: data is too large. Remove large transcripts and try again.', 'error', 5000);
+              } else if (/permission|rls|policy|401|403/i.test(msg)) {
+                showToast('Save blocked by cloud permissions. Check Supabase vault policies.', 'error', 5000);
+              } else {
+                showToast('Could not reach the cloud. Changes stay local until connection recovers.', 'warning', 3500);
+              }
+            }
+          }
         } finally {
           isSaving = false;
           updateSyncStatusUI();
+          // Run one more save if edits happened during this write
+          if (saveQueued && sessionPassword) {
+            saveQueued = false;
+            setTimeout(() => saveToStorage(false, { silent: true }), 40);
+          }
         }
+        return success;
       }
 
       let _lastAtBottom = false;
