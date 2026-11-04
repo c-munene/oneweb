@@ -1001,12 +1001,12 @@ return;
 if (syncStatusDetailTimer) return;
 if (!isOnline) {
 el.classList.add('offline');
-txt.textContent = 'Offline — changes queued';
+txt.textContent = 'Offline — save when online';
 return;
 }
-if (isSaving || pendingCloudSave || liveSyncInFlight) {
+if (isSaving || pendingCloudSave) {
 el.classList.add('syncing');
-txt.textContent = isSaving || pendingCloudSave ? 'Saving to cloud…' : 'Checking for updates…';
+txt.textContent = 'Saving to cloud…';
 return;
 }
 el.classList.add('online');
@@ -1110,13 +1110,8 @@ liveSyncInFlight = false;
 }
 
 function startLiveSync() {
+// Live cloud updates disabled — data only refreshes on unlock / manual save.
 stopLiveSync();
-if (!sessionPassword || !isUnlocked) return;
-
-setTimeout(() => pullCloudUpdates({ silent: true }), 2500);
-liveSyncTimer = setInterval(() => {
-pullCloudUpdates({ silent: true });
-}, LIVE_SYNC_INTERVAL_MS);
 }
 
 async function pullCloudUpdates(opts = {}) {
@@ -1125,11 +1120,9 @@ if (!sessionPassword || !isUnlocked) return false;
 if (!isOnline) return false;
 if (liveSyncInFlight || isSaving) return false;
 
+// Autosave/live-pull disabled: never push local dirty state from a pull path.
 if (localDirty && !force) {
-try {
-await saveToStorage(true, { silent: true });
-} catch (_) {}
-if (localDirty) return false;
+return false;
 }
 
 liveSyncInFlight = true;
@@ -1395,10 +1388,7 @@ new URL('service-worker.js', location.href).href
 ];
 
 navigator.serviceWorker.addEventListener('message', (ev) => {
-if (ev.data && ev.data.type === 'BACKGROUND_SYNC' && isUnlocked && sessionPassword) {
-pendingCloudSave = true;
-saveToStorage(true, { silent: true });
-}
+// Background auto-sync disabled — save only via the Save button.
 });
 
 for (const url of candidates) {
@@ -1488,26 +1478,15 @@ showToast('Use your browser menu → Install App / Add to Home Screen.', 'info',
 }
 
 function setupOnlineHandlers() {
-window.addEventListener('online', async () => {
+window.addEventListener('online', () => {
 isOnline = true;
 updateSyncStatusUI();
-showToast('Back online — syncing…', 'info', 2000);
-if (isUnlocked && sessionPassword) {
-if (localDirty) {
-await saveToStorage(true, { silent: true });
-}
-await pullCloudUpdates({ silent: false });
-if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-navigator.serviceWorker.ready.then(reg => {
-if (reg.sync) reg.sync.register('oneweb-sync').catch(() => {});
-});
-}
-}
+showToast('Back online', 'info', 2000);
 });
 window.addEventListener('offline', () => {
 isOnline = false;
 updateSyncStatusUI();
-showToast('You are offline. Changes will sync when connection returns.', 'warning', 3500);
+showToast('You are offline. Use Save when you are back online.', 'warning', 3500);
 });
 }
 
@@ -3680,15 +3659,14 @@ let lastSaveErrorAt = 0;
 const SAVE_RETRY_MAX = 3;
 
 function scheduleSave(immediate) {
+// Autosave disabled — only the Save button (and lock) write to the cloud.
 if (!sessionPassword) return;
 localDirty = true;
 updateSyncStatusUI();
-if (saveTimer) clearTimeout(saveTimer);
-if (immediate) {
-saveToStorage(false, { silent: true });
-return;
+if (saveTimer) {
+clearTimeout(saveTimer);
+saveTimer = null;
 }
-saveTimer = setTimeout(() => saveToStorage(false, { silent: true }), SAVE_DEBOUNCE_MS);
 }
 
 async function cloudUpsert(payload) {
@@ -3782,9 +3760,12 @@ showToast('Could not reach the cloud. Changes stay local until connection recove
 isSaving = false;
 updateSyncStatusUI();
 
-if (saveQueued && sessionPassword) {
+// Only drain queue for an explicit/forced save path (manual Save / lock).
+if (saveQueued && sessionPassword && force) {
 saveQueued = false;
-setTimeout(() => saveToStorage(false, { silent: true }), 40);
+setTimeout(() => saveToStorage(true, { silent: true, isManual: isManual }), 40);
+} else {
+saveQueued = false;
 }
 }
 return success;
