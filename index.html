@@ -24,8 +24,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" /></noscript>
+  <noscript></noscript>
   <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 *,*::before,*::after{font-family:'Comic Sans MS','Comic Sans',cursive,sans-serif;}
@@ -105,6 +104,13 @@ thead th{font-size:var(--font-xs);font-weight:650;letter-spacing:var(--tracking-
 .auth-header{padding:42px 34px 26px;}
 input,button,select,textarea{font-family:inherit;}
 body{font-feature-settings:"cv02","cv03","cv04","cv11";}
+
+/* Lightweight inline SVG icons (replaces Font Awesome) */
+svg[aria-hidden="true"]{display:inline-block;vertical-align:-0.125em;width:1em;height:1em;flex-shrink:0;}
+.spin-icon{animation:spin 0.7s linear infinite;}
+.header-settings-btn:hover svg{transform:rotate(45deg);}
+.header-settings-btn svg{transition:transform 0.35s cubic-bezier(0.34,1.4,0.64,1);}
+
 </style>
 </head>
 <body class="p-3 sm:p-4 md:p-5">
@@ -140,7 +146,7 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
       </div>
       <div class="auth-body">
         <div class="auth-error" id="authError" role="alert">
-          <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span id="authErrorText"></span>
         </div>
         <form id="authForm" autocomplete="on" novalidate>
@@ -148,16 +154,16 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
             <label class="auth-label" for="authEmail">Email (optional)</label>
             <div class="auth-input-wrap">
               <input type="email" class="auth-input" id="authEmail" name="email" placeholder="you@example.com" autocomplete="email" />
-              <i class="fas fa-envelope" aria-hidden="true"></i>
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
             </div>
           </div>
           <div class="auth-field">
             <label class="auth-label" for="authPassword">Master Password</label>
             <div class="auth-input-wrap">
               <input type="password" class="auth-input" id="authPassword" name="password" placeholder="Enter a strong password" required autocomplete="current-password" minlength="8" />
-              <i class="fas fa-lock" aria-hidden="true"></i>
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <button type="button" class="auth-toggle-pass" id="togglePass" aria-label="Show password" title="Show password" tabindex="0">
-                <i class="fas fa-eye" aria-hidden="true"></i>
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
             <p class="auth-hint" id="passHint">Minimum 8 characters. This password encrypts all records.</p>
@@ -166,17 +172,17 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
             <label class="auth-label" for="authConfirm">Confirm Password</label>
             <div class="auth-input-wrap">
               <input type="password" class="auth-input" id="authConfirm" name="confirm" placeholder="Re-enter password" autocomplete="new-password" minlength="8" />
-              <i class="fas fa-lock" aria-hidden="true"></i>
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
           </div>
           <button type="submit" class="auth-submit" id="authSubmit">
-            <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
             <span id="authSubmitText">Unlock Records</span>
           </button>
         </form>
       </div>
       <div class="auth-footer">
-        <i class="fas fa-shield-halved" aria-hidden="true"></i>
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 22V2"/></svg>
         AES-256-GCM encryption · Password never leaves this device · Cloud-backed vault
       </div>
     </div>
@@ -184,7 +190,7 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
   <div class="admin-modal-overlay" id="adminModalOverlay" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
     <div class="admin-modal">
       <div class="admin-modal-title" id="adminModalTitle">
-        <i class="fas fa-shield-halved" style="color:var(--accent)"></i>
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 22V2"/></svg>
         Admin Access
       </div>
       <p class="admin-modal-sub" id="adminModalSub">Enter the admin password to enable editing.</p>
@@ -192,7 +198,7 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
       <div class="auth-field" style="margin-bottom:0">
         <div class="auth-input-wrap">
           <input type="password" class="auth-input" id="adminPasswordInput" placeholder="Admin password" autocomplete="off" />
-          <i class="fas fa-key" aria-hidden="true"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         </div>
       </div>
       <div class="admin-modal-actions">
@@ -222,67 +228,67 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
             <span class="sync-text" id="syncStatusText">Synced — just now</span>
           </div>
           <button type="button" class="pwa-install-btn" id="btnPwaInstall" title="Install OneWeb as an app">
-            <i class="fas fa-download" aria-hidden="true"></i> Install App
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Install App
           </button>
           <div class="dropdown header-dropdown">
             <button type="button" class="header-settings-btn" id="btnFileMenu" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu" title="File">
-              <i class="fas fa-file" aria-hidden="true"></i>
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span>File</span>
             </button>
             <div class="dropdown-menu" id="fileMenu" role="menu" aria-labelledby="btnFileMenu">
               <button type="button" class="dropdown-item" role="menuitem" id="btnImport">
-                <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Import Excel
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m8 13 2.5 3.5L14 13"/></svg> Import Excel
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnExportExcel">
-                <i class="fas fa-file-excel" style="color:#217346" aria-hidden="true"></i> Export Excel
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m8 13 2.5 3.5L14 13"/></svg> Export Excel
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnExportCSV">
-                <i class="fas fa-file-csv" style="color:#64748b" aria-hidden="true"></i> Export CSV
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h8"/><path d="M14 13h2"/></svg> Export CSV
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnExportTranscripts">
-                <i class="fas fa-file-export" style="color:#3b82f6" aria-hidden="true"></i> Export Transcripts
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg> Export Transcripts
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnImportTranscripts">
-                <i class="fas fa-file-import" style="color:#6366f1" aria-hidden="true"></i> Import Transcripts
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg> Import Transcripts
               </button>
             </div>
           </div>
           <div class="dropdown header-dropdown">
             <button type="button" class="header-settings-btn" id="btnSettingsMenu" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenu" title="Settings & tools">
-              <i class="fas fa-gear" aria-hidden="true"></i>
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               <span>Settings</span>
             </button>
             <div class="dropdown-menu" id="settingsMenu" role="menu" aria-labelledby="btnSettingsMenu">
               <button type="button" class="dropdown-item" role="menuitem" id="btnLoadSample">
-                <i class="fas fa-database" style="color:#22c55e" aria-hidden="true"></i> Load Sample Data
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> Load Sample Data
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnBackupJson">
-                <i class="fas fa-file-code" style="color:#a78bfa" aria-hidden="true"></i> Backup to JSON
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/></svg> Backup to JSON
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnImportJson">
-                <i class="fas fa-file-import" style="color:#a78bfa" aria-hidden="true"></i> Import JSON
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg> Import JSON
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
-                <i class="fas fa-clipboard-list" style="color:#60a5fa" aria-hidden="true"></i> Audit Log
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg> Audit Log
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnIdleSettings">
-                <i class="fas fa-clock" style="color:#fbbf24" aria-hidden="true"></i> Auto-Lock Settings
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Auto-Lock Settings
               </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnDownloadSw">
-                <i class="fas fa-mobile-screen" style="color:#60a5fa" aria-hidden="true"></i> Download sw.js (for install)
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg> Download sw.js (for install)
               </button>
             </div>
           </div>
           <button type="button" class="header-save-btn" id="btnSave" title="Save all data (encrypted)">
-            <i class="fas fa-save" aria-hidden="true"></i>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             <span>Save</span>
           </button>
           <button type="button" class="header-edit-btn" id="btnEnableEdit" title="Unlock editing with admin password" aria-pressed="false">
-            <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             <span class="edit-label">Enable Editing</span>
           </button>
           <button type="button" class="header-lock-btn header-lock-icon" id="btnLock" title="Lock vault" aria-label="Lock vault">
-            <i class="fas fa-lock" aria-hidden="true"></i>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </button>
         </div>
       </div>
@@ -345,22 +351,22 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
         <option value="time-asc">Time (Oldest)</option>
       </select>
       <button type="button" class="tool-btn" id="btnRevealSSN" title="Reveal / hide SSN" aria-pressed="false">
-        <i class="fas fa-eye" aria-hidden="true"></i> <span>Reveal SSN</span>
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg> <span>Reveal SSN</span>
       </button>
       <button type="button" class="tool-btn" id="btnUsedPanel" aria-expanded="false" aria-controls="usedPanel">
-        <i class="fas fa-list-ul" aria-hidden="true"></i> <span>Already Used</span>
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> <span>Already Used</span>
       </button>
       <input type="file" id="excelInput" class="file-input-hidden" accept=".xlsx,.xls,.csv" aria-hidden="true" />
       <input type="file" id="jsonImportInput" class="file-input-hidden" accept=".json,application/json" aria-hidden="true" />
       <input type="file" id="transcriptsImportInput" class="file-input-hidden" accept=".json,application/json,.pdf,image/*,.jpg,.jpeg,.png,.webp" multiple aria-hidden="true" />
       <button type="button" class="tool-btn danger" id="btnClear" title="Clear all records">
-        <i class="fas fa-trash-alt" aria-hidden="true"></i> <span>Clear</span>
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> <span>Clear</span>
       </button>
       <button type="button" class="btn-add" id="btnAdd" title="Add new student (Ctrl/Cmd+N)">
-        <i class="fas fa-plus" aria-hidden="true"></i> <span>Add</span>
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> <span>Add</span>
       </button>
       <div class="search-wrap">
-        <i class="fas fa-search" aria-hidden="true"></i>
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="search" class="search-input" id="searchInput" name="search_oneweb_x9k2_nofill" placeholder="Search…" aria-label="Search records" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true" data-bwignore="true" data-google-places="false" inputmode="search" role="searchbox" />
       </div>
     </div>
@@ -368,7 +374,7 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
     <div class="used-panel" id="usedPanel" role="dialog" aria-modal="true" aria-label="Already used high schools and phones" aria-hidden="true">
       <div class="used-panel-header" id="usedPanelHeader">
         <div class="used-panel-title">
-          <div class="title-icon" aria-hidden="true"><i class="fas fa-shield-halved"></i></div>
+          <div class="title-icon" aria-hidden="true"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 22V2"/></svg></div>
           <div class="title-text">
             <span class="title-main">Already Used</span>
             <span class="title-sub">High schools &amp; phones by university</span>
@@ -376,35 +382,35 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
         </div>
         <div class="used-header-right">
           <span class="used-badge" id="usedTotalBadge" title="Total unique entries">
-            <i class="fas fa-layer-group" aria-hidden="true"></i>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
             <span id="usedTotalCount">0</span>
           </span>
           <button type="button" class="used-close-btn" id="usedCloseBtn" title="Close panel" aria-label="Close">
-            <i class="fas fa-times" aria-hidden="true"></i>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
       </div>
       <div class="used-panel-body" id="usedPanelBody">
         <div class="used-toolbar" id="usedToolbar" style="display:none">
           <div class="used-search-wrap">
-            <i class="fas fa-search" aria-hidden="true"></i>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="search" class="used-search-input" id="usedSearchInput" placeholder="Filter universities, schools, phones..." aria-label="Filter used entries" autocomplete="off" />
           </div>
           <div class="used-filter-btns">
             <button type="button" class="used-filter-btn active" data-filter="all" id="usedFilterAll">
-              <i class="fas fa-border-all" aria-hidden="true"></i> All
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18"/><path d="M12 3v18"/></svg> All
             </button>
             <button type="button" class="used-filter-btn" data-filter="hs" id="usedFilterHs">
-              <i class="fas fa-school" aria-hidden="true"></i> Schools
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 8-4 8 4"/><path d="M18 10v8"/><path d="M6 10v8"/><path d="M12 10v10"/><path d="M2 22h20"/><path d="M12 6v4"/></svg> Schools
             </button>
             <button type="button" class="used-filter-btn" data-filter="phone" id="usedFilterPhone">
-              <i class="fas fa-phone" aria-hidden="true"></i> Phones
+              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Phones
             </button>
           </div>
         </div>
         <div class="used-scroll-area" id="usedScrollArea">
           <div class="used-empty" id="usedEmpty">
-            <div class="used-empty-icon"><i class="fas fa-inbox" aria-hidden="true"></i></div>
+            <div class="used-empty-icon"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
             <div class="used-empty-title">No entries yet</div>
             <div class="used-empty-sub">Add students to see used High Schools and Phone numbers grouped by University.</div>
           </div>
@@ -414,7 +420,7 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
     </div>
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · <strong>100 records per page</strong> · Transcript upload (PDF/image, max 12 MB, syncs across devices) · <span id="editModeHint">View-only mode</span></span>
+        <span><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · <strong>100 records per page</strong> · Transcript upload (PDF/image, max 12 MB, syncs across devices) · <span id="editModeHint">View-only mode</span></span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -454,7 +460,7 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
           <tbody id="tableBody"></tbody>
         </table>
         <div id="emptyState" class="empty-state hidden" role="status">
-          <i class="fas fa-table text-4xl mb-3 opacity-40" aria-hidden="true"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
           <p class="text-base font-medium" style="color:var(--text-muted)">No student records yet</p>
           <p class="text-sm mt-1" style="color:var(--text-faint)">Click “Enable Editing” then “Add”, or import an Excel file</p>
         </div>
@@ -464,16 +470,16 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
       <div class="pagination-info" id="pageInfo">Page <strong>1</strong> of <strong>1</strong> · Showing <strong>0</strong>–<strong>0</strong> of <strong>0</strong></div>
       <div class="pagination-controls">
         <button type="button" class="page-btn" id="btnFirstPage" title="First page" disabled>
-          <i class="fas fa-angles-left" aria-hidden="true"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
         </button>
         <button type="button" class="page-btn" id="btnPrevPage" title="Previous page" disabled>
-          <i class="fas fa-chevron-left" aria-hidden="true"></i> Prev
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg> Prev
         </button>
         <button type="button" class="page-btn" id="btnNextPage" title="Next page" disabled>
-          Next <i class="fas fa-chevron-right" aria-hidden="true"></i>
+          Next <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
         <button type="button" class="page-btn" id="btnLastPage" title="Last page" disabled>
-          <i class="fas fa-angles-right" aria-hidden="true"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
         </button>
       </div>
     </div>
@@ -483,18 +489,18 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
   </div>
   <div id="customSelectMenu" role="listbox" aria-label="Select option"></div>
   <div class="idle-warning" id="idleWarning" role="status" aria-live="polite">
-    <i class="fas fa-hourglass-half" aria-hidden="true"></i>
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.17A5 5 0 0 0 14.17 13H9.83A5 5 0 0 0 7 17.83V22"/><path d="M7 2v4.17A5 5 0 0 0 9.83 11h4.34A5 5 0 0 0 17 6.17V2"/></svg>
     <span id="idleWarningText">Vault will lock in 60s due to inactivity…</span>
   </div>
   <div class="audit-modal-overlay" id="auditModalOverlay" role="dialog" aria-modal="true" aria-labelledby="auditModalTitle">
     <div class="audit-modal">
       <div class="audit-modal-header">
         <div class="audit-modal-title" id="auditModalTitle">
-          <i class="fas fa-clipboard-list" style="color:var(--accent)"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
           Audit Log
         </div>
         <button type="button" class="used-close-btn" id="auditModalClose" title="Close" aria-label="Close">
-          <i class="fas fa-times" aria-hidden="true"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="audit-modal-body" id="auditModalBody">
@@ -506,11 +512,11 @@ body{font-feature-settings:"cv02","cv03","cv04","cv11";}
     <div class="audit-modal" style="max-width:400px">
       <div class="audit-modal-header">
         <div class="audit-modal-title" id="idleSettingsTitle">
-          <i class="fas fa-clock" style="color:var(--warning)"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           Auto-Lock Settings
         </div>
         <button type="button" class="used-close-btn" id="idleSettingsClose" title="Close" aria-label="Close">
-          <i class="fas fa-times" aria-hidden="true"></i>
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="audit-modal-body" style="padding:16px 22px 24px">
@@ -1040,7 +1046,7 @@ function renderAuditModal() {
 const body = document.getElementById('auditModalBody');
 if (!body) return;
 if (!auditLog.length) {
-body.innerHTML = '<div class="audit-empty"><i class="fas fa-inbox" style="font-size:22px;opacity:0.4;display:block;margin-bottom:8px"></i>No audit entries yet.</div>';
+body.innerHTML = '<div class="audit-empty"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>No audit entries yet.</div>';
 return;
 }
 body.innerHTML = auditLog.map(e => `
@@ -1598,7 +1604,7 @@ const PRECACHE = [
 'https://cdn.tailwindcss.com',
 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
+
 ];
 self.addEventListener('install', (event) => {
 event.waitUntil(
@@ -2200,7 +2206,7 @@ const clearBtn = document.getElementById('btnClear');
 if (isAdmin) {
 if (btn) {
 btn.classList.add('active');
-btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span class="edit-label">Editing On</span>';
+btn.innerHTML = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> <span class="edit-label">Editing On</span>';
 btn.title = 'Editing is unlocked for this session';
 btn.setAttribute('aria-pressed', 'true');
 }
@@ -2208,7 +2214,7 @@ if (hint) hint.textContent = 'Editing enabled';
 } else {
 if (btn) {
 btn.classList.remove('active');
-btn.innerHTML = '<i class="fas fa-pen-to-square" aria-hidden="true"></i> <span class="edit-label">Enable Editing</span>';
+btn.innerHTML = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> <span class="edit-label">Enable Editing</span>';
 btn.title = 'Unlock editing with admin password';
 btn.setAttribute('aria-pressed', 'false');
 }
@@ -2257,8 +2263,8 @@ document.getElementById('confirmField').style.display = isSignup ? 'block' : 'no
 document.getElementById('emailField').style.display = isSignup ? 'block' : 'none';
 document.getElementById('authSubmitText').textContent = isSignup ? 'Create Encrypted Vault' : 'Unlock Records';
 document.getElementById('authSubmit').innerHTML = isSignup
-? '<i class="fas fa-user-plus" aria-hidden="true"></i><span id="authSubmitText">Create Encrypted Vault</span>'
-: '<i class="fas fa-right-to-bracket" aria-hidden="true"></i><span id="authSubmitText">Unlock Records</span>';
+? '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg><span id="authSubmitText">Create Encrypted Vault</span>'
+: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span id="authSubmitText">Unlock Records</span>';
 document.getElementById('authPassword').autocomplete = isSignup ? 'new-password' : 'current-password';
 document.getElementById('passHint').textContent = isSignup
 ? 'Choose a strong password (min 8 chars). It encrypts all data.'
@@ -2268,7 +2274,7 @@ const toggleBtn = document.getElementById('togglePass');
 if (pwInput && toggleBtn) {
 pwInput.type = 'password';
 const icon = toggleBtn.querySelector('i');
-if (icon) icon.className = 'fas fa-eye';
+if (icon) icon.outerHTML = `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
 toggleBtn.classList.remove('active');
 toggleBtn.setAttribute('aria-label', 'Show password');
 toggleBtn.setAttribute('title', 'Show password');
@@ -2616,7 +2622,7 @@ const container = document.getElementById('toastContainer');
 if (!container || !message) return;
 
 const icons = {
-success: 'fa-circle-check',
+success: 'check',
 error: 'fa-circle-exclamation',
 warning: 'fa-triangle-exclamation',
 info: 'fa-circle-info'
@@ -2634,7 +2640,7 @@ toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
 toast.innerHTML =
 `<span class="toast-icon" aria-hidden="true"><i class="fas ${icon}"></i></span>` +
 `<span class="toast-body"></span>` +
-`<button type="button" class="toast-close" aria-label="Dismiss"><i class="fas fa-xmark" aria-hidden="true"></i></button>`;
+`<button type="button" class="toast-close" aria-label="Dismiss"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
 toast.querySelector('.toast-body').textContent = message;
 
 let hideTimer = null;
@@ -2792,7 +2798,7 @@ return false;
 });
 
 if (!filteredKeys.length) {
-content.innerHTML = '<div class="used-no-results"><i class="fas fa-search mr-1"></i> No matches for current filter</div>';
+content.innerHTML = '<div class="used-no-results"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> No matches for current filter</div>';
 return;
 }
 
@@ -2818,35 +2824,35 @@ return `
 <div class="used-uni-block ${isCollapsed ? 'collapsed' : ''}" data-uni="${escapeHtml(uni)}">
 <div class="used-uni-header" role="button" tabindex="0" aria-expanded="${!isCollapsed}">
 <div class="used-uni-left">
-<div class="used-uni-icon"><i class="fas fa-university" aria-hidden="true"></i></div>
+<div class="used-uni-icon"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></div>
 <div class="used-uni-name" title="${escapeHtml(uni)}">${escapeHtml(uni)}</div>
 </div>
 <div class="used-uni-meta">
-${hsCount ? `<span class="used-count-pill hs"><i class="fas fa-school" aria-hidden="true"></i> ${hsCount}</span>` : ''}
-${phoneCount ? `<span class="used-count-pill phone"><i class="fas fa-phone" aria-hidden="true"></i> ${phoneCount}</span>` : ''}
-<i class="fas fa-chevron-down used-uni-chevron" aria-hidden="true"></i>
+${hsCount ? `<span class="used-count-pill hs"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 8-4 8 4"/><path d="M18 10v8"/><path d="M6 10v8"/><path d="M12 10v10"/><path d="M2 22h20"/><path d="M12 6v4"/></svg> ${hsCount}</span>` : ''}
+${phoneCount ? `<span class="used-count-pill phone"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> ${phoneCount}</span>` : ''}
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
 </div>
 </div>
 <div class="used-uni-body">
 ${hs.length ? `
 <div class="used-list-group">
 <div class="used-list-label">
-<i class="fas fa-school" aria-hidden="true"></i> High Schools
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 8-4 8 4"/><path d="M18 10v8"/><path d="M6 10v8"/><path d="M12 10v10"/><path d="M2 22h20"/><path d="M12 6v4"/></svg> High Schools
 <span class="label-line"></span>
 </div>
 <div class="used-tags">
-${hs.map(h => `<span class="used-tag hs"><i class="fas fa-graduation-cap" aria-hidden="true"></i><span class="tag-text">${escapeHtml(h)}</span></span>`).join('')}
+${hs.map(h => `<span class="used-tag hs"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg><span class="tag-text">${escapeHtml(h)}</span></span>`).join('')}
 </div>
 </div>
 ` : ''}
 ${phones.length ? `
 <div class="used-list-group">
 <div class="used-list-label">
-<i class="fas fa-phone" aria-hidden="true"></i> Phone Numbers
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Phone Numbers
 <span class="label-line"></span>
 </div>
 <div class="used-tags">
-${phones.map(p => `<span class="used-tag phone"><i class="fas fa-mobile-screen" aria-hidden="true"></i><span class="tag-text">${escapeHtml(p)}</span></span>`).join('')}
+${phones.map(p => `<span class="used-tag phone"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg><span class="tag-text">${escapeHtml(p)}</span></span>`).join('')}
 </div>
 </div>
 ` : ''}
@@ -2893,7 +2899,7 @@ menu.innerHTML = '';
 if (isLong || allowsCustom) {
 const searchWrap = document.createElement('div');
 searchWrap.className = 'menu-search-wrap';
-searchWrap.innerHTML = '<i class="fas fa-search" aria-hidden="true"></i><input type="search" class="menu-search" placeholder="Type to filter or enter custom..." aria-label="Filter options" autocomplete="off" />';
+searchWrap.innerHTML = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="search" class="menu-search" placeholder="Type to filter or enter custom..." aria-label="Filter options" autocomplete="off" />';
 menu.appendChild(searchWrap);
 }
 
@@ -2934,7 +2940,7 @@ const useCustom = document.createElement('button');
 useCustom.type = 'button';
 useCustom.className = 'menu-use-custom';
 useCustom.setAttribute('data-custom-value', filter.trim());
-useCustom.innerHTML = `<i class="fas fa-pen" aria-hidden="true"></i> Use “${escapeHtml(filter.trim())}”`;
+useCustom.innerHTML = `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> Use “${escapeHtml(filter.trim())}”`;
 list.appendChild(useCustom);
 matchCount++;
 }
@@ -3192,14 +3198,14 @@ if (file && file.data) {
 return `<td role="gridcell">
 <div class="transcript-cell">
 <div class="transcript-file-info">
-<i class="fas fa-file-pdf" style="color:#ef4444;font-size:13px" aria-hidden="true"></i>
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
 <span class="transcript-file-name" title="${escapeHtml(file.name || 'transcript')}">${escapeHtml(file.name || 'Transcript')}</span>
 </div>
 <button type="button" class="transcript-dl-btn" data-download-transcript="${row.id}" title="Download transcript" aria-label="Download transcript">
-<i class="fas fa-download" aria-hidden="true"></i>
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 </button>
 <button type="button" class="transcript-rm-btn" data-remove-transcript="${row.id}" title="Remove transcript" aria-label="Remove transcript" ${!canEdit ? 'disabled' : ''}>
-<i class="fas fa-times" aria-hidden="true"></i>
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 </button>
 </div>
 </td>`;
@@ -3207,7 +3213,7 @@ return `<td role="gridcell">
 return `<td role="gridcell">
 <div class="transcript-cell">
 <button type="button" class="transcript-upload-btn" data-upload-transcript="${row.id}" ${!canEdit ? 'disabled' : ''} title="Upload transcript (PDF or image, max 12 MB)">
-<i class="fas fa-upload" aria-hidden="true"></i> Upload
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload
 </button>
 </div>
 </td>`;
@@ -3222,7 +3228,7 @@ return `<td role="gridcell">
 <button type="button" class="app-status-trigger" data-id="${row.id}" data-key="appStatus"
 aria-haspopup="listbox" aria-expanded="false" aria-label="App Status" ${!canEdit ? 'disabled' : ''}>
 <span class="label ${isPlaceholder ? 'placeholder' : ''}">${escapeHtml(display)}</span>
-<i class="fas fa-chevron-down chevron" aria-hidden="true"></i>
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
 </button>
 </td>`;
 } else {
@@ -3270,7 +3276,7 @@ return `<td role="gridcell">
 <button type="button" class="app-status-trigger${extraClass}" data-id="${row.id}" data-key="${col.key}"
 aria-haspopup="listbox" aria-expanded="false" aria-label="${col.key}" ${!canEdit ? 'disabled' : ''}>
 <span class="label ${isPlaceholder ? 'placeholder' : ''}">${escapeHtml(display)}</span>
-<i class="fas fa-chevron-down chevron" aria-hidden="true"></i>
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
 </button>
 </td>`;
 }
@@ -3322,7 +3328,7 @@ ${cells}
 <td role="gridcell">
 <div class="row-actions">
 <button type="button" class="icon-btn" title="Delete" data-delete="${row.id}" aria-label="Delete row" ${!canEdit ? 'disabled' : ''}>
-<i class="fas fa-trash-alt" aria-hidden="true"></i>
+<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
 </button>
 </div>
 </td>
@@ -3753,8 +3759,8 @@ const btn = document.getElementById('btnRevealSSN');
 btn.classList.toggle('active', revealSSN);
 btn.setAttribute('aria-pressed', revealSSN ? 'true' : 'false');
 btn.innerHTML = revealSSN
-? '<i class="fas fa-eye-slash" aria-hidden="true"></i> <span>Hide SSN</span>'
-: '<i class="fas fa-eye" aria-hidden="true"></i> <span>Reveal SSN</span>';
+? '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> <span>Hide SSN</span>'
+: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg> <span>Reveal SSN</span>';
 renderTable();
 }
 
@@ -3813,14 +3819,14 @@ return;
 const btn = document.getElementById('btnSave');
 if (btn) {
 btn.disabled = true;
-btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> <span>Saving…</span>';
+btn.innerHTML = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="spin-icon"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> <span>Saving…</span>';
 }
 try {
 await saveToStorage(true, { isManual: true });
 } finally {
 if (btn) {
 btn.disabled = false;
-btn.innerHTML = '<i class="fas fa-save" aria-hidden="true"></i> <span>Save</span>';
+btn.innerHTML = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> <span>Save</span>';
 }
 }
 }
@@ -4665,14 +4671,14 @@ document.getElementById('authForm').addEventListener('submit', handleAuthSubmit)
 document.getElementById('togglePass').addEventListener('click', () => {
 const input = document.getElementById('authPassword');
 const btn = document.getElementById('togglePass');
-const icon = btn.querySelector('i');
 const showing = input.type === 'password';
 input.type = showing ? 'text' : 'password';
-icon.className = showing ? 'fas fa-eye-slash' : 'fas fa-eye';
+btn.innerHTML = showing
+  ? '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+  : '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
 btn.classList.toggle('active', showing);
 btn.setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
 btn.setAttribute('title', showing ? 'Hide password' : 'Show password');
-
 input.focus();
 });
 document.getElementById('btnLock').addEventListener('click', async () => {
