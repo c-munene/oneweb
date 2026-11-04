@@ -957,19 +957,11 @@ function isValidEncryptedPayload(payload) {
 return !!(payload && typeof payload === 'object' && payload.salt && payload.iv && payload.ct);
 }
 
-function makeVaultError(message, code, cause) {
-const err = new Error(message);
-// DOMException / some Errors expose a read-only `code` getter — never assign onto them
-try { Object.defineProperty(err, 'code', { value: code, enumerable: true, configurable: true }); } catch (_) {}
-if (cause) {
-try { Object.defineProperty(err, 'cause', { value: cause, enumerable: false }); } catch (_) {}
-}
-return err;
-}
-
 async function decryptPayload(payload, password) {
 if (!isValidEncryptedPayload(payload)) {
-throw makeVaultError('Invalid encrypted payload', 'CORRUPT_VAULT');
+const err = new Error('Invalid encrypted payload');
+err.code = 'CORRUPT_VAULT';
+throw err;
 }
 const salt = new Uint8Array(base64ToBuf(payload.salt));
 const iv = new Uint8Array(base64ToBuf(payload.iv));
@@ -998,7 +990,9 @@ return JSON.parse(new TextDecoder().decode(decrypted));
 lastErr = e;
 }
 }
-throw makeVaultError('Decrypt failed — incorrect password or corrupted vault', 'WRONG_PASSWORD', lastErr);
+const err = lastErr || new Error('Decrypt failed');
+err.code = 'WRONG_PASSWORD';
+throw err;
 }
 
 async function hasEncryptedData() {
@@ -1475,28 +1469,8 @@ liveSyncInFlight = false;
 }
 
 function startLiveSync() {
+// Live cloud updates disabled — data only refreshes on unlock / manual save.
 stopLiveSync();
-if (!sessionPassword || !isUnlocked) return;
-// Poll cloud every 8s so other devices see updates without hard refresh
-liveSyncTimer = setInterval(() => {
-if (document.visibilityState === 'hidden') return;
-pullCloudUpdates({ silent: true }).catch(() => {});
-}, 8000);
-// Immediate pull shortly after unlock so a second device catches up fast
-setTimeout(() => {
-if (sessionPassword && isUnlocked) {
-pullCloudUpdates({ silent: true, force: false }).catch(() => {});
-}
-}, 1200);
-// Also pull when tab becomes visible again
-if (!window.__onewebVisPullBound) {
-window.__onewebVisPullBound = true;
-document.addEventListener('visibilitychange', () => {
-if (document.visibilityState === 'visible' && sessionPassword && isUnlocked) {
-pullCloudUpdates({ silent: true }).catch(() => {});
-}
-});
-}
 }
 
 async function pullCloudUpdates(opts = {}) {
@@ -1870,10 +1844,6 @@ window.addEventListener('online', () => {
 isOnline = true;
 updateSyncStatusUI();
 showToast('Back online', 'info', 2000);
-// Pull latest vault when connectivity returns
-if (sessionPassword && isUnlocked) {
-pullCloudUpdates({ silent: true }).catch(() => {});
-}
 });
 window.addEventListener('offline', () => {
 isOnline = false;
