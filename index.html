@@ -336,7 +336,7 @@
     </div>
     <div class="table-wrap">
       <div class="table-hint">
-        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · <strong>100 records per page</strong> · Transcript upload (PDF/image, max 5 MB) · <span id="editModeHint">View-only mode</span></span>
+        <span><i class="fas fa-info-circle mr-1" aria-hidden="true"></i> Row color follows App Status · GPA auto-fills from High School · Name auto-fills SSN / DOB / Email / Gender · Grad Period = MM/DD/YYYY – MM/DD/YYYY · <strong>100 records per page</strong> · Transcript upload (PDF/image, max 12 MB, stored in IndexedDB) · <span id="editModeHint">View-only mode</span></span>
         <div class="legend" aria-hidden="true">
           <div class="legend-item"><span class="legend-dot accepted"></span> Accepted</div>
           <div class="legend-item"><span class="legend-dot rejected"></span> Rejected</div>
@@ -716,9 +716,14 @@ const HYSTERESIS_ROWS = 8;
 const PAGE_SIZE = 100;
 const PBKDF2_ITERATIONS = 60000;
 const PBKDF2_LEGACY_ITERATIONS = 120000;
-const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024;
+const MAX_TRANSCRIPT_SIZE = 12 * 1024 * 1024; // 12 MB per file (stored in IndexedDB)
+const SOFT_VAULT_WARN_BYTES = 18 * 1024 * 1024; // warn only above ~18 MB encrypted payload
 const SAVE_DEBOUNCE_MS = 180;
 const FILTER_DEBOUNCE_MS = 140;
+const IDB_NAME = 'oneweb_v1_idb';
+const IDB_VERSION = 1;
+const IDB_STORE_TRANSCRIPTS = 'transcripts';
+const IDB_STORE_VAULT = 'vault';
 
 let data = [];
 let filteredData = [];
@@ -1078,23 +1083,214 @@ setInterval(updateSyncStatusUI, 10000);
 updateSyncStatusUI();
 }
 
+/* ── IndexedDB helpers (transcripts + large vault overflow) ── */
+function openIdb() {
+return new Promise((resolve, reject) => {
+if (!window.indexedDB) {
+reject(new Error('IndexedDB not available'));
+return;
+}
+const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+req.onupgradeneeded = (e) => {
+const db = e.target.result;
+if (!db.objectStoreNames.contains(IDB_STORE_TRANSCRIPTS)) {
+db.createObjectStore(IDB_STORE_TRANSCRIPTS, { keyPath: 'id' });
+}
+if (!db.objectStoreNames.contains(IDB_STORE_VAULT)) {
+db.createObjectStore(IDB_STORE_VAULT, { keyPath: 'id' });
+}
+};
+req.onsuccess = () => resolve(req.result);
+req.onerror = () => reject(req.error || new Error('IDB open failed'));
+});
+}
+
+async function idbPutTranscript(rowId, fileObj) {
+if (!rowId || !fileObj || !fileObj.data) return;
+try {
+const db = await openIdb();
+await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_TRANSCRIPTS, 'readwrite');
+tx.objectStore(IDB_STORE_TRANSCRIPTS).put({
+id: rowId,
+name: fileObj.name || 'transcript.pdf',
+type: fileObj.type || 'application/octet-stream',
+size: fileObj.size || 0,
+data: fileObj.data,
+updatedAt: Date.now()
+});
+tx.oncomplete = () => resolve();
+tx.onerror = () => reject(tx.error);
+});
+db.close();
+} catch (e) {
+console.warn('IDB transcript put failed', e);
+}
+}
+
+async function idbGetTranscript(rowId) {
+if (!rowId) return null;
+try {
+const db = await openIdb();
+const result = await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_TRANSCRIPTS, 'readonly');
+const req = tx.objectStore(IDB_STORE_TRANSCRIPTS).get(rowId);
+req.onsuccess = () => resolve(req.result || null);
+req.onerror = () => reject(req.error);
+});
+db.close();
+return result;
+} catch (e) {
+console.warn('IDB transcript get failed', e);
+return null;
+}
+}
+
+async function idbDeleteTranscript(rowId) {
+if (!rowId) return;
+try {
+const db = await openIdb();
+await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_TRANSCRIPTS, 'readwrite');
+tx.objectStore(IDB_STORE_TRANSCRIPTS).delete(rowId);
+tx.oncomplete = () => resolve();
+tx.onerror = () => reject(tx.error);
+});
+db.close();
+} catch (e) {
+console.warn('IDB transcript delete failed', e);
+}
+}
+
+async function idbClearAllTranscripts() {
+try {
+const db = await openIdb();
+await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_TRANSCRIPTS, 'readwrite');
+tx.objectStore(IDB_STORE_TRANSCRIPTS).clear();
+tx.oncomplete = () => resolve();
+tx.onerror = () => reject(tx.error);
+});
+db.close();
+} catch (e) {
+console.warn('IDB transcript clear failed', e);
+}
+}
+
+async function idbPutVaultBlob(payload) {
+try {
+const db = await openIdb();
+await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_VAULT, 'readwrite');
+tx.objectStore(IDB_STORE_VAULT).put({
+id: 'main',
+payload,
+savedAt: Date.now()
+});
+tx.oncomplete = () => resolve();
+tx.onerror = () => reject(tx.error);
+});
+db.close();
+} catch (e) {
+console.warn('IDB vault put failed', e);
+}
+}
+
+async function idbGetVaultBlob() {
+try {
+const db = await openIdb();
+const result = await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_VAULT, 'readonly');
+const req = tx.objectStore(IDB_STORE_VAULT).get('main');
+req.onsuccess = () => resolve(req.result || null);
+req.onerror = () => reject(req.error);
+});
+db.close();
+return result && result.payload ? result.payload : null;
+} catch (e) {
+console.warn('IDB vault get failed', e);
+return null;
+}
+}
+
+/** Persist all current transcript blobs to IndexedDB; strip heavy data from in-memory records for the vault envelope */
+async function persistTranscriptsToIdb() {
+const jobs = [];
+for (let i = 0; i < data.length; i++) {
+const r = data[i];
+if (!r || !r.id) continue;
+if (r.transcriptFile && r.transcriptFile.data) {
+jobs.push(idbPutTranscript(r.id, r.transcriptFile));
+} else if (r.transcriptFile === null || r.transcriptFile === undefined) {
+jobs.push(idbDeleteTranscript(r.id));
+}
+}
+if (jobs.length) await Promise.all(jobs);
+}
+
+/** After decrypting vault, rehydrate transcriptFile.data from IndexedDB (keeps vault blob small) */
+async function rehydrateTranscriptsFromIdb() {
+const jobs = data.map(async (r) => {
+if (!r || !r.id) return;
+// Prefer in-memory data if already present (e.g. just imported)
+if (r.transcriptFile && r.transcriptFile.data) return;
+const stored = await idbGetTranscript(r.id);
+if (stored && stored.data) {
+r.transcriptFile = {
+name: stored.name || 'transcript.pdf',
+type: stored.type || 'application/octet-stream',
+size: stored.size || 0,
+data: stored.data
+};
+} else if (r.transcriptFile && !r.transcriptFile.data) {
+// meta-only stub from vault — leave as null if no blob found
+r.transcriptFile = null;
+}
+});
+await Promise.all(jobs);
+}
+
+/**
+ * Build a lean vault envelope: transcriptFile is stored as lightweight meta only
+ * (name/type/size/hasData). Actual base64 lives in IndexedDB so cloud + localStorage stay small.
+ */
 function buildVaultEnvelope() {
 const now = Date.now();
 localVaultUpdatedAt = Math.max(localVaultUpdatedAt, now);
+const leanRecords = data.map(r => {
+const copy = { ...r };
+if (copy.transcriptFile && typeof copy.transcriptFile === 'object') {
+const tf = copy.transcriptFile;
+if (tf.data) {
+// Keep only meta in the encrypted vault
+copy.transcriptFile = {
+name: tf.name || 'transcript.pdf',
+type: tf.type || 'application/octet-stream',
+size: tf.size || 0,
+hasData: true
+};
+} else if (!tf.hasData) {
+copy.transcriptFile = null;
+}
+} else {
+copy.transcriptFile = null;
+}
+return copy;
+});
 return {
-version: 2,
-records: data,
+version: 3,
+records: leanRecords,
 auditLog: auditLog,
 settings: {
 idleTimeoutMinutes: idleTimeoutMinutes
 },
 lastSyncedAt: now,
-updatedAt: localVaultUpdatedAt
+updatedAt: localVaultUpdatedAt,
+transcriptStorage: 'indexeddb'
 };
 }
 
 function applyVaultEnvelope(obj) {
-
 if (Array.isArray(obj)) {
 data = obj;
 auditLog = [];
@@ -1113,7 +1309,7 @@ idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
 }
 lastSyncedAt = obj.lastSyncedAt || obj.updatedAt || Date.now();
 localVaultUpdatedAt = obj.updatedAt || obj.lastSyncedAt || lastSyncedAt;
-vaultMeta = { version: obj.version || 2 };
+vaultMeta = { version: obj.version || 2, transcriptStorage: obj.transcriptStorage || null };
 return;
 }
 data = [];
@@ -1662,6 +1858,8 @@ idleTimeoutMinutes = parsed.settings.idleTimeoutMinutes;
 }
 
 rebuildDataIndex();
+// Store any imported transcript blobs into IndexedDB so the encrypted vault stays lean
+await persistTranscriptsToIdb();
 scheduleSave(true);
 applyFilters();
 if (usedPanelOpen) scheduleUsedPanelRender();
@@ -1703,6 +1901,7 @@ matched++;
 unmatched++;
 }
 });
+await persistTranscriptsToIdb();
 scheduleSave(true);
 renderTable();
 appendAudit('import_json_transcripts', `${matched} transcript(s) attached`);
@@ -1798,6 +1997,14 @@ fromLocal = true;
 console.info('Restored vault from local encrypted backup');
 }
 }
+if (!payload) {
+const idbPayload = await idbGetVaultBlob();
+if (idbPayload && isValidEncryptedPayload(idbPayload)) {
+payload = idbPayload;
+fromLocal = true;
+console.info('Restored vault from IndexedDB backup');
+}
+}
 
 if (!payload) {
 clearPersistedSession();
@@ -1818,6 +2025,8 @@ if (!r.createdAt) r.createdAt = Date.now();
 if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
 if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
 });
+// Reattach transcript blobs from IndexedDB (kept out of the encrypted vault for size)
+await rehydrateTranscriptsFromIdb();
 rebuildDataIndex();
 applyFilters();
 
@@ -2177,6 +2386,14 @@ fromLocal = true;
 }
 }
 if (!payload) {
+// Fallback: large vault may live only in IndexedDB
+const idbPayload = await idbGetVaultBlob();
+if (idbPayload && isValidEncryptedPayload(idbPayload)) {
+payload = idbPayload;
+fromLocal = true;
+}
+}
+if (!payload) {
 showAuthError('No valid encrypted vault found (cloud may be empty or corrupted). Create a new vault, then re-import your data.');
 setAuthMode('signup');
 return;
@@ -2194,6 +2411,7 @@ if (!r.createdAt) r.createdAt = Date.now();
 if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
 if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
 });
+await rehydrateTranscriptsFromIdb();
 appendAudit('unlock', fromLocal ? 'Vault unlocked from local backup' : 'Vault unlocked with master password');
 rebuildDataIndex();
 applyFilters();
@@ -2871,7 +3089,7 @@ return `<td role="gridcell">
 }
 return `<td role="gridcell">
 <div class="transcript-cell">
-<button type="button" class="transcript-upload-btn" data-upload-transcript="${row.id}" ${!canEdit ? 'disabled' : ''} title="Upload transcript (PDF or image, max 5 MB)">
+<button type="button" class="transcript-upload-btn" data-upload-transcript="${row.id}" ${!canEdit ? 'disabled' : ''} title="Upload transcript (PDF or image, max 12 MB)">
 <i class="fas fa-upload" aria-hidden="true"></i> Upload
 </button>
 </div>
@@ -3308,7 +3526,7 @@ input.click();
 function processTranscriptFile(file) {
 if (!pendingTranscriptRowId || !file) return;
 if (file.size > MAX_TRANSCRIPT_SIZE) {
-showToast('File too large. Maximum size is 5 MB.', 'error');
+showToast('File too large. Maximum size is 12 MB per transcript.', 'error');
 pendingTranscriptRowId = null;
 return;
 }
@@ -3321,8 +3539,9 @@ return;
 
 showLoading(true);
 const reader = new FileReader();
-reader.onload = () => {
-const row = getRowById(pendingTranscriptRowId);
+reader.onload = async () => {
+const rowId = pendingTranscriptRowId;
+const row = getRowById(rowId);
 if (row) {
 row.transcriptFile = {
 name: file.name,
@@ -3330,6 +3549,8 @@ type: file.type || 'application/octet-stream',
 data: reader.result,
 size: file.size
 };
+// Write blob to IndexedDB immediately so vault size stays small
+await idbPutTranscript(rowId, row.transcriptFile);
 scheduleSave();
 renderTable();
 showToast(`Transcript uploaded: ${file.name}`, 'success');
@@ -3368,6 +3589,7 @@ if (!confirm('Remove the uploaded transcript for this student?')) return;
 const row = getRowById(rowId);
 if (row) {
 row.transcriptFile = null;
+idbDeleteTranscript(rowId).catch(() => {});
 scheduleSave();
 renderTable();
 showToast('Transcript removed', 'info');
@@ -3454,6 +3676,7 @@ if (!ok) return;
 if (!confirm('Permanently delete ALL records? This cannot be undone.')) return;
 data = [];
 dataById.clear();
+idbClearAllTranscripts().catch(() => {});
 scheduleSave(true);
 applyFilters();
 if (usedPanelOpen) scheduleUsedPanelRender();
@@ -4032,24 +4255,30 @@ let lastError = null;
 let usedLocalOnly = false;
 
 try {
+// Offload heavy transcript blobs to IndexedDB first so the encrypted vault stays lean
+await persistTranscriptsToIdb();
+
 const envelope = buildVaultEnvelope();
 const payload = await encryptPayload(envelope, sessionPassword);
 const approxBytes = estimatePayloadBytes(payload);
 
-// Soft size guard (transcripts as base64 inflate quickly)
-if (approxBytes > 3.5 * 1024 * 1024) {
-const transcriptCount = data.filter(r => r.transcriptFile && r.transcriptFile.data).length;
+// Soft size guard — only warn at a much higher threshold (transcripts no longer live in the vault)
+if (approxBytes > SOFT_VAULT_WARN_BYTES) {
+const transcriptCount = data.filter(r => r.transcriptFile && (r.transcriptFile.data || r.transcriptFile.hasData)).length;
 if (!silent) {
 showToast(
-`Vault is large (~${(approxBytes / 1024 / 1024).toFixed(1)} MB, ${transcriptCount} transcript(s)). Removing unused transcripts is recommended.`,
+`Vault payload is large (~${(approxBytes / 1024 / 1024).toFixed(1)} MB` +
+(transcriptCount ? `, ${transcriptCount} transcript(s) in local storage` : '') +
+`). Save will still proceed.`,
 'warning',
-4500
+4000
 );
 }
 }
 
-// Always keep a local encrypted copy so work is never lost
+// Always keep local copies (localStorage + IndexedDB overflow for larger payloads)
 saveLocalEncrypted(payload);
+idbPutVaultBlob(payload).catch(() => {});
 
 for (let attempt = 1; attempt <= SAVE_RETRY_MAX; attempt++) {
 if (!sessionPassword) break;
@@ -4094,7 +4323,7 @@ if (!silent && now - lastSaveErrorAt > 6000) {
 lastSaveErrorAt = now;
 const msg = (lastError && lastError.message) ? String(lastError.message) : '';
 if (/payload|too large|413|request entity|entity too large/i.test(msg)) {
-showToast('Save failed: data is too large for the cloud. Remove large transcripts and try again. A local encrypted copy was kept.', 'error', 5500);
+showToast('Cloud rejected the payload size. Transcripts are stored locally (IndexedDB) and a local encrypted vault copy was kept — your data is safe. Try Save again or export JSON.', 'warning', 5500);
 } else if (/permission|rls|policy|401|403/i.test(msg)) {
 showToast('Save blocked by cloud permissions. Run the recommended vault SQL in Supabase (see console). Local copy kept.', 'error', 6000);
 console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
