@@ -679,9 +679,31 @@ const headerMap = {
 };
 
 const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
+/*
+ * SUPABASE VAULT SETUP (run once in Supabase → SQL Editor)
+ * ---------------------------------------------------------
+ * create table if not exists public.vault (
+ *   id text primary key,
+ *   payload jsonb not null,
+ *   updated_at timestamptz default now()
+ * );
+ * alter table public.vault enable row level security;
+ * drop policy if exists "anon_all_vault" on public.vault;
+ * create policy "anon_all_vault" on public.vault
+ *   for all to anon using (true) with check (true);
+ * grant select, insert, update, delete on public.vault to anon;
+ *
+ * Security model: the blob is AES-256-GCM encrypted client-side.
+ * The anon key can read/write the ciphertext but cannot decrypt it
+ * without the master password. For multi-tenant use, replace the
+ * open policy with authenticated user policies.
+ */
 const SUPABASE_URL = 'https://wqmgciavxiteqwtxavqc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxbWdjaWF2eGl0ZXF3dHhhdnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MjU4NjYsImV4cCI6MjEwNzIwMTg2Nn0.3dhkxq20fbZfXpVO6-3CEjf7q4lUTLDHeit7rXLFB1o';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+  global: { headers: { 'x-client-info': 'oneweb-v1' } }
+});
 const LEGACY_KEYS = ['oneweb_studentRecords_v6','oneweb_studentRecords_v5','oneweb_studentRecords_v4','oneweb_studentRecords_v3','oneweb_studentRecords_v2','oneweb_studentRecords'];
 const ROW_HEIGHT = 46;
 const BUFFER_ROWS = 20;
@@ -846,11 +868,15 @@ const query = supabase
 .eq('id', 'main')
 .maybeSingle();
 
-const timeout = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: 'timeout' }), 4000));
+const timeout = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 6000));
 const { data, error } = await Promise.race([query, timeout]);
-if (error) return false;
+if (error) {
+console.warn('hasEncryptedData error', error);
+return false;
+}
 return !!(data && data.id);
-} catch {
+} catch (e) {
+console.warn('hasEncryptedData exception', e);
 return false;
 }
 }
@@ -1564,16 +1590,38 @@ const password = getPersistedSessionPassword();
 if (!password) return false;
 showLoading(true);
 try {
+let payload = null;
+let fromLocal = false;
+
+// Prefer cloud; fall back to local encrypted backup on network / 5xx
+try {
 const { data: rows, error } = await supabase
 .from('vault')
 .select('payload')
 .eq('id', 'main')
 .maybeSingle();
-if (error || !rows || !rows.payload) {
+if (!error && rows && rows.payload) {
+payload = rows.payload;
+}
+} catch (netErr) {
+console.warn('Cloud vault fetch failed during restore', netErr);
+}
+
+if (!payload) {
+const local = loadLocalEncrypted();
+if (local) {
+payload = local;
+fromLocal = true;
+console.info('Restored vault from local encrypted backup');
+}
+}
+
+if (!payload) {
 clearPersistedSession();
 return false;
 }
-const decrypted = await decryptPayload(rows.payload, password);
+
+const decrypted = await decryptPayload(payload, password);
 applyVaultEnvelope(decrypted);
 if (!Array.isArray(data)) {
 clearPersistedSession();
@@ -1604,6 +1652,13 @@ resetIdleTimer();
 updateSyncStatusUI();
 startLiveSync();
 showLoading(false);
+
+if (fromLocal) {
+// Mark dirty so the next successful Save pushes the local state back to cloud
+localDirty = true;
+pendingCloudSave = true;
+updateSyncStatusUI();
+}
 
 await new Promise((resolve) => {
 playWelcomeAnimation(() => {
@@ -1894,38 +1949,54 @@ idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
 appendAudit('vault_created', 'New encrypted vault created');
 const envelope = buildVaultEnvelope();
 const payload = await encryptPayload(envelope, password);
+saveLocalEncrypted(payload); // always keep local copy
 const { error } = await cloudUpsert(payload);
-if (error) throw error;
+if (error) {
+// Still allow signup to proceed with local-only if cloud is temporarily down
+console.warn('Cloud create failed, continuing with local vault', error);
+localDirty = true;
+pendingCloudSave = true;
+} else {
+lastSyncedAt = Date.now();
+}
 LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
 sessionPassword = password;
 sessionVaultExists = true;
 persistSessionPassword(password);
-lastSyncedAt = Date.now();
 rebuildDataIndex();
 applyFilters();
 showApp();
 resetIdleTimer();
 updateSyncStatusUI();
-showToast('Encrypted vault created successfully', 'success');
+showToast(error ? 'Vault created locally (cloud unreachable — click Save later)' : 'Encrypted vault created successfully', error ? 'warning' : 'success');
 } else {
+let payload = null;
+let fromLocal = false;
+try {
 const { data: rows, error } = await supabase
 .from('vault')
 .select('payload')
 .eq('id', 'main')
 .maybeSingle();
-
-if (error) {
-showAuthError('Could not reach the cloud. Check your internet.');
-return;
+if (!error && rows && rows.payload) {
+payload = rows.payload;
 }
-
-if (!rows || !rows.payload) {
-showAuthError('No encrypted vault found. Create an account first.');
+} catch (netErr) {
+console.warn('Login cloud fetch failed', netErr);
+}
+if (!payload) {
+const local = loadLocalEncrypted();
+if (local) {
+payload = local;
+fromLocal = true;
+}
+}
+if (!payload) {
+showAuthError('No encrypted vault found. Create an account first (or check your connection).');
 setAuthMode('signup');
 return;
 }
 
-const payload = rows.payload;
 const decrypted = await decryptPayload(payload, password);
 applyVaultEnvelope(decrypted);
 if (!Array.isArray(data)) throw new Error('Invalid data');
@@ -1938,15 +2009,19 @@ if (!r.createdAt) r.createdAt = Date.now();
 if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
 if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
 });
-appendAudit('unlock', 'Vault unlocked with master password');
+appendAudit('unlock', fromLocal ? 'Vault unlocked from local backup' : 'Vault unlocked with master password');
 rebuildDataIndex();
 applyFilters();
 showApp();
 resetIdleTimer();
+if (fromLocal) {
+localDirty = true;
+pendingCloudSave = true;
+}
 updateSyncStatusUI();
 
 scheduleSave();
-showToast('Vault unlocked', 'success');
+showToast(fromLocal ? 'Vault unlocked from local backup' : 'Vault unlocked', 'success');
 }
 } catch (err) {
 console.warn(err);
@@ -3656,10 +3731,12 @@ showToast('Sample data loaded', 'success');
 
 let saveQueued = false;
 let lastSaveErrorAt = 0;
-const SAVE_RETRY_MAX = 3;
+const SAVE_RETRY_MAX = 5;
+const LOCAL_VAULT_KEY = 'oneweb_v1_local_vault_enc';
 
 function scheduleSave(immediate) {
 // Autosave disabled — only the Save button (and lock) write to the cloud.
+// Still mark localDirty so the UI and lock path know there are pending changes.
 if (!sessionPassword) return;
 localDirty = true;
 updateSyncStatusUI();
@@ -3669,18 +3746,69 @@ saveTimer = null;
 }
 }
 
-async function cloudUpsert(payload) {
+/** Persist encrypted payload to localStorage as offline/safety fallback */
+function saveLocalEncrypted(payload) {
+try {
+localStorage.setItem(LOCAL_VAULT_KEY, JSON.stringify({
+savedAt: Date.now(),
+payload
+}));
+} catch (e) {
+console.warn('localStorage vault write failed', e);
+}
+}
 
+/** Load local encrypted fallback if present */
+function loadLocalEncrypted() {
+try {
+const raw = localStorage.getItem(LOCAL_VAULT_KEY);
+if (!raw) return null;
+const obj = JSON.parse(raw);
+return obj && obj.payload ? obj.payload : null;
+} catch {
+return null;
+}
+}
+
+/**
+ * Hardened upsert against public.vault.
+ * Uses onConflict + Prefer headers. Falls back to plain upsert if the first
+ * call fails for non-permission reasons. Returns { data, error } like supabase-js.
+ */
+async function cloudUpsert(payload) {
+const row = { id: 'main', payload: payload };
+
+// Primary path: PostgREST upsert with explicit conflict target
 let result = await supabase
 .from('vault')
-.upsert({ id: 'main', payload: payload }, { onConflict: 'id' });
-if (result.error) {
+.upsert(row, { onConflict: 'id' })
+.select('id')
+.maybeSingle();
 
+if (!result.error) return result;
+
+const msg = (result.error && result.error.message) ? String(result.error.message) : '';
+// If the first form is rejected (e.g. older PostgREST / missing unique), try plain upsert
+if (!/permission|rls|policy|401|403|JWT/i.test(msg)) {
 result = await supabase
 .from('vault')
-.upsert({ id: 'main', payload: payload });
+.upsert(row)
+.select('id')
+.maybeSingle();
 }
 return result;
+}
+
+/**
+ * Estimate approximate JSON size of the encrypted payload for pre-flight checks.
+ * Base64 of ciphertext + metadata; 4 MB is a safe client-side ceiling for free-tier.
+ */
+function estimatePayloadBytes(payload) {
+try {
+return JSON.stringify(payload).length;
+} catch {
+return 0;
+}
 }
 
 async function saveToStorage(force = false, opts = {}) {
@@ -3691,9 +3819,9 @@ if (isSaving) {
 saveQueued = true;
 if (force) {
 let waited = 0;
-while (isSaving && waited < 8000) {
-await new Promise(r => setTimeout(r, 60));
-waited += 60;
+while (isSaving && waited < 12000) {
+await new Promise(r => setTimeout(r, 80));
+waited += 80;
 }
 } else {
 return false;
@@ -3707,13 +3835,31 @@ updateSyncStatusUI();
 
 let success = false;
 let lastError = null;
+let usedLocalOnly = false;
 
-try {
-for (let attempt = 1; attempt <= SAVE_RETRY_MAX; attempt++) {
-if (!sessionPassword) break;
 try {
 const envelope = buildVaultEnvelope();
 const payload = await encryptPayload(envelope, sessionPassword);
+const approxBytes = estimatePayloadBytes(payload);
+
+// Soft size guard (transcripts as base64 inflate quickly)
+if (approxBytes > 3.5 * 1024 * 1024) {
+const transcriptCount = data.filter(r => r.transcriptFile && r.transcriptFile.data).length;
+if (!silent) {
+showToast(
+`Vault is large (~${(approxBytes / 1024 / 1024).toFixed(1)} MB, ${transcriptCount} transcript(s)). Removing unused transcripts is recommended.`,
+'warning',
+4500
+);
+}
+}
+
+// Always keep a local encrypted copy so work is never lost
+saveLocalEncrypted(payload);
+
+for (let attempt = 1; attempt <= SAVE_RETRY_MAX; attempt++) {
+if (!sessionPassword) break;
+try {
 const { error } = await cloudUpsert(payload);
 if (error) throw error;
 lastSyncedAt = Date.now();
@@ -3726,9 +3872,13 @@ lastError = null;
 break;
 } catch (e) {
 lastError = e;
-
+const msg = (e && e.message) ? String(e.message) : String(e);
+// Do not retry hard permission failures
+if (/permission|rls|policy|401|403|JWT/i.test(msg)) break;
+// Exponential backoff with jitter
 if (attempt < SAVE_RETRY_MAX) {
-await new Promise(r => setTimeout(r, 280 * attempt));
+const delay = Math.min(2200, 320 * Math.pow(1.7, attempt - 1)) + Math.floor(Math.random() * 120);
+await new Promise(r => setTimeout(r, delay));
 }
 }
 }
@@ -3739,20 +3889,34 @@ if (isManual && !silent) {
 showToast(`Encrypted & saved ${data.length} record(s)`, 'success', 2200);
 }
 } else {
+// Cloud failed but we already wrote local encrypted copy
+usedLocalOnly = true;
 pendingCloudSave = true;
 updateSyncStatusUI();
 console.warn('Cloud save failed', lastError);
 
 const now = Date.now();
-if (!silent && isOnline && now - lastSaveErrorAt > 8000) {
+if (!silent && now - lastSaveErrorAt > 6000) {
 lastSaveErrorAt = now;
 const msg = (lastError && lastError.message) ? String(lastError.message) : '';
-if (/payload|too large|413|request entity/i.test(msg)) {
-showToast('Save failed: data is too large. Remove large transcripts and try again.', 'error', 5000);
+if (/payload|too large|413|request entity|entity too large/i.test(msg)) {
+showToast('Save failed: data is too large for the cloud. Remove large transcripts and try again. A local encrypted copy was kept.', 'error', 5500);
 } else if (/permission|rls|policy|401|403/i.test(msg)) {
-showToast('Save blocked by cloud permissions. Check Supabase vault policies.', 'error', 5000);
+showToast('Save blocked by cloud permissions. Run the recommended vault SQL in Supabase (see console). Local copy kept.', 'error', 6000);
+console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
+'create table if not exists public.vault (\n' +
+'  id text primary key,\n' +
+'  payload jsonb not null,\n' +
+'  updated_at timestamptz default now()\n' +
+');\n' +
+'alter table public.vault enable row level security;\n' +
+'drop policy if exists "anon_all_vault" on public.vault;\n' +
+'create policy "anon_all_vault" on public.vault for all to anon using (true) with check (true);\n' +
+'grant select, insert, update, delete on public.vault to anon;', 'color:#93c5fd');
+} else if (!isOnline) {
+showToast('You are offline. Changes are kept in a local encrypted backup and will sync when online.', 'warning', 4000);
 } else {
-showToast('Could not reach the cloud. Changes stay local until connection recovers.', 'warning', 3500);
+showToast('Cloud unreachable (HTTP 5xx or network). Local encrypted backup saved — click Save again later.', 'warning', 4200);
 }
 }
 }
@@ -3760,15 +3924,15 @@ showToast('Could not reach the cloud. Changes stay local until connection recove
 isSaving = false;
 updateSyncStatusUI();
 
-// Only drain queue for an explicit/forced save path (manual Save / lock).
+// Drain queue only for explicit/forced saves (manual Save / lock)
 if (saveQueued && sessionPassword && force) {
 saveQueued = false;
-setTimeout(() => saveToStorage(true, { silent: true, isManual: isManual }), 40);
+setTimeout(() => saveToStorage(true, { silent: true, isManual: isManual }), 60);
 } else {
 saveQueued = false;
 }
 }
-return success;
+return success || usedLocalOnly;
 }
 
 let _lastAtBottom = false;
