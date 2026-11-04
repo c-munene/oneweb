@@ -181,6 +181,9 @@
               <button type="button" class="dropdown-item" role="menuitem" id="btnBackupJson">
                 <i class="fas fa-file-code" style="color:#a78bfa" aria-hidden="true"></i> Backup to JSON
               </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnImportJson">
+                <i class="fas fa-file-import" style="color:#a78bfa" aria-hidden="true"></i> Import JSON
+              </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
                 <i class="fas fa-clipboard-list" style="color:#60a5fa" aria-hidden="true"></i> Audit Log
               </button>
@@ -270,6 +273,7 @@
         <i class="fas fa-list-ul" aria-hidden="true"></i> <span>Already Used</span>
       </button>
       <input type="file" id="excelInput" class="file-input-hidden" accept=".xlsx,.xls,.csv" aria-hidden="true" />
+      <input type="file" id="jsonImportInput" class="file-input-hidden" accept=".json,application/json" aria-hidden="true" />
       <input type="file" id="transcriptsImportInput" class="file-input-hidden" accept=".json,application/json,.pdf,image/*,.jpg,.jpeg,.png,.webp" multiple aria-hidden="true" />
       <button type="button" class="tool-btn danger" id="btnClear" title="Clear all records">
         <i class="fas fa-trash-alt" aria-hidden="true"></i> <span>Clear</span>
@@ -1557,6 +1561,167 @@ URL.revokeObjectURL(a.href);
 appendAudit('backup_json', `${data.length} record(s) exported`);
 scheduleSave();
 showToast('JSON backup downloaded', 'success');
+}
+
+/**
+ * Import a full vault JSON backup (from Backup to JSON) or a transcripts-only JSON.
+ * Preserves transcriptFile base64 data so files reappear in the table after import.
+ */
+async function handleJsonImport(event) {
+const ok = await requireAdmin('import JSON');
+if (!ok) {
+event.target.value = '';
+return;
+}
+const file = event.target.files && event.target.files[0];
+if (!file) return;
+
+showLoading(true);
+try {
+const text = await file.text();
+let parsed;
+try {
+parsed = JSON.parse(text);
+} catch (parseErr) {
+showToast('Invalid JSON file. Could not parse.', 'error');
+return;
+}
+
+// --- Case 1: Full vault backup (versioned records array) ---
+const records = Array.isArray(parsed.records)
+? parsed.records
+: (Array.isArray(parsed.data) ? parsed.data : (Array.isArray(parsed) ? parsed : null));
+
+if (records && records.length >= 0 && (parsed.records || parsed.data || Array.isArray(parsed))) {
+const hasTranscripts = records.some(r => r && r.transcriptFile && r.transcriptFile.data);
+const msg =
+`OneWeb JSON Import\n\n` +
+`Found ${records.length} record(s)` +
+(hasTranscripts ? ` (including transcript file data)` : '') +
+`.\n\nOK = Replace all current data\nCancel = Append / merge by ID`;
+
+const replace = confirm(msg);
+if (replace) {
+data = records.map(r => {
+const row = { ...r };
+if (!row.id) row.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+if (!row.createdAt) row.createdAt = Date.now();
+if (row.gradYear) row.gradYear = normalizeGradPeriod(row.gradYear);
+if (row.transcriptStatus) row.transcriptStatus = normalizeLegacyTranscriptStatus(row.transcriptStatus);
+// Keep transcriptFile object intact (name, type, data, size)
+if (row.transcriptFile && typeof row.transcriptFile === 'object' && row.transcriptFile.data) {
+row.transcriptFile = {
+name: row.transcriptFile.name || 'transcript.pdf',
+type: row.transcriptFile.type || 'application/octet-stream',
+data: row.transcriptFile.data,
+size: row.transcriptFile.size || 0
+};
+} else {
+row.transcriptFile = null;
+}
+return row;
+});
+} else {
+// Merge: update existing by id, append new
+const byId = new Map(data.map(r => [r.id, r]));
+let added = 0, updated = 0;
+records.forEach(r => {
+if (!r) return;
+const id = r.id || ('r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+const incoming = { ...r, id };
+if (incoming.gradYear) incoming.gradYear = normalizeGradPeriod(incoming.gradYear);
+if (incoming.transcriptStatus) incoming.transcriptStatus = normalizeLegacyTranscriptStatus(incoming.transcriptStatus);
+if (incoming.transcriptFile && typeof incoming.transcriptFile === 'object' && incoming.transcriptFile.data) {
+incoming.transcriptFile = {
+name: incoming.transcriptFile.name || 'transcript.pdf',
+type: incoming.transcriptFile.type || 'application/octet-stream',
+data: incoming.transcriptFile.data,
+size: incoming.transcriptFile.size || 0
+};
+} else if (!incoming.transcriptFile) {
+incoming.transcriptFile = null;
+}
+if (byId.has(id)) {
+Object.assign(byId.get(id), incoming);
+updated++;
+} else {
+byId.set(id, incoming);
+added++;
+}
+});
+data = Array.from(byId.values());
+showToast(`Merged: ${added} added, ${updated} updated`, 'success');
+}
+
+// Restore optional settings / audit from backup
+if (Array.isArray(parsed.auditLog)) {
+auditLog = parsed.auditLog.slice(0, 200);
+}
+if (parsed.settings && typeof parsed.settings.idleTimeoutMinutes === 'number') {
+idleTimeoutMinutes = parsed.settings.idleTimeoutMinutes;
+}
+
+rebuildDataIndex();
+scheduleSave(true);
+applyFilters();
+if (usedPanelOpen) scheduleUsedPanelRender();
+appendAudit('import_json', `${records.length} record(s) from JSON${hasTranscripts ? ' (with transcripts)' : ''}`);
+const withTf = data.filter(r => r.transcriptFile && r.transcriptFile.data).length;
+showToast(
+`JSON import complete — ${data.length} record(s)` +
+(withTf ? `, ${withTf} with transcript file(s)` : ''),
+'success',
+3500
+);
+return;
+}
+
+// --- Case 2: Transcripts-only export format ---
+const list = parsed.transcripts || null;
+if (list && Array.isArray(list) && list.length) {
+let matched = 0, unmatched = 0;
+list.forEach(item => {
+if (!item || !item.file || !item.file.data) {
+unmatched++;
+return;
+}
+let row = null;
+if (item.id) row = getRowById(item.id);
+if (!row && item.name) {
+const n = normalize(item.name);
+row = data.find(r => normalize(r.name) === n);
+}
+if (row) {
+row.transcriptFile = {
+name: item.file.name || 'transcript.pdf',
+type: item.file.type || 'application/octet-stream',
+data: item.file.data,
+size: item.file.size || 0
+};
+matched++;
+} else {
+unmatched++;
+}
+});
+scheduleSave(true);
+renderTable();
+appendAudit('import_json_transcripts', `${matched} transcript(s) attached`);
+showToast(
+`Imported transcripts from JSON: ${matched} matched` +
+(unmatched ? `, ${unmatched} unmatched` : ''),
+matched ? 'success' : 'warning'
+);
+return;
+}
+
+showToast('Unrecognized JSON format. Expected a vault backup (records) or transcripts export.', 'error');
+} catch (err) {
+console.warn(err);
+showToast('Failed to import JSON. Check the file format.', 'error');
+} finally {
+event.target.value = '';
+showLoading(false);
+}
 }
 
 function showAdminModal(reason) {
@@ -4493,6 +4658,11 @@ document.getElementById('btnBackupJson')?.addEventListener('click', () => {
 if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
 backupToJson();
 });
+document.getElementById('btnImportJson')?.addEventListener('click', () => {
+if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
+document.getElementById('jsonImportInput').click();
+});
+document.getElementById('jsonImportInput')?.addEventListener('change', handleJsonImport);
 document.getElementById('btnAuditLog')?.addEventListener('click', () => {
 if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
 openAuditModal();
