@@ -880,6 +880,8 @@ let localDirty = false;
 let liveSyncTimer = null;
 let liveSyncInFlight = false;
 let dirtyIds = new Set(); // track recently edited row ids for smart merge
+let deletedIds = new Set(); // tombstones so deletions propagate to all devices
+const MAX_TOMBSTONES = 500;
 let lastLivePullAt = 0;
 const LIVE_SYNC_INTERVAL_MS = 12 * 1000;
 let syncStatusDetailTimer = null;
@@ -1394,9 +1396,12 @@ copy.transcriptFile = null;
 }
 return copy;
 });
+// Cap tombstone list so vault stays bounded
+const tombstones = Array.from(deletedIds).slice(-MAX_TOMBSTONES);
 return {
-version: 4,
+version: 5,
 records: fullRecords,
+deletedIds: tombstones,
 auditLog: auditLog,
 settings: {
 idleTimeoutMinutes: idleTimeoutMinutes
@@ -1411,6 +1416,7 @@ function applyVaultEnvelope(obj) {
 if (Array.isArray(obj)) {
 data = obj;
 auditLog = [];
+deletedIds = new Set();
 idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
 lastSyncedAt = Date.now();
 localVaultUpdatedAt = lastSyncedAt;
@@ -1419,6 +1425,11 @@ return;
 if (obj && typeof obj === 'object') {
 data = Array.isArray(obj.records) ? obj.records : (Array.isArray(obj.data) ? obj.data : []);
 auditLog = Array.isArray(obj.auditLog) ? obj.auditLog : [];
+deletedIds = new Set(Array.isArray(obj.deletedIds) ? obj.deletedIds : []);
+// Drop any records that are tombstoned (safety)
+if (deletedIds.size) {
+data = data.filter(r => r && r.id && !deletedIds.has(r.id));
+}
 if (obj.settings && typeof obj.settings.idleTimeoutMinutes === 'number') {
 idleTimeoutMinutes = obj.settings.idleTimeoutMinutes;
 } else {
@@ -1431,6 +1442,7 @@ return;
 }
 data = [];
 auditLog = [];
+deletedIds = new Set();
 idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
 }
 
@@ -1451,7 +1463,7 @@ r.ssn || '',
 r.program || '',
 r.highSchool || '',
 r.gpa || '',
-r.transcriptFile ? (r.transcriptFile.name || '1') : '0',
+r.transcriptFile ? ((r.transcriptFile.name || '1') + ':' + (r.transcriptFile.size || 0) + ':' + (r.transcriptFile.data ? '1' : '0')) : '0',
 r.createdAt || '',
 r.updatedAt || ''
 ].join(':');
@@ -1469,13 +1481,146 @@ liveSyncInFlight = false;
 }
 
 function startLiveSync() {
-// Live updates and real-time syncing are permanently disabled.
-// Data is only written to cloud on explicit Save / Lock. Local encrypted
-// Data is written to cloud only on explicit Save / Lock.
+// Periodic live polling is disabled. Multi-device sync uses:
+// 1) explicit Save (push full vault + transcripts + tombstones to cloud)
+// 2) pull on tab focus / visibility / back-online when there are no unsaved edits
 stopLiveSync();
 }
 
 async function pullCloudUpdates(opts = {}) {
+const { silent = true, force = false } = opts;
+if (!sessionPassword || !isUnlocked) return false;
+if (!isOnline) return false;
+if (liveSyncInFlight || isSaving) return false;
+
+// If user has unsaved local edits, do not overwrite unless forced
+if (localDirty && !force) {
+  return false;
+}
+
+liveSyncInFlight = true;
+updateSyncStatusUI();
+try {
+const { data: rows, error } = await supabase
+  .from('vault')
+  .select('payload')
+  .eq('id', 'main')
+  .maybeSingle();
+
+if (error) throw error;
+if (!rows || !rows.payload) return false;
+
+let remote;
+try {
+  remote = await decryptPayload(rows.payload, sessionPassword);
+} catch (decErr) {
+  console.warn('Cloud pull decrypt failed', decErr);
+  return false;
+}
+if (remote == null) return false;
+
+const remoteUpdated = (remote && typeof remote === 'object' && !Array.isArray(remote))
+  ? (Number(remote.updatedAt) || Number(remote.lastSyncedAt) || 0)
+  : 0;
+const remoteRecords = Array.isArray(remote)
+  ? remote
+  : (Array.isArray(remote.records) ? remote.records : (Array.isArray(remote.data) ? remote.data : []));
+const remoteDeleted = new Set(
+  (remote && typeof remote === 'object' && Array.isArray(remote.deletedIds))
+    ? remote.deletedIds
+    : []
+);
+
+const localFp = recordsFingerprint(data) + '|D:' + Array.from(deletedIds).sort().join(',');
+const remoteFp = recordsFingerprint(remoteRecords) + '|D:' + Array.from(remoteDeleted).sort().join(',');
+const contentChanged = remoteFp !== localFp;
+
+if (!force && !contentChanged) {
+  lastLivePullAt = Date.now();
+  if (remoteUpdated) {
+    lastSyncedAt = Math.max(lastSyncedAt || 0, remoteUpdated);
+    localVaultUpdatedAt = Math.max(localVaultUpdatedAt, remoteUpdated);
+  }
+  return false;
+}
+
+const prevCount = data.length;
+const localById = new Map(data.map(r => [r.id, r]));
+const remoteList = Array.isArray(remoteRecords) ? remoteRecords : [];
+
+let merged;
+if (!localDirty) {
+  // Cloud is source of truth — full replace (edits, adds, deletes, transcripts)
+  merged = remoteList.filter(r => r && r.id && !remoteDeleted.has(r.id));
+  deletedIds = new Set(remoteDeleted);
+} else {
+  // Preserve in-progress local edits; still honor remote deletions for non-dirty rows
+  merged = [];
+  const seen = new Set();
+  for (const r of remoteList) {
+    if (!r || !r.id) continue;
+    if (remoteDeleted.has(r.id) && !dirtyIds.has(r.id)) continue;
+    const local = localById.get(r.id);
+    if (local && dirtyIds.has(r.id)) {
+      merged.push(local);
+    } else if (local && (Number(local.updatedAt) || 0) > (Number(r.updatedAt) || 0)) {
+      merged.push(local);
+    } else {
+      merged.push(r);
+    }
+    seen.add(r.id);
+  }
+  // Keep brand-new local rows not yet on the server (and not tombstoned remotely)
+  for (const r of data) {
+    if (r && r.id && !seen.has(r.id) && !remoteDeleted.has(r.id) && dirtyIds.has(r.id)) {
+      merged.push(r);
+    }
+  }
+  // Union tombstones
+  remoteDeleted.forEach(id => deletedIds.add(id));
+  // Drop anything tombstoned from merged
+  merged = merged.filter(r => r && r.id && !deletedIds.has(r.id));
+}
+
+data = merged;
+data.forEach(r => {
+  if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  if (!r.createdAt) r.createdAt = Date.now();
+  if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+  if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+});
+if (!localDirty) {
+  dirtyIds.clear();
+}
+lastSyncedAt = Date.now();
+localVaultUpdatedAt = Math.max(remoteUpdated || 0, lastSyncedAt);
+lastLivePullAt = lastSyncedAt;
+await rehydrateTranscriptsFromIdb();
+persistTranscriptsToIdb().catch(() => {});
+rebuildDataIndex();
+applyFilters();
+updateStats();
+updatePagination();
+if (typeof renderTable === 'function') renderTable();
+if (usedPanelOpen) scheduleUsedPanelRender();
+updateSyncStatusUI(contentChanged ? 'Updated from cloud' : undefined);
+const delta = data.length - prevCount;
+if (!silent) {
+  if (delta > 0) showToast(`Synced · ${delta} new record(s) from cloud`, 'success', 2800);
+  else if (delta < 0) showToast(`Synced · ${-delta} record(s) removed from cloud`, 'info', 2800);
+  else if (contentChanged) showToast('Synced · changes from other devices applied', 'info', 2400);
+} else if (contentChanged && delta !== 0) {
+  showToast(delta > 0 ? `Synced · ${delta} new record(s)` : `Synced · ${-delta} removed`, 'info', 2200);
+}
+return true;
+} catch (err) {
+console.warn('Cloud pull failed', err);
+return false;
+} finally {
+liveSyncInFlight = false;
+updateSyncStatusUI();
+}
+}) {
 const { silent = true, force = false } = opts;
 if (!sessionPassword || !isUnlocked) return false;
 if (!isOnline) return false;
@@ -1846,11 +1991,26 @@ window.addEventListener('online', () => {
 isOnline = true;
 updateSyncStatusUI();
 showToast('Back online', 'info', 2000);
+// Pull latest vault so edits/deletes/transcripts from other devices appear
+if (isUnlocked && sessionPassword && !localDirty) {
+  pullCloudUpdates({ silent: false, force: false }).catch(() => {});
+}
 });
 window.addEventListener('offline', () => {
 isOnline = false;
 updateSyncStatusUI();
 showToast('You are offline. Use Save when you are back online.', 'warning', 3500);
+});
+// When returning to this tab, refresh from cloud if no unsaved local edits
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && isUnlocked && sessionPassword && isOnline && !localDirty) {
+    pullCloudUpdates({ silent: true, force: false }).catch(() => {});
+  }
+});
+window.addEventListener('focus', () => {
+  if (isUnlocked && sessionPassword && isOnline && !localDirty) {
+    pullCloudUpdates({ silent: true, force: false }).catch(() => {});
+  }
 });
 }
 
@@ -3662,9 +3822,10 @@ type: file.type || 'application/octet-stream',
 data: reader.result,
 size: file.size
 };
-// Write blob to IndexedDB immediately so vault size stays small
+row.updatedAt = Date.now();
+dirtyIds.add(rowId);
+// Cache on this device; full data stays in memory so Save publishes to cloud for all devices
 await idbPutTranscript(rowId, row.transcriptFile);
-// Keep full data in memory — next Save publishes it to the cloud for all devices
 scheduleSave();
 renderTable();
 showToast(`Transcript attached: ${file.name}. Click Save to sync it to all your devices.`, 'success', 4200);
@@ -3703,10 +3864,12 @@ if (!confirm('Remove the uploaded transcript for this student?')) return;
 const row = getRowById(rowId);
 if (row) {
 row.transcriptFile = null;
+row.updatedAt = Date.now();
+dirtyIds.add(rowId);
 idbDeleteTranscript(rowId).catch(() => {});
 scheduleSave();
 renderTable();
-showToast('Transcript removed', 'info');
+showToast('Transcript removed — click Save to sync to all devices', 'info', 3200);
 }
 }
 
@@ -3737,11 +3900,13 @@ if (!ok) return;
 if (!confirm('Delete this student record?')) return;
 data = data.filter(r => r.id !== id);
 dataById.delete(id);
-dirtyIds.add(id); // mark so merge knows this id was touched
+deletedIds.add(id); // tombstone so other devices drop this row after Save
+dirtyIds.delete(id);
+idbDeleteTranscript(id).catch(() => {});
 scheduleSave();
 applyFilters();
 if (usedPanelOpen) renderUsedPanel();
-showToast('Record deleted', 'info');
+showToast('Record deleted — click Save to sync to all devices', 'info', 3200);
 }
 
 function toggleSSN() {
@@ -3788,14 +3953,17 @@ async function clearAll() {
 const ok = await requireAdmin('clear all records');
 if (!ok) return;
 if (!confirm('Permanently delete ALL records? This cannot be undone.')) return;
+const clearedIds = data.map(r => r && r.id).filter(Boolean);
 data = [];
 dataById.clear();
+clearedIds.forEach(id => deletedIds.add(id));
+dirtyIds.clear();
 idbClearAllTranscripts().catch(() => {});
 scheduleSave(true);
 applyFilters();
 if (usedPanelOpen) scheduleUsedPanelRender();
 appendAudit('clear_all', 'All records deleted');
-showToast('All records cleared', 'info');
+showToast('All records cleared — click Save to sync to all devices', 'info', 3200);
 }
 
 async function forceSave() {
