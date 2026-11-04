@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
-  <meta name="description" content="OneWeb V.1.0 Student Records Management – fast, reliable, offline-capable student data tool with encrypted storage" />
+  <meta name="description" content="OneWeb V.1.0 Student Records Management – fast, reliable student data tool with encrypted cloud storage" />
   <meta name="theme-color" content="#0a0a0a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1329,7 +1329,7 @@ return null;
 }
 }
 
-/** Persist all current transcript blobs to IndexedDB; strip heavy data from in-memory records for the vault envelope */
+/** Cache transcript blobs in IndexedDB for this device only. In-memory .data is kept so Save can publish full files to the cloud for all devices. */
 async function persistTranscriptsToIdb() {
 const jobs = [];
 for (let i = 0; i < data.length; i++) {
@@ -1345,13 +1345,13 @@ if (jobs.length) await Promise.all(jobs);
 }
 
 /**
- * Fill missing transcript blobs from local IndexedDB cache.
- * Cloud/vault data (with .data) always wins so other devices stay in sync.
+ * Fill missing transcript blobs from this device's IndexedDB cache only when cloud vault did not include them.
+ * Cloud/vault data (with .data) always wins — that is how transcripts appear on every device after Save.
  */
 async function rehydrateTranscriptsFromIdb() {
 const jobs = data.map(async (r) => {
 if (!r || !r.id) return;
-// Already have full blob from vault/import — keep it
+// Full blob already from cloud vault or import — keep it (cross-device source of truth)
 if (r.transcriptFile && r.transcriptFile.data) return;
 const stored = await idbGetTranscript(r.id);
 if (stored && stored.data) {
@@ -1370,15 +1370,15 @@ await Promise.all(jobs);
 }
 
 /**
- * Build vault envelope WITH full transcript file data so transcripts sync across devices.
- * Payload is gzip-compressed before AES encryption to keep cloud size manageable.
- * IndexedDB is used only as a local performance cache.
+ * Build vault envelope WITH full transcript file data (base64) so transcripts are available on every device.
+ * Gzip is applied before AES encryption. IndexedDB is only a same-device performance cache — cloud is source of truth.
  */
 function buildVaultEnvelope() {
 const now = Date.now();
 localVaultUpdatedAt = Math.max(localVaultUpdatedAt, now);
 const fullRecords = data.map(r => {
 const copy = { ...r };
+// Always ship full transcript blobs in the cloud vault for cross-device availability
 if (copy.transcriptFile && typeof copy.transcriptFile === 'object' && copy.transcriptFile.data) {
 copy.transcriptFile = {
 name: copy.transcriptFile.name || 'transcript.pdf',
@@ -1387,7 +1387,7 @@ size: copy.transcriptFile.size || 0,
 data: copy.transcriptFile.data
 };
 } else if (copy.transcriptFile && copy.transcriptFile.hasData && !copy.transcriptFile.data) {
-// Meta-only stub from an older lean save — keep null so we don't ship empty stubs
+// Meta-only stub from an older lean save — do not ship empty stubs
 copy.transcriptFile = null;
 } else if (!copy.transcriptFile || !copy.transcriptFile.data) {
 copy.transcriptFile = null;
@@ -1469,7 +1469,9 @@ liveSyncInFlight = false;
 }
 
 function startLiveSync() {
-// Live cloud updates disabled — data only refreshes on unlock / manual save.
+// Live updates and real-time syncing are permanently disabled.
+// Data is only written to cloud on explicit Save / Lock. Local encrypted
+// Data is written to cloud only on explicit Save / Lock.
 stopLiveSync();
 }
 
@@ -1704,7 +1706,7 @@ const manifest = {
 id: scope,
 name: 'OneWeb V.1.0 — Student Records',
 short_name: 'OneWeb',
-description: 'Encrypted student records · offline-capable vault',
+description: 'Encrypted student records · cloud-backed vault',
 start_url: startUrl,
 scope: scope,
 display: 'standalone',
@@ -2091,64 +2093,69 @@ if (!password) return false;
 showLoading(true);
 try {
 let payload = null;
-let fromLocal = false;
 
-// Prefer cloud; fall back to local encrypted backup on network / 5xx / corruption
+// Cloud-primary session restore (no localStorage vault). Session password lives only in sessionStorage
+// so a same-tab refresh can unlock without re-typing; data always comes from the cloud vault.
 try {
-const { data: rows, error } = await supabase
-.from('vault')
-.select('payload')
-.eq('id', 'main')
-.maybeSingle();
-if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
-payload = rows.payload;
-} else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
-console.warn('Cloud vault payload is corrupt — ignoring');
-}
+  const { data: rows, error } = await supabase
+    .from('vault')
+    .select('payload')
+    .eq('id', 'main')
+    .maybeSingle();
+  if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
+    payload = rows.payload;
+  } else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
+    console.warn('Cloud vault payload is corrupt — ignoring');
+  }
 } catch (netErr) {
-console.warn('Cloud vault fetch failed during restore', netErr);
+  console.warn('Cloud vault fetch failed during restore', netErr);
+}
+
+// Optional: IndexedDB vault blob only as last-resort same-device cache (not localStorage)
+if (!payload) {
+  try {
+    const idbPayload = await idbGetVaultBlob();
+    if (idbPayload && isValidEncryptedPayload(idbPayload)) {
+      payload = idbPayload;
+      console.info('Restored vault from IndexedDB cache');
+    }
+  } catch (_) {}
 }
 
 if (!payload) {
-const local = loadLocalEncrypted();
-if (local && isValidEncryptedPayload(local)) {
-payload = local;
-fromLocal = true;
-console.info('Restored vault from local encrypted backup');
-}
-}
-if (!payload) {
-const idbPayload = await idbGetVaultBlob();
-if (idbPayload && isValidEncryptedPayload(idbPayload)) {
-payload = idbPayload;
-fromLocal = true;
-console.info('Restored vault from IndexedDB backup');
-}
+  clearPersistedSession();
+  document.documentElement.classList.remove('session-restore');
+  return false;
 }
 
-if (!payload) {
-clearPersistedSession();
-return false;
+let decrypted;
+try {
+  decrypted = await decryptPayload(payload, password);
+} catch (decErr) {
+  console.warn('Session restore decrypt failed', decErr);
+  clearPersistedSession();
+  document.documentElement.classList.remove('session-restore');
+  return false;
 }
-
-const decrypted = await decryptPayload(payload, password);
 applyVaultEnvelope(decrypted);
 if (!Array.isArray(data)) {
-clearPersistedSession();
-return false;
+  clearPersistedSession();
+  document.documentElement.classList.remove('session-restore');
+  return false;
 }
 sessionPassword = password;
 sessionVaultExists = true;
+persistSessionPassword(password);
 data.forEach(r => {
-if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-if (!r.createdAt) r.createdAt = Date.now();
-if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
-if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+  if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  if (!r.createdAt) r.createdAt = Date.now();
+  if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+  if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
 });
-// Prefer transcripts from vault (cross-device); fill any gaps from local IndexedDB cache
 await rehydrateTranscriptsFromIdb();
-// Refresh local IDB cache from in-memory (includes cloud-synced transcripts)
 persistTranscriptsToIdb().catch(() => {});
+// Keep IndexedDB vault cache in sync (not localStorage)
+try { idbPutVaultBlob(payload).catch(() => {}); } catch (_) {}
 rebuildDataIndex();
 applyFilters();
 
@@ -2164,36 +2171,29 @@ updateStats();
 updatePagination();
 resetIdleTimer();
 updateSyncStatusUI();
-startLiveSync();
+stopLiveSync(); // live / real-time sync permanently disabled
 showLoading(false);
 
-if (fromLocal) {
-// Mark dirty so the next successful Save pushes the local state back to cloud
-localDirty = true;
-pendingCloudSave = true;
-updateSyncStatusUI();
-}
-
 await new Promise((resolve) => {
-playWelcomeAnimation(() => {
-document.documentElement.classList.remove('session-restore');
-if (appRoot) {
-appRoot.style.display = 'flex';
-appRoot.setAttribute('aria-hidden', 'false');
-void appRoot.offsetWidth;
-requestAnimationFrame(() => appRoot.classList.add('ready'));
-}
-resolve();
-});
+  playWelcomeAnimation(() => {
+    document.documentElement.classList.remove('session-restore');
+    if (appRoot) {
+      appRoot.style.display = 'flex';
+      appRoot.setAttribute('aria-hidden', 'false');
+      void appRoot.offsetWidth;
+      requestAnimationFrame(() => appRoot.classList.add('ready'));
+    }
+    resolve();
+  });
 });
 return true;
 } catch (err) {
-console.warn('Session restore failed', err);
-clearPersistedSession();
-document.documentElement.classList.remove('session-restore');
-return false;
+  console.warn('Session restore failed', err);
+  clearPersistedSession();
+  document.documentElement.classList.remove('session-restore');
+  return false;
 } finally {
-showLoading(false);
+  showLoading(false);
 }
 }
 
@@ -2293,7 +2293,8 @@ overlay.classList.add('hidden');
 isUnlocked = true;
 isAdmin = false;
 updateEditUI();
-startLiveSync();
+// Live / real-time cloud pull permanently disabled
+stopLiveSync();
 
 playWelcomeAnimation(() => {
 appRoot.style.display = 'flex';
@@ -2463,7 +2464,6 @@ idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
 appendAudit('vault_created', 'New encrypted vault created');
 const envelope = buildVaultEnvelope();
 const payload = await encryptPayload(envelope, password);
-saveLocalEncrypted(payload); // always keep local copy
 const { error } = await cloudUpsert(payload);
 if (error) {
 // Still allow signup to proceed with local-only if cloud is temporarily down
@@ -2482,43 +2482,37 @@ applyFilters();
 showApp();
 resetIdleTimer();
 updateSyncStatusUI();
-showToast(error ? 'Vault created locally (cloud unreachable — click Save later)' : 'Encrypted vault created successfully', error ? 'warning' : 'success');
+showToast(error ? 'Vault created (cloud unreachable — click Save later)' : 'Encrypted vault created successfully', error ? 'warning' : 'success');
 } else {
 let payload = null;
-let fromLocal = false;
+
+// Cloud-primary unlock — no localStorage vault
 try {
-const { data: rows, error } = await supabase
-.from('vault')
-.select('payload')
-.eq('id', 'main')
-.maybeSingle();
-if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
-payload = rows.payload;
-} else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
-console.warn('Cloud vault is corrupt — will try local backup or offer create');
-}
+  const { data: rows, error } = await supabase
+    .from('vault')
+    .select('payload')
+    .eq('id', 'main')
+    .maybeSingle();
+  if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
+    payload = rows.payload;
+  } else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
+    console.warn('Cloud vault is corrupt — will try IndexedDB cache or offer create');
+  }
 } catch (netErr) {
-console.warn('Login cloud fetch failed', netErr);
+  console.warn('Login cloud fetch failed', netErr);
 }
 if (!payload) {
-const local = loadLocalEncrypted();
-if (local && isValidEncryptedPayload(local)) {
-payload = local;
-fromLocal = true;
-}
-}
-if (!payload) {
-// Fallback: large vault may live only in IndexedDB
-const idbPayload = await idbGetVaultBlob();
-if (idbPayload && isValidEncryptedPayload(idbPayload)) {
-payload = idbPayload;
-fromLocal = true;
-}
+  try {
+    const idbPayload = await idbGetVaultBlob();
+    if (idbPayload && isValidEncryptedPayload(idbPayload)) {
+      payload = idbPayload;
+    }
+  } catch (_) {}
 }
 if (!payload) {
-showAuthError('No valid encrypted vault found (cloud may be empty or corrupted). Create a new vault, then re-import your data.');
-setAuthMode('signup');
-return;
+  showAuthError('No valid encrypted vault found (cloud may be empty or corrupted). Create a new vault, then re-import your data.');
+  setAuthMode('signup');
+  return;
 }
 
 const decrypted = await decryptPayload(payload, password);
@@ -2528,26 +2522,22 @@ sessionPassword = password;
 sessionVaultExists = true;
 persistSessionPassword(password);
 data.forEach(r => {
-if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-if (!r.createdAt) r.createdAt = Date.now();
-if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
-if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+  if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  if (!r.createdAt) r.createdAt = Date.now();
+  if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+  if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
 });
 await rehydrateTranscriptsFromIdb();
 persistTranscriptsToIdb().catch(() => {});
-appendAudit('unlock', fromLocal ? 'Vault unlocked from local backup' : 'Vault unlocked with master password');
+try { idbPutVaultBlob(payload).catch(() => {}); } catch (_) {}
+appendAudit('unlock', 'Vault unlocked with master password');
 rebuildDataIndex();
 applyFilters();
 showApp();
 resetIdleTimer();
-if (fromLocal) {
-localDirty = true;
-pendingCloudSave = true;
-}
 updateSyncStatusUI();
-
 scheduleSave();
-showToast(fromLocal ? 'Vault unlocked from local backup' : 'Vault unlocked', 'success');
+showToast('Vault unlocked', 'success');
 }
 } catch (err) {
 console.warn(err);
@@ -3674,9 +3664,10 @@ size: file.size
 };
 // Write blob to IndexedDB immediately so vault size stays small
 await idbPutTranscript(rowId, row.transcriptFile);
+// Keep full data in memory — next Save publishes it to the cloud for all devices
 scheduleSave();
 renderTable();
-showToast(`Transcript uploaded: ${file.name}`, 'success');
+showToast(`Transcript attached: ${file.name}. Click Save to sync it to all your devices.`, 'success', 4200);
 }
 pendingTranscriptRowId = null;
 showLoading(false);
@@ -4272,42 +4263,19 @@ showToast('Sample data loaded', 'success');
 let saveQueued = false;
 let lastSaveErrorAt = 0;
 const SAVE_RETRY_MAX = 5;
-const LOCAL_VAULT_KEY = 'oneweb_v1_local_vault_enc';
+
+// localStorage vault intentionally disabled — cloud is the source of truth.
+// Session password uses sessionStorage only (survives same-tab refresh, not device power-off).
 
 function scheduleSave(immediate) {
-// Autosave disabled — only the Save button (and lock) write to the cloud.
-// Still mark localDirty so the UI and lock path know there are pending changes.
-if (!sessionPassword) return;
-localDirty = true;
-updateSyncStatusUI();
-if (saveTimer) {
-clearTimeout(saveTimer);
-saveTimer = null;
-}
-}
-
-/** Persist encrypted payload to localStorage as offline/safety fallback */
-function saveLocalEncrypted(payload) {
-try {
-localStorage.setItem(LOCAL_VAULT_KEY, JSON.stringify({
-savedAt: Date.now(),
-payload
-}));
-} catch (e) {
-console.warn('localStorage vault write failed', e);
-}
-}
-
-/** Load local encrypted fallback if present */
-function loadLocalEncrypted() {
-try {
-const raw = localStorage.getItem(LOCAL_VAULT_KEY);
-if (!raw) return null;
-const obj = JSON.parse(raw);
-return obj && obj.payload ? obj.payload : null;
-} catch {
-return null;
-}
+  // Autosave / cloud write only on explicit Save button or Lock.
+  if (!sessionPassword) return;
+  localDirty = true;
+  updateSyncStatusUI();
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
 }
 
 /**
@@ -4378,20 +4346,20 @@ let lastError = null;
 let usedLocalOnly = false;
 
 try {
-// Offload heavy transcript blobs to IndexedDB first so the encrypted vault stays lean
+// Cache transcripts on this device, then build vault WITH full transcript data for cloud (all devices)
 await persistTranscriptsToIdb();
 
 const envelope = buildVaultEnvelope();
 const payload = await encryptPayload(envelope, sessionPassword);
 const approxBytes = estimatePayloadBytes(payload);
+const transcriptCount = data.filter(r => r.transcriptFile && r.transcriptFile.data).length;
 
-// Soft size guard — only warn at a much higher threshold (transcripts no longer live in the vault)
+// Soft size guard — transcripts live in the cloud vault for cross-device access
 if (approxBytes > SOFT_VAULT_WARN_BYTES) {
-const transcriptCount = data.filter(r => r.transcriptFile && (r.transcriptFile.data || r.transcriptFile.hasData)).length;
 if (!silent) {
 showToast(
 `Vault payload is large (~${(approxBytes / 1024 / 1024).toFixed(1)} MB` +
-(transcriptCount ? `, ${transcriptCount} transcript(s) in local storage` : '') +
+(transcriptCount ? `, ${transcriptCount} transcript(s)` : '') +
 `). Save will still proceed.`,
 'warning',
 4000
@@ -4399,8 +4367,7 @@ showToast(
 }
 }
 
-// Always keep local copies (localStorage + IndexedDB overflow for larger payloads)
-saveLocalEncrypted(payload);
+// Cache encrypted payload in IndexedDB only (no localStorage)
 idbPutVaultBlob(payload).catch(() => {});
 
 for (let attempt = 1; attempt <= SAVE_RETRY_MAX; attempt++) {
@@ -4432,10 +4399,12 @@ await new Promise(r => setTimeout(r, delay));
 if (success) {
 updateSyncStatusUI();
 if (isManual && !silent) {
-showToast(`Encrypted & saved ${data.length} record(s)`, 'success', 2200);
+const tc = data.filter(r => r.transcriptFile && r.transcriptFile.data).length;
+const extra = tc ? ` · ${tc} transcript(s) available on all devices` : '';
+showToast(`Encrypted & saved ${data.length} record(s)${extra}`, 'success', 2800);
 }
 } else {
-// Cloud failed but we already wrote local encrypted copy
+// Cloud failed — IndexedDB cache may still hold the last successful payload
 usedLocalOnly = true;
 pendingCloudSave = true;
 updateSyncStatusUI();
@@ -4446,9 +4415,9 @@ if (!silent && now - lastSaveErrorAt > 6000) {
 lastSaveErrorAt = now;
 const msg = (lastError && lastError.message) ? String(lastError.message) : '';
 if (/payload|too large|413|request entity|entity too large/i.test(msg)) {
-showToast('Cloud rejected the payload size. Transcripts are stored locally (IndexedDB) and a local encrypted vault copy was kept — your data is safe. Try Save again or export JSON.', 'warning', 5500);
+showToast('Cloud rejected the payload size (vault too large). Try fewer/smaller transcripts, export JSON, or Save again.', 'warning', 5500);
 } else if (/permission|rls|policy|401|403/i.test(msg)) {
-showToast('Save blocked by cloud permissions. Run the recommended vault SQL in Supabase (see console). Local copy kept.', 'error', 6000);
+showToast('Save blocked by cloud permissions. Run the recommended vault SQL in Supabase (see console).', 'error', 6000);
 console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
 'create table if not exists public.vault (\n' +
 '  id text primary key,\n' +
@@ -4460,9 +4429,9 @@ console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
 'create policy "anon_all_vault" on public.vault for all to anon using (true) with check (true);\n' +
 'grant select, insert, update, delete on public.vault to anon;', 'color:#93c5fd');
 } else if (!isOnline) {
-showToast('You are offline. Changes are kept in a local encrypted backup and will sync when online.', 'warning', 4000);
+showToast('You are offline. Changes will sync when you are back online and click Save.', 'warning', 4000);
 } else {
-showToast('Cloud unreachable (HTTP 5xx or network). Local encrypted backup saved — click Save again later.', 'warning', 4200);
+showToast('Cloud unreachable (HTTP 5xx or network). Click Save again when online.', 'warning', 4200);
 }
 }
 }
@@ -4997,7 +4966,8 @@ if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
 
 window.addEventListener('beforeunload', () => {
 if (saveTimer && sessionPassword) {
-clearTimeout(saveTimer);
+  clearTimeout(saveTimer);
+  saveTimer = null;
 }
 });
 
