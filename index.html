@@ -691,7 +691,7 @@ const PAGE_SIZE = 100;
 const PBKDF2_ITERATIONS = 60000;
 const PBKDF2_LEGACY_ITERATIONS = 120000;
 const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024;
-const SAVE_DEBOUNCE_MS = 380;
+const SAVE_DEBOUNCE_MS = 180;
 const FILTER_DEBOUNCE_MS = 140;
 
 let data = [];
@@ -764,8 +764,9 @@ let isOnline = navigator.onLine;
 let localDirty = false;
 let liveSyncTimer = null;
 let liveSyncInFlight = false;
+let dirtyIds = new Set(); // track recently edited row ids for smart merge
 let lastLivePullAt = 0;
-const LIVE_SYNC_INTERVAL_MS = 60 * 1000;
+const LIVE_SYNC_INTERVAL_MS = 12 * 1000;
 let syncStatusDetailTimer = null;
 let deferredPwaPrompt = null;
 let vaultMeta = { version: 2 };
@@ -1092,7 +1093,8 @@ r.program || '',
 r.highSchool || '',
 r.gpa || '',
 r.transcriptFile ? (r.transcriptFile.name || '1') : '0',
-r.createdAt || ''
+r.createdAt || '',
+r.updatedAt || ''
 ].join(':');
 });
 parts.sort();
@@ -1111,7 +1113,7 @@ function startLiveSync() {
 stopLiveSync();
 if (!sessionPassword || !isUnlocked) return;
 
-setTimeout(() => pullCloudUpdates({ silent: true }), 5000);
+setTimeout(() => pullCloudUpdates({ silent: true }), 2500);
 liveSyncTimer = setInterval(() => {
 pullCloudUpdates({ silent: true });
 }, LIVE_SYNC_INTERVAL_MS);
@@ -1180,13 +1182,39 @@ return false;
 }
 
 const prevCount = data.length;
-applyVaultEnvelope(remote);
+const localById = new Map(data.map(r => [r.id, r]));
+const remoteList = Array.isArray(remoteRecords) ? remoteRecords : [];
+
+// Smart merge: start from remote, keep local version of any row we recently edited
+// or that has a newer per-row updatedAt
+const merged = [];
+const seen = new Set();
+for (const r of remoteList) {
+  if (!r || !r.id) continue;
+  const local = localById.get(r.id);
+  if (local && (dirtyIds.has(r.id) || (Number(local.updatedAt)||0) > (Number(r.updatedAt)||0))) {
+    merged.push(local); // keep local edit
+  } else {
+    merged.push(r);
+  }
+  seen.add(r.id);
+}
+// Keep any purely local rows that were never on the server yet
+for (const r of data) {
+  if (r && r.id && !seen.has(r.id)) {
+    merged.push(r);
+  }
+}
+
+const prevData = data;
+data = merged;
 data.forEach(r => {
-if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-if (!r.createdAt) r.createdAt = Date.now();
-if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
-if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
+  if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  if (!r.createdAt) r.createdAt = Date.now();
+  if (r.gradYear) r.gradYear = normalizeGradPeriod(r.gradYear);
+  if (r.transcriptStatus) r.transcriptStatus = normalizeLegacyTranscriptStatus(r.transcriptStatus);
 });
+dirtyIds.clear();
 localDirty = false;
 lastSyncedAt = Date.now();
 localVaultUpdatedAt = Math.max(remoteUpdated || 0, lastSyncedAt);
@@ -1200,7 +1228,7 @@ if (usedPanelOpen) scheduleUsedPanelRender();
 updateSyncStatusUI('Updated from cloud');
 const delta = data.length - prevCount;
 if (delta > 0) showToast(`Live update · ${delta} new record(s)`, 'success', 2800);
-else if (contentChanged) showToast('Live update · records refreshed', 'info', 2400);
+else if (contentChanged) showToast('Live update · changes merged', 'info', 2400);
 return true;
 } catch (err) {
 console.warn('Live sync pull failed', err);
@@ -2941,6 +2969,8 @@ if (!row) return;
 const prev = row[key];
 if (prev === value) return;
 row[key] = value;
+row.updatedAt = Date.now();
+dirtyIds.add(id);
 
 if (key === 'highSchool' && value) {
 const known = getKnownGpaForHighSchool(value, id);
@@ -3100,8 +3130,10 @@ async function addRow() {
 const ok = await requireAdmin('add a record');
 if (!ok) return;
 const newRow = createEmptyRow();
+newRow.updatedAt = Date.now();
 data.unshift(newRow);
 dataById.set(newRow.id, newRow);
+dirtyIds.add(newRow.id);
 scheduleSave();
 applyFilters();
 if (usedPanelOpen) scheduleUsedPanelRender();
@@ -3121,6 +3153,7 @@ if (!ok) return;
 if (!confirm('Delete this student record?')) return;
 data = data.filter(r => r.id !== id);
 dataById.delete(id);
+dirtyIds.add(id); // mark so merge knows this id was touched
 scheduleSave();
 applyFilters();
 if (usedPanelOpen) renderUsedPanel();
@@ -3709,6 +3742,7 @@ lastSyncedAt = Date.now();
 localVaultUpdatedAt = Math.max(localVaultUpdatedAt, lastSyncedAt);
 pendingCloudSave = false;
 localDirty = false;
+dirtyIds.clear();
 success = true;
 lastError = null;
 break;
