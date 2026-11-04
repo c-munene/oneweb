@@ -111,6 +111,63 @@ svg[aria-hidden="true"]{display:inline-block;vertical-align:-0.125em;width:1em;h
 .header-settings-btn:hover svg{transform:rotate(45deg);}
 .header-settings-btn svg{transition:transform 0.35s cubic-bezier(0.34,1.4,0.64,1);}
 
+
+/* —— Sleek centered digital clock in pagination bar —— */
+.pagination-bar{position:relative;}
+.digital-clock{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  z-index:2;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:1px;
+  font-family:'SF Pro Display','Segoe UI','Inter',system-ui,-apple-system,sans-serif;
+  user-select:none;
+}
+.digital-clock .time{
+  font-size:15px;
+  font-weight:650;
+  letter-spacing:0.12em;
+  font-variant-numeric:tabular-nums;
+  background:linear-gradient(105deg,#7dd3fc 0%,#a5b4fc 25%,#c4b5fd 50%,#f0abfc 75%,#7dd3fc 100%);
+  background-size:250% 100%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  animation:clockGradient 7s ease-in-out infinite, clockSoftPulse 4s ease-in-out infinite;
+  text-shadow:0 0 20px rgba(165,180,252,0.25);
+  line-height:1.15;
+}
+.digital-clock .date{
+  font-size:9.5px;
+  font-weight:500;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--text-faint);
+  opacity:0.75;
+  line-height:1.2;
+}
+@keyframes clockGradient{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+@keyframes clockSoftPulse{
+  0%,100%{opacity:0.92; filter:brightness(1);}
+  50%{opacity:1; filter:brightness(1.08);}
+}
+@media (max-width:640px){
+  .digital-clock .time{font-size:13.5px; letter-spacing:0.1em;}
+  .digital-clock .date{font-size:8.5px;}
+}
+@media (max-width:420px){
+  .digital-clock{display:none;} /* keep pagination usable on very narrow screens */
+}
+
 </style>
 </head>
 <body class="p-3 sm:p-4 md:p-5">
@@ -467,6 +524,10 @@ svg[aria-hidden="true"]{display:inline-block;vertical-align:-0.125em;width:1em;h
     </div>
     <div class="pagination-bar hidden" id="paginationBar" role="navigation" aria-label="Pagination">
       <div class="pagination-info" id="pageInfo">Page <strong>1</strong> of <strong>1</strong> · Showing <strong>0</strong>–<strong>0</strong> of <strong>0</strong></div>
+      <div class="digital-clock" id="digitalClock" aria-live="off" aria-atomic="true" title="Local time">
+        <span class="time" id="clockTime">00:00:00</span>
+        <span class="date" id="clockDate">—</span>
+      </div>
       <div class="pagination-controls">
         <button type="button" class="page-btn" id="btnFirstPage" title="First page" disabled>
           <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
@@ -4694,6 +4755,31 @@ if (el.readOnly || el.disabled) return;
 el.dataset.real = el.value;
 }
 
+
+/* Real-time digital clock in pagination bar */
+function updateDigitalClock() {
+  const timeEl = document.getElementById('clockTime');
+  const dateEl = document.getElementById('clockDate');
+  if (!timeEl || !dateEl) return;
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  timeEl.textContent = `${h}:${m}:${s}`;
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  dateEl.textContent = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
+}
+function startDigitalClock() {
+  updateDigitalClock();
+  // Align to next whole second then tick every 1000ms
+  const ms = 1000 - (Date.now() % 1000);
+  setTimeout(() => {
+    updateDigitalClock();
+    setInterval(updateDigitalClock, 1000);
+  }, ms);
+}
+
 function init() {
 const dl = document.getElementById('usUniversities');
 dl.innerHTML = US_UNIVERSITIES.map(u => `<option value="${escapeHtml(u)}">`).join('');
@@ -5091,6 +5177,7 @@ setupPwaInstall();
 setupOnlineHandlers();
 registerServiceWorker();
 startSyncStatusTicker();
+startDigitalClock();
 updateSyncStatusUI();
 
 setTimeout(() => {
