@@ -836,8 +836,16 @@ ct: bufToBase64(ciphertext)
 };
 }
 
+function isValidEncryptedPayload(payload) {
+return !!(payload && typeof payload === 'object' && payload.salt && payload.iv && payload.ct);
+}
+
 async function decryptPayload(payload, password) {
-if (!payload || !payload.salt || !payload.iv || !payload.ct) throw new Error('Invalid encrypted payload');
+if (!isValidEncryptedPayload(payload)) {
+const err = new Error('Invalid encrypted payload');
+err.code = 'CORRUPT_VAULT';
+throw err;
+}
 const salt = new Uint8Array(base64ToBuf(payload.salt));
 const iv = new Uint8Array(base64ToBuf(payload.iv));
 const ct = base64ToBuf(payload.ct);
@@ -857,14 +865,16 @@ return JSON.parse(new TextDecoder().decode(decrypted));
 lastErr = e;
 }
 }
-throw lastErr || new Error('Decrypt failed');
+const err = lastErr || new Error('Decrypt failed');
+err.code = 'WRONG_PASSWORD';
+throw err;
 }
 
 async function hasEncryptedData() {
 try {
 const query = supabase
 .from('vault')
-.select('id')
+.select('id,payload')
 .eq('id', 'main')
 .maybeSingle();
 
@@ -874,7 +884,13 @@ if (error) {
 console.warn('hasEncryptedData error', error);
 return false;
 }
-return !!(data && data.id);
+// Treat missing or corrupt (non-encrypted) rows as "no vault"
+if (!data || !data.id) return false;
+if (data.payload && !isValidEncryptedPayload(data.payload)) {
+console.warn('Vault row exists but payload is not a valid encrypted envelope — treating as empty');
+return false;
+}
+return true;
 } catch (e) {
 console.warn('hasEncryptedData exception', e);
 return false;
@@ -1593,15 +1609,17 @@ try {
 let payload = null;
 let fromLocal = false;
 
-// Prefer cloud; fall back to local encrypted backup on network / 5xx
+// Prefer cloud; fall back to local encrypted backup on network / 5xx / corruption
 try {
 const { data: rows, error } = await supabase
 .from('vault')
 .select('payload')
 .eq('id', 'main')
 .maybeSingle();
-if (!error && rows && rows.payload) {
+if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
 payload = rows.payload;
+} else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
+console.warn('Cloud vault payload is corrupt — ignoring');
 }
 } catch (netErr) {
 console.warn('Cloud vault fetch failed during restore', netErr);
@@ -1609,7 +1627,7 @@ console.warn('Cloud vault fetch failed during restore', netErr);
 
 if (!payload) {
 const local = loadLocalEncrypted();
-if (local) {
+if (local && isValidEncryptedPayload(local)) {
 payload = local;
 fromLocal = true;
 console.info('Restored vault from local encrypted backup');
@@ -1978,21 +1996,23 @@ const { data: rows, error } = await supabase
 .select('payload')
 .eq('id', 'main')
 .maybeSingle();
-if (!error && rows && rows.payload) {
+if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
 payload = rows.payload;
+} else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
+console.warn('Cloud vault is corrupt — will try local backup or offer create');
 }
 } catch (netErr) {
 console.warn('Login cloud fetch failed', netErr);
 }
 if (!payload) {
 const local = loadLocalEncrypted();
-if (local) {
+if (local && isValidEncryptedPayload(local)) {
 payload = local;
 fromLocal = true;
 }
 }
 if (!payload) {
-showAuthError('No encrypted vault found. Create an account first (or check your connection).');
+showAuthError('No valid encrypted vault found (cloud may be empty or corrupted). Create a new vault, then re-import your data.');
 setAuthMode('signup');
 return;
 }
@@ -2025,7 +2045,16 @@ showToast(fromLocal ? 'Vault unlocked from local backup' : 'Vault unlocked', 'su
 }
 } catch (err) {
 console.warn(err);
-showAuthError(authMode === 'login' ? 'Incorrect password or corrupted vault.' : 'Failed to create vault. Try again.');
+if (authMode === 'login') {
+if (err && err.code === 'CORRUPT_VAULT') {
+showAuthError('Cloud vault is corrupted (invalid format). Switch to “Create Vault” to start fresh, or restore from an export.');
+setAuthMode('signup');
+} else {
+showAuthError('Incorrect password or corrupted vault.');
+}
+} else {
+showAuthError('Failed to create vault. Try again.');
+}
 } finally {
 submitBtn.disabled = false;
 showLoading(false);
