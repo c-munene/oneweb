@@ -1347,14 +1347,22 @@ if (jobs.length) await Promise.all(jobs);
 }
 
 /**
- * Fill missing transcript blobs from this device's IndexedDB cache only when cloud vault did not include them.
- * Cloud/vault data (with .data) always wins — that is how transcripts appear on every device after Save.
+ * Fill missing transcript blobs from this device's IndexedDB cache ONLY when the row still expects a file.
+ * If cloud vault has transcriptFile === null (deleted on another device), do NOT restore from IDB —
+ * clear the local IDB cache instead so deletions propagate to all devices.
  */
 async function rehydrateTranscriptsFromIdb() {
 const jobs = data.map(async (r) => {
 if (!r || !r.id) return;
-// Full blob already from cloud vault or import — keep it (cross-device source of truth)
+// Full blob already from cloud vault or import — keep it
 if (r.transcriptFile && r.transcriptFile.data) return;
+// Explicitly removed / never set on cloud — wipe local cache and stay null
+if (r.transcriptFile == null || r.transcriptFile === undefined) {
+  try { await idbDeleteTranscript(r.id); } catch (_) {}
+  r.transcriptFile = null;
+  return;
+}
+// Meta-only stub (name/size but no data) — try local cache once
 const stored = await idbGetTranscript(r.id);
 if (stored && stored.data) {
 r.transcriptFile = {
@@ -1363,8 +1371,7 @@ type: (r.transcriptFile && r.transcriptFile.type) || stored.type || 'application
 size: (r.transcriptFile && r.transcriptFile.size) || stored.size || 0,
 data: stored.data
 };
-} else if (r.transcriptFile && !r.transcriptFile.data) {
-// Meta-only stub and nothing in IDB
+} else {
 r.transcriptFile = null;
 }
 });
@@ -1595,8 +1602,10 @@ if (!localDirty) {
 lastSyncedAt = Date.now();
 localVaultUpdatedAt = Math.max(remoteUpdated || 0, lastSyncedAt);
 lastLivePullAt = lastSyncedAt;
+// Apply cloud transcript state: null means deleted on another device — do not revive from IDB
 await rehydrateTranscriptsFromIdb();
-persistTranscriptsToIdb().catch(() => {});
+// Cache only rows that still have transcript data; drop IDB entries for cleared ones
+await persistTranscriptsToIdb();
 rebuildDataIndex();
 applyFilters();
 updateStats();
