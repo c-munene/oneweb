@@ -1556,12 +1556,20 @@ stopLiveSync();
 
 async function pullCloudUpdates(opts = {}) {
 const { silent = true, force = false } = opts;
+// Automatic / background cloud pulls are disabled for data safety.
+// Only an explicit force:true call (none currently wired in UI) may pull.
+// Data is written to cloud exclusively via the Save button / Lock.
+if (!force) {
+  console.info('pullCloudUpdates skipped — auto-pull disabled; use Save to publish');
+  return false;
+}
 if (!sessionPassword || !isUnlocked) return false;
 if (!isOnline) return false;
 if (liveSyncInFlight || isSaving) return false;
 
-// If user has unsaved local edits, do not overwrite unless forced
-if (localDirty && !force) {
+// Never overwrite unsaved local edits
+if (localDirty) {
+  console.info('pullCloudUpdates blocked — local unsaved changes present');
   return false;
 }
 
@@ -1940,27 +1948,21 @@ function setupOnlineHandlers() {
 window.addEventListener('online', () => {
 isOnline = true;
 updateSyncStatusUI();
-showToast('Back online', 'info', 2000);
-// Pull latest vault so edits/deletes/transcripts from other devices appear
-if (isUnlocked && sessionPassword && !localDirty) {
-  pullCloudUpdates({ silent: false, force: false }).catch(() => {});
-}
+showToast('Back online. Click Save to upload any pending changes.', 'info', 2800);
+// Automatic cloud pull disabled for data safety — only explicit Save writes to cloud.
 });
 window.addEventListener('offline', () => {
 isOnline = false;
 updateSyncStatusUI();
-showToast('You are offline. Use Save when you are back online.', 'warning', 3500);
+showToast('You are offline. Changes stay on this device until you click Save while online.', 'warning', 4000);
 });
-// When returning to this tab, refresh from cloud if no unsaved local edits
+// Automatic pull on visibility/focus disabled — prevents silent overwrite / data loss.
+// Use Save to push your current state. Multi-device: Save on device A, then unlock (or Save) on device B after.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && isUnlocked && sessionPassword && isOnline && !localDirty) {
-    pullCloudUpdates({ silent: true, force: false }).catch(() => {});
-  }
+  if (document.visibilityState === 'visible') updateSyncStatusUI();
 });
 window.addEventListener('focus', () => {
-  if (isUnlocked && sessionPassword && isOnline && !localDirty) {
-    pullCloudUpdates({ silent: true, force: false }).catch(() => {});
-  }
+  updateSyncStatusUI();
 });
 }
 
@@ -2202,10 +2204,14 @@ const password = getPersistedSessionPassword();
 if (!password) return false;
 showLoading(true);
 try {
-let payload = null;
+// SAFETY-FIRST restore:
+// 1) Load both cloud and IndexedDB encrypted blobs (when available)
+// 2) Decrypt both
+// 3) Prefer the one with higher updatedAt / localDraftAt so recent local edits are never lost
+// 4) Never auto-pull again after unlock (Save is the only cloud write path)
+let cloudPayload = null;
+let idbPayload = null;
 
-// Cloud-primary session restore (no localStorage vault). Session password lives only in sessionStorage
-// so a same-tab refresh can unlock without re-typing; data always comes from the cloud vault.
 try {
   const { data: rows, error } = await supabase
     .from('vault')
@@ -2213,7 +2219,7 @@ try {
     .eq('id', 'main')
     .maybeSingle();
   if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
-    payload = rows.payload;
+    cloudPayload = rows.payload;
   } else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
     console.warn('Cloud vault payload is corrupt — ignoring');
   }
@@ -2221,38 +2227,96 @@ try {
   console.warn('Cloud vault fetch failed during restore', netErr);
 }
 
-// Optional: IndexedDB vault blob only as last-resort same-device cache (not localStorage)
-if (!payload) {
-  try {
-    const idbPayload = await idbGetVaultBlob();
-    if (idbPayload && isValidEncryptedPayload(idbPayload)) {
-      payload = idbPayload;
-      console.info('Restored vault from IndexedDB cache');
-    }
-  } catch (_) {}
-}
-
-if (!payload) {
-  clearPersistedSession();
-  document.documentElement.classList.remove('session-restore');
-  return false;
-}
-
-let decrypted;
 try {
-  decrypted = await decryptPayload(payload, password);
-} catch (decErr) {
-  console.warn('Session restore decrypt failed', decErr);
+  const blob = await idbGetVaultBlob();
+  if (blob && isValidEncryptedPayload(blob)) idbPayload = blob;
+} catch (_) {}
+
+if (!cloudPayload && !idbPayload) {
   clearPersistedSession();
   document.documentElement.classList.remove('session-restore');
   return false;
 }
-applyVaultEnvelope(decrypted);
+
+let cloudDec = null, idbDec = null;
+if (cloudPayload) {
+  try { cloudDec = await decryptPayload(cloudPayload, password); } catch (e) {
+    console.warn('Cloud decrypt failed during restore', e);
+  }
+}
+if (idbPayload) {
+  try { idbDec = await decryptPayload(idbPayload, password); } catch (e) {
+    console.warn('IndexedDB decrypt failed during restore', e);
+  }
+}
+
+if (!cloudDec && !idbDec) {
+  clearPersistedSession();
+  document.documentElement.classList.remove('session-restore');
+  return false;
+}
+
+function vaultScore(obj) {
+  if (!obj || typeof obj !== 'object') return 0;
+  const u = Number(obj.updatedAt) || Number(obj.lastSyncedAt) || 0;
+  const d = Number(obj.localDraftAt) || 0;
+  // Prefer explicit local draft timestamps, then updatedAt
+  return Math.max(u, d);
+}
+function recordCount(obj) {
+  if (!obj) return 0;
+  if (Array.isArray(obj)) return obj.length;
+  if (Array.isArray(obj.records)) return obj.records.length;
+  if (Array.isArray(obj.data)) return obj.data.length;
+  return 0;
+}
+
+let chosen = null;
+let chosenPayload = null;
+let source = 'none';
+
+if (cloudDec && idbDec) {
+  const cs = vaultScore(cloudDec);
+  const is = vaultScore(idbDec);
+  // Prefer local if it is a draft or strictly newer; also prefer local if it has more records (safety against partial cloud)
+  const idbIsDraft = !!(idbDec.localDraft || idbDec.localDraftAt);
+  if (idbIsDraft && is >= cs) {
+    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-draft';
+  } else if (is > cs) {
+    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-newer';
+  } else if (cs > is) {
+    chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-newer';
+  } else {
+    // Same timestamp — prefer the one with more records to avoid data loss
+    if (recordCount(idbDec) >= recordCount(cloudDec)) {
+      chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-tie';
+    } else {
+      chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-tie';
+    }
+  }
+} else if (idbDec) {
+  chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-only';
+} else {
+  chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-only';
+}
+
+console.info('Session restore source:', source);
+
+applyVaultEnvelope(chosen);
 if (!Array.isArray(data)) {
   clearPersistedSession();
   document.documentElement.classList.remove('session-restore');
   return false;
 }
+
+// If we restored a local draft, keep dirty flag so UI shows unsaved until explicit Save
+if (source.startsWith('indexeddb') && (chosen.localDraft || chosen.localDraftAt)) {
+  localDirty = true;
+} else {
+  localDirty = false;
+  lastSyncedAt = Number(chosen.lastSyncedAt) || Number(chosen.updatedAt) || Date.now();
+}
+
 sessionPassword = password;
 sessionVaultExists = true;
 persistSessionPassword(password);
@@ -2264,38 +2328,31 @@ data.forEach(r => {
 });
 await rehydrateTranscriptsFromIdb();
 persistTranscriptsToIdb().catch(() => {});
-// Keep IndexedDB vault cache in sync (not localStorage)
-try { idbPutVaultBlob(payload).catch(() => {}); } catch (_) {}
+// Keep IndexedDB cache aligned with what we actually loaded
+try { if (chosenPayload) idbPutVaultBlob(chosenPayload).catch(() => {}); } catch (_) {}
 rebuildDataIndex();
 applyFilters();
 
 const overlay = document.getElementById('authOverlay');
 const appRoot = document.getElementById('appRoot');
-if (overlay) overlay.classList.add('hidden');
+if (overlay) {
+  overlay.classList.add('hidden');
+  overlay.setAttribute('aria-hidden', 'true');
+}
+document.documentElement.classList.remove('session-restore');
 isUnlocked = true;
-let adminOn = false;
-try { adminOn = sessionStorage.getItem(SESSION_ADMIN_KEY) === '1'; } catch (_) {}
-isAdmin = adminOn;
-updateEditUI();
-updateStats();
-updatePagination();
-resetIdleTimer();
+if (appRoot) {
+  appRoot.style.display = '';
+  appRoot.setAttribute('aria-hidden', 'false');
+  void appRoot.offsetWidth;
+  requestAnimationFrame(() => appRoot.classList.add('ready'));
+}
+startIdleWatch();
 updateSyncStatusUI();
-stopLiveSync(); // live / real-time sync permanently disabled
-showLoading(false);
-
-await new Promise((resolve) => {
-  playWelcomeAnimation(() => {
-    document.documentElement.classList.remove('session-restore');
-    if (appRoot) {
-      appRoot.style.display = 'flex';
-      appRoot.setAttribute('aria-hidden', 'false');
-      void appRoot.offsetWidth;
-      requestAnimationFrame(() => appRoot.classList.add('ready'));
-    }
-    resolve();
-  });
-});
+updateStats();
+if (localDirty) {
+  showToast('Restored unsaved local edits. Click Save to upload them to the cloud.', 'warning', 4500);
+}
 return true;
 } catch (err) {
   console.warn('Session restore failed', err);
@@ -2306,6 +2363,7 @@ return true;
   showLoading(false);
 }
 }
+
 
 function updateEditUI() {
 const btn = document.getElementById('btnEnableEdit');
@@ -2442,19 +2500,27 @@ if (typeof onComplete === 'function') onComplete();
 
 async function lockApp() {
 stopLiveSync();
-localDirty = false;
 
+// Always attempt a final Save before wiping in-memory data (preserves local + cloud)
 if (sessionPassword) {
 try {
 if (saveTimer) {
 clearTimeout(saveTimer);
 saveTimer = null;
 }
-await saveToStorage(true);
+if (window.__localSnapTimer) {
+clearTimeout(window.__localSnapTimer);
+window.__localSnapTimer = null;
+}
+// Flush local safety snapshot first, then cloud
+await persistLocalSafetySnapshot();
+await saveToStorage(true, { isManual: true, silent: false });
 } catch (e) {
 console.warn('Final save on lock failed', e);
+showToast('Could not reach cloud on lock. Latest data is still in this device cache.', 'warning', 4500);
 }
 }
+localDirty = false;
 
 const eyelid = document.getElementById('eyelidOverlay');
 const overlay = document.getElementById('authOverlay');
@@ -2594,9 +2660,9 @@ resetIdleTimer();
 updateSyncStatusUI();
 showToast(error ? 'Vault created (cloud unreachable — click Save later)' : 'Encrypted vault created successfully', error ? 'warning' : 'success');
 } else {
-let payload = null;
-
-// Cloud-primary unlock — no localStorage vault
+// SAFETY-FIRST unlock: compare cloud vs IndexedDB, prefer newer / local draft
+let cloudPayload = null;
+let idbPayload = null;
 try {
   const { data: rows, error } = await supabase
     .from('vault')
@@ -2604,29 +2670,79 @@ try {
     .eq('id', 'main')
     .maybeSingle();
   if (!error && rows && rows.payload && isValidEncryptedPayload(rows.payload)) {
-    payload = rows.payload;
+    cloudPayload = rows.payload;
   } else if (rows && rows.payload && !isValidEncryptedPayload(rows.payload)) {
     console.warn('Cloud vault is corrupt — will try IndexedDB cache or offer create');
   }
 } catch (netErr) {
   console.warn('Login cloud fetch failed', netErr);
 }
-if (!payload) {
-  try {
-    const idbPayload = await idbGetVaultBlob();
-    if (idbPayload && isValidEncryptedPayload(idbPayload)) {
-      payload = idbPayload;
-    }
-  } catch (_) {}
-}
-if (!payload) {
+try {
+  const blob = await idbGetVaultBlob();
+  if (blob && isValidEncryptedPayload(blob)) idbPayload = blob;
+} catch (_) {}
+
+if (!cloudPayload && !idbPayload) {
   showAuthError('No valid encrypted vault found (cloud may be empty or corrupted). Create a new vault, then re-import your data.');
   setAuthMode('signup');
   return;
 }
 
-const decrypted = await decryptPayload(payload, password);
-applyVaultEnvelope(decrypted);
+let cloudDec = null, idbDec = null;
+if (cloudPayload) {
+  try { cloudDec = await decryptPayload(cloudPayload, password); } catch (e) {
+    if (e && e.code === 'WRONG_PASSWORD') throw e;
+    console.warn('Cloud decrypt on login failed', e);
+  }
+}
+if (idbPayload) {
+  try { idbDec = await decryptPayload(idbPayload, password); } catch (e) {
+    if (e && e.code === 'WRONG_PASSWORD' && !cloudDec) throw e;
+    console.warn('IndexedDB decrypt on login failed', e);
+  }
+}
+if (!cloudDec && !idbDec) {
+  throw Object.assign(new Error('Decrypt failed'), { code: 'WRONG_PASSWORD' });
+}
+
+function vaultScore(obj) {
+  if (!obj || typeof obj !== 'object') return 0;
+  return Math.max(Number(obj.updatedAt) || 0, Number(obj.lastSyncedAt) || 0, Number(obj.localDraftAt) || 0);
+}
+function recordCount(obj) {
+  if (!obj) return 0;
+  if (Array.isArray(obj)) return obj.length;
+  if (Array.isArray(obj.records)) return obj.records.length;
+  if (Array.isArray(obj.data)) return obj.data.length;
+  return 0;
+}
+
+let chosen = null;
+let chosenPayload = null;
+let source = 'none';
+if (cloudDec && idbDec) {
+  const cs = vaultScore(cloudDec);
+  const is = vaultScore(idbDec);
+  const idbIsDraft = !!(idbDec.localDraft || idbDec.localDraftAt);
+  if (idbIsDraft && is >= cs) {
+    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-draft';
+  } else if (is > cs) {
+    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-newer';
+  } else if (cs > is) {
+    chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-newer';
+  } else if (recordCount(idbDec) >= recordCount(cloudDec)) {
+    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-tie';
+  } else {
+    chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-tie';
+  }
+} else if (idbDec) {
+  chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-only';
+} else {
+  chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-only';
+}
+console.info('Login unlock source:', source);
+
+applyVaultEnvelope(chosen);
 if (!Array.isArray(data)) throw new Error('Invalid data');
 sessionPassword = password;
 sessionVaultExists = true;
@@ -2639,15 +2755,22 @@ data.forEach(r => {
 });
 await rehydrateTranscriptsFromIdb();
 persistTranscriptsToIdb().catch(() => {});
-try { idbPutVaultBlob(payload).catch(() => {}); } catch (_) {}
-appendAudit('unlock', 'Vault unlocked with master password');
+try { if (chosenPayload) idbPutVaultBlob(chosenPayload).catch(() => {}); } catch (_) {}
+appendAudit('unlock', 'Vault unlocked with master password (' + source + ')');
 rebuildDataIndex();
 applyFilters();
 showApp();
 resetIdleTimer();
-updateSyncStatusUI();
-scheduleSave();
-showToast('Vault unlocked', 'success');
+if (source.startsWith('indexeddb') && (chosen.localDraft || chosen.localDraftAt)) {
+  localDirty = true;
+  updateSyncStatusUI();
+  showToast('Unlocked with unsaved local edits. Click Save to upload to cloud.', 'warning', 4500);
+} else {
+  localDirty = false;
+  lastSyncedAt = Number(chosen.lastSyncedAt) || Number(chosen.updatedAt) || Date.now();
+  updateSyncStatusUI();
+  showToast('Vault unlocked', 'success');
+}
 }
 } catch (err) {
 console.warn(err);
@@ -4401,13 +4524,36 @@ const SAVE_RETRY_MAX = 5;
 // Session password uses sessionStorage only (survives same-tab refresh, not device power-off).
 
 function scheduleSave(immediate) {
-  // Autosave / cloud write only on explicit Save button or Lock.
+  // Cloud write ONLY on explicit Save button or Lock.
+  // Local IndexedDB snapshot is written immediately so a crash cannot lose edits.
   if (!sessionPassword) return;
   localDirty = true;
   updateSyncStatusUI();
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
+  }
+  // Debounced local-only safety snapshot (never touches cloud)
+  if (window.__localSnapTimer) clearTimeout(window.__localSnapTimer);
+  window.__localSnapTimer = setTimeout(() => {
+    window.__localSnapTimer = null;
+    persistLocalSafetySnapshot().catch(e => console.warn('Local safety snapshot failed', e));
+  }, immediate ? 80 : 400);
+}
+
+/** Write encrypted vault + transcripts to IndexedDB only (no cloud). Safety net against crashes. */
+async function persistLocalSafetySnapshot() {
+  if (!sessionPassword || !isUnlocked) return;
+  try {
+    await persistTranscriptsToIdb();
+    const envelope = buildVaultEnvelope();
+    // Mark as local draft so restore knows it may be newer than last cloud save
+    envelope.localDraft = true;
+    envelope.localDraftAt = Date.now();
+    const payload = await encryptPayload(envelope, sessionPassword);
+    await idbPutVaultBlob(payload);
+  } catch (e) {
+    console.warn('persistLocalSafetySnapshot', e);
   }
 }
 
