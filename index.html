@@ -325,6 +325,9 @@ svg[aria-hidden="true"]{display:inline-block;vertical-align:-0.125em;width:1em;h
               <button type="button" class="dropdown-item" role="menuitem" id="btnImportJson">
                 <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg> Import JSON
               </button>
+              <button type="button" class="dropdown-item" role="menuitem" id="btnRecoverLocal">
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Recover Local Backup
+              </button>
               <button type="button" class="dropdown-item" role="menuitem" id="btnAuditLog">
                 <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg> Audit Log
               </button>
@@ -865,9 +868,11 @@ const SOFT_VAULT_WARN_BYTES = 18 * 1024 * 1024; // warn only above ~18 MB encryp
 const SAVE_DEBOUNCE_MS = 180;
 const FILTER_DEBOUNCE_MS = 220;
 const IDB_NAME = 'oneweb_v1_idb';
-const IDB_VERSION = 1;
+const IDB_VERSION = 2;
 const IDB_STORE_TRANSCRIPTS = 'transcripts';
 const IDB_STORE_VAULT = 'vault';
+const IDB_STORE_HISTORY = 'vault_history';
+const MAX_VAULT_HISTORY = 8;
 
 let data = [];
 let filteredData = [];
@@ -1277,11 +1282,162 @@ db.createObjectStore(IDB_STORE_TRANSCRIPTS, { keyPath: 'id' });
 if (!db.objectStoreNames.contains(IDB_STORE_VAULT)) {
 db.createObjectStore(IDB_STORE_VAULT, { keyPath: 'id' });
 }
+if (!db.objectStoreNames.contains(IDB_STORE_HISTORY)) {
+const hist = db.createObjectStore(IDB_STORE_HISTORY, { keyPath: 'key' });
+hist.createIndex('savedAt', 'savedAt', { unique: false });
+}
 };
 req.onsuccess = () => resolve(req.result);
 req.onerror = () => reject(req.error || new Error('IDB open failed'));
 });
 }
+
+/** Keep rolling encrypted backups in IndexedDB so a bad cloud/local write cannot erase the only copy. */
+async function idbPushVaultHistory(payload, meta = {}) {
+try {
+if (!payload || !isValidEncryptedPayload(payload)) return;
+const db = await openIdb();
+const key = 'h_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_HISTORY, 'readwrite');
+const store = tx.objectStore(IDB_STORE_HISTORY);
+store.put({
+key,
+payload,
+savedAt: Date.now(),
+recordCount: meta.recordCount || 0,
+source: meta.source || 'snapshot',
+updatedAt: meta.updatedAt || Date.now()
+});
+tx.oncomplete = () => resolve();
+tx.onerror = () => reject(tx.error);
+});
+// Prune oldest beyond MAX_VAULT_HISTORY
+const all = await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_HISTORY, 'readonly');
+const req = tx.objectStore(IDB_STORE_HISTORY).getAll();
+req.onsuccess = () => resolve(req.result || []);
+req.onerror = () => reject(req.error);
+});
+if (all.length > MAX_VAULT_HISTORY) {
+all.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0));
+const toDelete = all.slice(0, all.length - MAX_VAULT_HISTORY);
+await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_HISTORY, 'readwrite');
+const store = tx.objectStore(IDB_STORE_HISTORY);
+toDelete.forEach(item => store.delete(item.key));
+tx.oncomplete = () => resolve();
+tx.onerror = () => reject(tx.error);
+});
+}
+db.close();
+} catch (e) {
+console.warn('IDB vault history push failed', e);
+}
+}
+
+async function idbListVaultHistory() {
+try {
+const db = await openIdb();
+const all = await new Promise((resolve, reject) => {
+const tx = db.transaction(IDB_STORE_HISTORY, 'readonly');
+const req = tx.objectStore(IDB_STORE_HISTORY).getAll();
+req.onsuccess = () => resolve(req.result || []);
+req.onerror = () => reject(req.error);
+});
+db.close();
+return (all || []).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+} catch (e) {
+console.warn('IDB vault history list failed', e);
+return [];
+}
+}
+
+/** Let user restore the best historical local snapshot (encrypted) if data was lost. */
+async function recoverFromLocalHistory() {
+  if (!sessionPassword || !isUnlocked) {
+    showToast('Unlock the vault first', 'error');
+    return;
+  }
+  const okAdmin = await requireAdmin('recover from local backup');
+  if (!okAdmin) return;
+
+  showLoading(true);
+  try {
+    const history = await idbListVaultHistory();
+    // Also try current main blob
+    const mainBlob = await idbGetVaultBlob();
+    const candidates = [];
+    if (mainBlob && isValidEncryptedPayload(mainBlob)) {
+      candidates.push({ key: 'main', payload: mainBlob, savedAt: Date.now(), source: 'current-cache' });
+    }
+    history.forEach(h => {
+      if (h && h.payload && isValidEncryptedPayload(h.payload)) candidates.push(h);
+    });
+    if (!candidates.length) {
+      showToast('No local encrypted backups found on this device', 'warning', 4000);
+      return;
+    }
+
+    // Decrypt and rank by record count, then recency
+    const ranked = [];
+    for (const c of candidates) {
+      try {
+        const dec = await decryptPayload(c.payload, sessionPassword);
+        let count = 0;
+        if (Array.isArray(dec)) count = dec.length;
+        else if (dec && Array.isArray(dec.records)) count = dec.records.length;
+        else if (dec && Array.isArray(dec.data)) count = dec.data.length;
+        ranked.push({ ...c, dec, count });
+      } catch (e) {
+        console.warn('Skip history entry decrypt failed', e);
+      }
+    }
+    ranked.sort((a, b) => (b.count - a.count) || ((b.savedAt || 0) - (a.savedAt || 0)));
+    if (!ranked.length) {
+      showToast('Could not decrypt any local backup with this password', 'error', 4000);
+      return;
+    }
+
+    const best = ranked[0];
+    const msg =
+      `Found ${ranked.length} local backup(s).\n\n` +
+      `Best: ${best.count} record(s)` +
+      (best.savedAt ? ` · ${new Date(best.savedAt).toLocaleString()}` : '') +
+      ` · ${best.source || best.key || 'backup'}\n\n` +
+      `Current table has ${data.length} record(s).\n\n` +
+      `OK = Replace current data with this backup\n` +
+      `Cancel = Keep current data`;
+    if (!window.confirm(msg)) {
+      showToast('Recovery cancelled', 'info', 2000);
+      return;
+    }
+
+    const applied = applyVaultEnvelope(best.dec, { allowEmpty: false, mergeWithCurrent: false });
+    if (!applied) {
+      showToast('Recovery blocked — backup looked empty', 'error');
+      return;
+    }
+    data.forEach(r => {
+      if (!r.id) r.id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      if (!r.createdAt) r.createdAt = Date.now();
+    });
+    await rehydrateTranscriptsFromIdb();
+    rebuildDataIndex();
+    localDirty = true;
+    applyFilters();
+    updateStats();
+    updateSyncStatusUI();
+    appendAudit('recover_local', `${best.count} records from local history`);
+    showToast(`Recovered ${data.length} record(s) from local backup. Click Save to upload to cloud.`, 'success', 5000);
+  } catch (e) {
+    console.error(e);
+    showToast('Recovery failed — see console', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
 
 async function idbPutTranscript(rowId, fileObj) {
 if (!rowId || !fileObj || !fileObj.data) return;
@@ -1355,7 +1511,7 @@ console.warn('IDB transcript clear failed', e);
 }
 }
 
-async function idbPutVaultBlob(payload) {
+async function idbPutVaultBlob(payload, meta = {}) {
 try {
 const db = await openIdb();
 await new Promise((resolve, reject) => {
@@ -1369,6 +1525,8 @@ tx.oncomplete = () => resolve();
 tx.onerror = () => reject(tx.error);
 });
 db.close();
+// Rolling encrypted backups — protects against a single bad overwrite
+idbPushVaultHistory(payload, meta).catch(() => {});
 } catch (e) {
 console.warn('IDB vault put failed', e);
 }
@@ -1479,38 +1637,102 @@ transcriptStorage: 'vault'
 };
 }
 
-function applyVaultEnvelope(obj) {
+function applyVaultEnvelope(obj, opts = {}) {
+const { allowEmpty = true, mergeWithCurrent = false } = opts;
+const prevData = Array.isArray(data) ? data.slice() : [];
+const prevCount = prevData.length;
+
 if (Array.isArray(obj)) {
-data = obj;
-auditLog = [];
-deletedIds = new Set();
-idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
-lastSyncedAt = Date.now();
-localVaultUpdatedAt = lastSyncedAt;
-return;
+  // Legacy array form
+  if (!allowEmpty && obj.length === 0 && prevCount > 0) {
+    console.warn('Refusing to apply empty array vault over', prevCount, 'local rows');
+    return false;
+  }
+  data = obj;
+  auditLog = [];
+  deletedIds = new Set();
+  idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
+  lastSyncedAt = Date.now();
+  localVaultUpdatedAt = lastSyncedAt;
+  return true;
 }
 if (obj && typeof obj === 'object') {
-data = Array.isArray(obj.records) ? obj.records : (Array.isArray(obj.data) ? obj.data : []);
-auditLog = Array.isArray(obj.auditLog) ? obj.auditLog : [];
-deletedIds = new Set(Array.isArray(obj.deletedIds) ? obj.deletedIds : []);
-// Drop any records that are tombstoned (safety)
-if (deletedIds.size) {
-data = data.filter(r => r && r.id && !deletedIds.has(r.id));
+  let incoming = Array.isArray(obj.records) ? obj.records : (Array.isArray(obj.data) ? obj.data : []);
+  incoming = (incoming || []).filter(r => r && r.id);
+  const incomingDeleted = new Set(Array.isArray(obj.deletedIds) ? obj.deletedIds : []);
+
+  // SAFETY: never replace a non-empty workspace with an empty vault unless explicitly allowed
+  if (!allowEmpty && incoming.length === 0 && prevCount > 0) {
+    console.warn('Refusing to apply empty object vault over', prevCount, 'local rows');
+    return false;
+  }
+
+  if (mergeWithCurrent && prevCount > 0) {
+    // Union by id — prefer higher updatedAt; never drop a local-only row unless tombstoned in incoming AND incoming has authoritative content
+    const byId = new Map();
+    prevData.forEach(r => { if (r && r.id) byId.set(r.id, r); });
+    incoming.forEach(r => {
+      if (!r || !r.id) return;
+      if (incomingDeleted.has(r.id)) return;
+      const local = byId.get(r.id);
+      if (!local) {
+        byId.set(r.id, r);
+        return;
+      }
+      const lt = Number(local.updatedAt) || Number(local.createdAt) || 0;
+      const rt = Number(r.updatedAt) || Number(r.createdAt) || 0;
+      // Prefer side with more filled fields on tie
+      if (rt > lt) byId.set(r.id, r);
+      else if (rt === lt) {
+        const localFilled = Object.values(local).filter(v => v != null && v !== '').length;
+        const remoteFilled = Object.values(r).filter(v => v != null && v !== '').length;
+        if (remoteFilled > localFilled) byId.set(r.id, r);
+      }
+    });
+    // Only drop local rows that are tombstoned AND the incoming vault actually carries other data (not a wipe)
+    if (incoming.length > 0) {
+      incomingDeleted.forEach(id => {
+        // Keep if local row was edited more recently than vault updatedAt
+        const local = byId.get(id);
+        if (!local) return;
+        const vaultTs = Number(obj.updatedAt) || Number(obj.lastSyncedAt) || 0;
+        const localTs = Number(local.updatedAt) || Number(local.createdAt) || 0;
+        if (localTs <= vaultTs) byId.delete(id);
+      });
+    }
+    data = Array.from(byId.values());
+    // Union tombstones carefully
+    deletedIds = new Set([...(deletedIds || []), ...incomingDeleted]);
+  } else {
+    data = incoming.filter(r => r && r.id && !incomingDeleted.has(r.id));
+    deletedIds = incomingDeleted;
+  }
+
+  // Final safety net: if we would go from N>0 to 0 due to tombstones, keep previous
+  if (data.length === 0 && prevCount > 0 && !allowEmpty) {
+    console.warn('Tombstone filter would wipe all rows — keeping previous data');
+    data = prevData;
+    return false;
+  }
+
+  auditLog = Array.isArray(obj.auditLog) ? obj.auditLog : (auditLog || []);
+  if (obj.settings && typeof obj.settings.idleTimeoutMinutes === 'number') {
+    idleTimeoutMinutes = obj.settings.idleTimeoutMinutes;
+  }
+  lastSyncedAt = obj.lastSyncedAt || obj.updatedAt || lastSyncedAt || Date.now();
+  localVaultUpdatedAt = obj.updatedAt || obj.lastSyncedAt || localVaultUpdatedAt || lastSyncedAt;
+  vaultMeta = { version: obj.version || 2, transcriptStorage: obj.transcriptStorage || null };
+  return true;
 }
-if (obj.settings && typeof obj.settings.idleTimeoutMinutes === 'number') {
-idleTimeoutMinutes = obj.settings.idleTimeoutMinutes;
-} else {
-idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
-}
-lastSyncedAt = obj.lastSyncedAt || obj.updatedAt || Date.now();
-localVaultUpdatedAt = obj.updatedAt || obj.lastSyncedAt || lastSyncedAt;
-vaultMeta = { version: obj.version || 2, transcriptStorage: obj.transcriptStorage || null };
-return;
+if (!allowEmpty && prevCount > 0) {
+  console.warn('Refusing to clear data via empty apply');
+  return false;
 }
 data = [];
 auditLog = [];
 deletedIds = new Set();
 idleTimeoutMinutes = DEFAULT_IDLE_MINUTES;
+return true;
 }
 
 function recordsFingerprint(rows) {
@@ -2260,7 +2482,6 @@ function vaultScore(obj) {
   if (!obj || typeof obj !== 'object') return 0;
   const u = Number(obj.updatedAt) || Number(obj.lastSyncedAt) || 0;
   const d = Number(obj.localDraftAt) || 0;
-  // Prefer explicit local draft timestamps, then updatedAt
   return Math.max(u, d);
 }
 function recordCount(obj) {
@@ -2270,40 +2491,53 @@ function recordCount(obj) {
   if (Array.isArray(obj.data)) return obj.data.length;
   return 0;
 }
+/** Prefer the side that actually keeps user data. Never pick a near-empty vault over a full one. */
+function pickSaferVault(cloudDec, idbDec, cloudPayload, idbPayload) {
+  const cc = recordCount(cloudDec);
+  const ic = recordCount(idbDec);
+  const cs = vaultScore(cloudDec);
+  const is = vaultScore(idbDec);
+  const idbIsDraft = !!(idbDec.localDraft || idbDec.localDraftAt);
+  // Hard rule: if one side has 0 and the other has data, take the one with data
+  if (ic > 0 && cc === 0) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-has-data' };
+  if (cc > 0 && ic === 0) return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-has-data' };
+  // Hard rule: if one side has significantly more records (>= 2x or +5), prefer it
+  if (ic >= cc + 5 || (cc > 0 && ic >= cc * 2)) {
+    return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-more-records' };
+  }
+  if (cc >= ic + 5 || (ic > 0 && cc >= ic * 2)) {
+    return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-more-records' };
+  }
+  // Draft local wins on equal-ish size
+  if (idbIsDraft && is >= cs - 60000) { // within 1 min
+    return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-draft' };
+  }
+  if (is > cs) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-newer' };
+  if (cs > is) return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-newer' };
+  // Tie — prefer more records, then local
+  if (ic >= cc) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-tie' };
+  return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-tie' };
+}
 
 let chosen = null;
 let chosenPayload = null;
 let source = 'none';
 
 if (cloudDec && idbDec) {
-  const cs = vaultScore(cloudDec);
-  const is = vaultScore(idbDec);
-  // Prefer local if it is a draft or strictly newer; also prefer local if it has more records (safety against partial cloud)
-  const idbIsDraft = !!(idbDec.localDraft || idbDec.localDraftAt);
-  if (idbIsDraft && is >= cs) {
-    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-draft';
-  } else if (is > cs) {
-    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-newer';
-  } else if (cs > is) {
-    chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-newer';
-  } else {
-    // Same timestamp — prefer the one with more records to avoid data loss
-    if (recordCount(idbDec) >= recordCount(cloudDec)) {
-      chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-tie';
-    } else {
-      chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-tie';
-    }
-  }
+  const pick = pickSaferVault(cloudDec, idbDec, cloudPayload, idbPayload);
+  chosen = pick.chosen; chosenPayload = pick.chosenPayload; source = pick.source;
 } else if (idbDec) {
   chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-only';
 } else {
   chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-only';
 }
 
-console.info('Session restore source:', source);
+console.info('Session restore source:', source, 'records~', 
+  Array.isArray(chosen.records) ? chosen.records.length : (Array.isArray(chosen) ? chosen.length : '?'));
 
-applyVaultEnvelope(chosen);
-if (!Array.isArray(data)) {
+// On session restore memory is empty — allowEmpty true is OK, no merge needed
+const applied = applyVaultEnvelope(chosen, { allowEmpty: true, mergeWithCurrent: false });
+if (!applied || !Array.isArray(data)) {
   clearPersistedSession();
   document.documentElement.classList.remove('session-restore');
   return false;
@@ -2716,34 +2950,45 @@ function recordCount(obj) {
   if (Array.isArray(obj.data)) return obj.data.length;
   return 0;
 }
+function pickSaferVault(cloudDec, idbDec, cloudPayload, idbPayload) {
+  const cc = recordCount(cloudDec);
+  const ic = recordCount(idbDec);
+  const cs = vaultScore(cloudDec);
+  const is = vaultScore(idbDec);
+  const idbIsDraft = !!(idbDec.localDraft || idbDec.localDraftAt);
+  if (ic > 0 && cc === 0) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-has-data' };
+  if (cc > 0 && ic === 0) return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-has-data' };
+  if (ic >= cc + 5 || (cc > 0 && ic >= cc * 2)) {
+    return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-more-records' };
+  }
+  if (cc >= ic + 5 || (ic > 0 && cc >= ic * 2)) {
+    return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-more-records' };
+  }
+  if (idbIsDraft && is >= cs - 60000) {
+    return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-draft' };
+  }
+  if (is > cs) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-newer' };
+  if (cs > is) return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-newer' };
+  if (ic >= cc) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-tie' };
+  return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-tie' };
+}
 
 let chosen = null;
 let chosenPayload = null;
 let source = 'none';
 if (cloudDec && idbDec) {
-  const cs = vaultScore(cloudDec);
-  const is = vaultScore(idbDec);
-  const idbIsDraft = !!(idbDec.localDraft || idbDec.localDraftAt);
-  if (idbIsDraft && is >= cs) {
-    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-draft';
-  } else if (is > cs) {
-    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-newer';
-  } else if (cs > is) {
-    chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-newer';
-  } else if (recordCount(idbDec) >= recordCount(cloudDec)) {
-    chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-tie';
-  } else {
-    chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-tie';
-  }
+  const pick = pickSaferVault(cloudDec, idbDec, cloudPayload, idbPayload);
+  chosen = pick.chosen; chosenPayload = pick.chosenPayload; source = pick.source;
 } else if (idbDec) {
   chosen = idbDec; chosenPayload = idbPayload; source = 'indexeddb-only';
 } else {
   chosen = cloudDec; chosenPayload = cloudPayload; source = 'cloud-only';
 }
-console.info('Login unlock source:', source);
+console.info('Login unlock source:', source, 'records~',
+  Array.isArray(chosen.records) ? chosen.records.length : (Array.isArray(chosen) ? chosen.length : '?'));
 
-applyVaultEnvelope(chosen);
-if (!Array.isArray(data)) throw new Error('Invalid data');
+const applied = applyVaultEnvelope(chosen, { allowEmpty: true, mergeWithCurrent: false });
+if (!applied || !Array.isArray(data)) throw new Error('Invalid data');
 sessionPassword = password;
 sessionVaultExists = true;
 persistSessionPassword(password);
@@ -4551,7 +4796,11 @@ async function persistLocalSafetySnapshot() {
     envelope.localDraft = true;
     envelope.localDraftAt = Date.now();
     const payload = await encryptPayload(envelope, sessionPassword);
-    await idbPutVaultBlob(payload);
+    await idbPutVaultBlob(payload, {
+      recordCount: data.length,
+      source: 'local-draft',
+      updatedAt: envelope.localDraftAt
+    });
   } catch (e) {
     console.warn('persistLocalSafetySnapshot', e);
   }
@@ -4628,6 +4877,23 @@ try {
 // Cache transcripts on this device, then build vault WITH full transcript data for cloud (all devices)
 await persistTranscriptsToIdb();
 
+// SAFETY: never silently push an empty vault that would wipe cloud/other devices
+if (data.length === 0 && !silent) {
+  const okEmpty = window.confirm(
+    'You are about to Save an EMPTY vault (0 records).\n\n' +
+    'This can overwrite cloud data on other devices.\n\n' +
+    'Click OK only if you intentionally cleared everything.\n' +
+    'Click Cancel to abort Save and keep existing cloud data.'
+  );
+  if (!okEmpty) {
+    showToast('Save cancelled — empty vault was not uploaded', 'warning', 3500);
+    isSaving = false;
+    pendingCloudSave = false;
+    updateSyncStatusUI();
+    return false;
+  }
+}
+
 const envelope = buildVaultEnvelope();
 const payload = await encryptPayload(envelope, sessionPassword);
 const approxBytes = estimatePayloadBytes(payload);
@@ -4646,8 +4912,12 @@ showToast(
 }
 }
 
-// Cache encrypted payload in IndexedDB only (no localStorage)
-idbPutVaultBlob(payload).catch(() => {});
+// Cache encrypted payload in IndexedDB + rolling history (never only one copy)
+await idbPutVaultBlob(payload, {
+  recordCount: data.length,
+  source: isManual ? 'manual-save' : 'save',
+  updatedAt: envelope.updatedAt || Date.now()
+});
 
 for (let attempt = 1; attempt <= SAVE_RETRY_MAX; attempt++) {
 if (!sessionPassword) break;
@@ -5289,6 +5559,10 @@ if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
 document.getElementById('jsonImportInput').click();
 });
 document.getElementById('jsonImportInput')?.addEventListener('change', handleJsonImport);
+document.getElementById('btnRecoverLocal')?.addEventListener('click', () => {
+if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
+recoverFromLocalHistory();
+});
 document.getElementById('btnAuditLog')?.addEventListener('click', () => {
 if (typeof closeAllDropdowns === 'function') closeAllDropdowns();
 openAuditModal();
