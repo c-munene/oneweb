@@ -1780,29 +1780,32 @@ liveSyncInFlight = false;
 }
 
 function startLiveSync() {
-// Periodic live polling is disabled. Multi-device sync uses:
-// 1) explicit Save (push full vault + transcripts + tombstones to cloud)
-// 2) pull on tab focus / visibility / back-online when there are no unsaved edits
+// Cloud is source of truth. Poll when tab is visible and there are no unsaved edits.
 stopLiveSync();
+if (!sessionPassword || !isUnlocked) return;
+liveSyncTimer = setInterval(() => {
+  if (!sessionPassword || !isUnlocked || !isOnline) return;
+  if (document.hidden) return;
+  if (localDirty || isSaving || liveSyncInFlight) return;
+  pullCloudUpdates({ silent: true, force: false }).catch(() => {});
+}, 20000);
 }
 
 async function pullCloudUpdates(opts = {}) {
 const { silent = true, force = false } = opts;
-// Automatic / background cloud pulls are disabled for data safety.
-// Only an explicit force:true call (none currently wired in UI) may pull.
-// Data is written to cloud exclusively via the Save button / Lock.
-if (!force) {
-  console.info('pullCloudUpdates skipped — auto-pull disabled; use Save to publish');
-  return false;
-}
+// Pure cloud sync: pull remote changes when this device has no unsaved edits.
+// force=true is used after unlock / explicit refresh; normal pulls skip if dirty.
 if (!sessionPassword || !isUnlocked) return false;
 if (!isOnline) return false;
 if (liveSyncInFlight || isSaving) return false;
 
-// Never overwrite unsaved local edits
-if (localDirty) {
+// Never overwrite unsaved local edits (unless force and user confirmed elsewhere)
+if (localDirty && !force) {
   console.info('pullCloudUpdates blocked — local unsaved changes present');
   return false;
+}
+if (localDirty && force) {
+  console.warn('pullCloudUpdates force with localDirty — merge will prefer local dirty rows');
 }
 
 liveSyncInFlight = true;
@@ -2196,21 +2199,32 @@ function setupOnlineHandlers() {
 window.addEventListener('online', () => {
 isOnline = true;
 updateSyncStatusUI();
-showToast('Back online. Click Save to upload any pending changes.', 'info', 2800);
-// Automatic cloud pull disabled for data safety — only explicit Save writes to cloud.
+if (localDirty) {
+  showToast('Back online. Click Save to upload pending changes.', 'info', 2800);
+} else if (sessionPassword && isUnlocked) {
+  showToast('Back online. Syncing from cloud…', 'info', 2200);
+  pullCloudUpdates({ silent: true, force: false }).catch(() => {});
+}
 });
 window.addEventListener('offline', () => {
 isOnline = false;
 updateSyncStatusUI();
 showToast('You are offline. Changes stay on this device until you click Save while online.', 'warning', 4000);
 });
-// Automatic pull on visibility/focus disabled — prevents silent overwrite / data loss.
-// Use Save to push your current state. Multi-device: Save on device A, then unlock (or Save) on device B after.
+// Safe multi-device sync: when tab becomes visible / focused and there are no unsaved edits, pull cloud.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') updateSyncStatusUI();
+  if (document.visibilityState === 'visible') {
+    updateSyncStatusUI();
+    if (sessionPassword && isUnlocked && isOnline && !localDirty && !isSaving) {
+      pullCloudUpdates({ silent: true, force: false }).catch(() => {});
+    }
+  }
 });
 window.addEventListener('focus', () => {
   updateSyncStatusUI();
+  if (sessionPassword && isUnlocked && isOnline && !localDirty && !isSaving) {
+    pullCloudUpdates({ silent: true, force: false }).catch(() => {});
+  }
 });
 }
 
@@ -2517,32 +2531,30 @@ function recordCount(obj) {
   if (Array.isArray(obj.data)) return obj.data.length;
   return 0;
 }
-/** Prefer the side that actually keeps user data. Never pick a near-empty vault over a full one. */
+/** Cloud is source of truth. Prefer cloud unless local draft is clearly newer with more data. */
 function pickSaferVault(cloudDec, idbDec, cloudPayload, idbPayload) {
   const cc = recordCount(cloudDec);
   const ic = recordCount(idbDec);
   const cs = vaultScore(cloudDec);
   const is = vaultScore(idbDec);
-  const idbIsDraft = !!(idbDec.localDraft || idbDec.localDraftAt);
+  const idbIsDraft = !!(idbDec && (idbDec.localDraft || idbDec.localDraftAt));
   // Hard rule: if one side has 0 and the other has data, take the one with data
   if (ic > 0 && cc === 0) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-has-data' };
   if (cc > 0 && ic === 0) return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-has-data' };
-  // Hard rule: if one side has significantly more records (>= 2x or +5), prefer it
+  // Significant record-count lead wins (protect against empty overwrite)
   if (ic >= cc + 5 || (cc > 0 && ic >= cc * 2)) {
     return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-more-records' };
   }
   if (cc >= ic + 5 || (ic > 0 && cc >= ic * 2)) {
     return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-more-records' };
   }
-  // Draft local wins on equal-ish size
-  if (idbIsDraft && is >= cs - 60000) { // within 1 min
-    return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-draft' };
+  // Local draft only wins if it is strictly newer than cloud (unsaved crash recovery)
+  if (idbIsDraft && is > cs + 2000) {
+    return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-draft-newer' };
   }
-  if (is > cs) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-newer' };
-  if (cs > is) return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-newer' };
-  // Tie — prefer more records, then local
-  if (ic >= cc) return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-tie' };
-  return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-tie' };
+  // Prefer cloud when equal or cloud newer — pure multi-device source of truth
+  if (cs >= is) return { chosen: cloudDec, chosenPayload: cloudPayload, source: 'cloud-preferred' };
+  return { chosen: idbDec, chosenPayload: idbPayload, source: 'indexeddb-newer' };
 }
 
 let chosen = null;
@@ -2608,11 +2620,15 @@ if (appRoot) {
   requestAnimationFrame(() => appRoot.classList.add('ready'));
 }
 startIdleWatch();
+startLiveSync();
 updateSyncStatusUI();
 updateStats();
 requestAnimationFrame(() => updateStats());
 if (localDirty) {
   showToast('Restored unsaved local edits. Click Save to upload them to the cloud.', 'warning', 4500);
+} else if (isOnline) {
+  // Refresh from cloud in case another device saved while this tab was closed
+  pullCloudUpdates({ silent: true, force: false }).catch(() => {});
 }
 return true;
 } catch (err) {
@@ -2722,8 +2738,12 @@ overlay.classList.add('hidden');
 isUnlocked = true;
 isAdmin = false;
 updateEditUI();
-// Live / real-time cloud pull permanently disabled
-stopLiveSync();
+// Start safe cloud polling for multi-device sync (only when no local dirty edits)
+startLiveSync();
+// Immediately pull once so this device sees the latest cloud vault
+if (isOnline && !localDirty) {
+  pullCloudUpdates({ silent: true, force: false }).catch(() => {});
+}
 
 playWelcomeAnimation(() => {
 appRoot.style.display = 'flex';
@@ -4849,7 +4869,7 @@ async function persistLocalSafetySnapshot() {
 async function cloudUpsert(payload) {
 const row = { id: 'main', payload: payload };
 
-// Primary path: PostgREST upsert with explicit conflict target
+// Primary path: PostgREST upsert with explicit conflict target + Prefer merge
 let result = await supabase
 .from('vault')
 .upsert(row, { onConflict: 'id' })
@@ -4859,15 +4879,27 @@ let result = await supabase
 if (!result.error) return result;
 
 const msg = (result.error && result.error.message) ? String(result.error.message) : '';
-// If the first form is rejected (e.g. older PostgREST / missing unique), try plain upsert
+console.warn('cloudUpsert primary failed', msg);
+
+// Fallback 1: plain upsert
 if (!/permission|rls|policy|401|403|JWT/i.test(msg)) {
-result = await supabase
-.from('vault')
-.upsert(row)
-.select('id')
-.maybeSingle();
+  result = await supabase
+    .from('vault')
+    .upsert(row)
+    .select('id')
+    .maybeSingle();
+  if (!result.error) return result;
 }
-return result;
+
+// Fallback 2: update then insert (handles edge cases without unique constraint)
+try {
+  const upd = await supabase.from('vault').update({ payload }).eq('id', 'main').select('id').maybeSingle();
+  if (!upd.error && upd.data) return upd;
+  const ins = await supabase.from('vault').insert(row).select('id').maybeSingle();
+  return ins;
+} catch (e) {
+  return { data: null, error: e };
+}
 }
 
 /**
@@ -4982,10 +5014,11 @@ await new Promise(r => setTimeout(r, delay));
 
 if (success) {
 updateSyncStatusUI();
+startLiveSync();
 if (isManual && !silent) {
 const tc = data.filter(r => r.transcriptFile && r.transcriptFile.data).length;
 const extra = tc ? ` · ${tc} transcript(s) available on all devices` : '';
-showToast(`Encrypted & saved ${data.length} record(s)${extra}`, 'success', 2800);
+showToast(`Encrypted & saved ${data.length} record(s) to cloud${extra}`, 'success', 2800);
 }
 } else {
 // Cloud failed — IndexedDB cache may still hold the last successful payload
