@@ -843,31 +843,42 @@ const headerMap = {
 
 const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
 /*
- * SUPABASE VAULT SETUP (run once in Supabase → SQL Editor)
+ * SUPABASE VAULT SETUP — RESET (run in Supabase → SQL Editor)
  * ---------------------------------------------------------
- * create table if not exists public.vault (
+ * drop function if exists public.upsert_vault(text, jsonb, integer);
+ * drop table if exists public.vault;
+ * create table public.vault (
  *   id text primary key,
  *   payload jsonb not null,
  *   record_count integer not null default 0,
- *   updated_at timestamptz default now()
+ *   updated_at timestamptz not null default now()
  * );
- * alter table public.vault add column if not exists record_count integer not null default 0;
- * -- Optional if large-vault timeouts persist: store as text instead of jsonb
- * -- alter table public.vault alter column payload type text using payload::text;
- * alter role authenticator set statement_timeout = '60s';
- * alter role anon set statement_timeout = '60s';
  * alter table public.vault enable row level security;
- * drop policy if exists "anon_all_vault" on public.vault;
  * create policy "anon_all_vault" on public.vault
  *   for all to anon using (true) with check (true);
  * grant select, insert, update, delete on public.vault to anon;
+ * create or replace function public.upsert_vault(
+ *   p_id text, p_payload jsonb, p_record_count integer
+ * ) returns void
+ * language plpgsql security definer as $$
+ * begin
+ *   insert into public.vault (id, payload, record_count, updated_at)
+ *   values (p_id, p_payload, coalesce(p_record_count, 0), now())
+ *   on conflict (id) do update set
+ *     payload = excluded.payload,
+ *     record_count = excluded.record_count,
+ *     updated_at = now();
+ * end;
+ * $$;
+ * grant execute on function public.upsert_vault(text, jsonb, integer) to anon;
+ * alter role authenticator set statement_timeout = '60s';
+ * alter role anon set statement_timeout = '60s';
  * NOTIFY pgrst, 'reload schema';
  *
  * Security model: the blob is AES-256-GCM encrypted client-side.
  * The anon key can read/write the ciphertext but cannot decrypt it
- * without the master password. For multi-tenant use, replace the
- * open policy with authenticated user policies.
- */
+ * without the master password. IndexedDB keeps an encrypted local copy.
+*/
 const SUPABASE_URL = 'https://wqmgciavxiteqwtxavqc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxbWdjaWF2eGl0ZXF3dHhhdnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MjU4NjYsImV4cCI6MjEwNzIwMTg2Nn0.3dhkxq20fbZfXpVO6-3CEjf7q4lUTLDHeit7rXLFB1o';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -4899,113 +4910,86 @@ async function cloudPeekRecordCount() {
 }
 
 async function cloudUpsert(payload) {
-const recordCount = Array.isArray(data) ? data.length : 0;
-const updatedAt = new Date().toISOString();
-// Always send a JSON *object* for payload (PostgREST maps object → jsonb/json).
-// If the column is text, Postgres will cast. If a string is required, we retry.
-const payloadObj = normalizeVaultPayload(payload) || payload;
-const payloadStr = (typeof payloadObj === 'string')
-  ? payloadObj
-  : JSON.stringify(payloadObj);
-
-const rowObj = {
-  id: 'main',
-  payload: payloadObj,
-  record_count: recordCount,
-  updated_at: updatedAt
-};
-const rowObjMin = {
-  id: 'main',
-  payload: payloadObj,
-  updated_at: updatedAt
-};
-const rowStr = {
-  id: 'main',
-  payload: payloadStr,
-  record_count: recordCount,
-  updated_at: updatedAt
-};
-const rowStrMin = {
-  id: 'main',
-  payload: payloadStr,
-  updated_at: updatedAt
-};
-
-function isColumnError(msg) {
-  return /record_count|column .* does not exist|Could not find the .* column/i.test(msg || '');
-}
-function isTypeMismatch(msg) {
-  return /is of type (jsonb|json|text)|expression is of type (jsonb|json|text)|22P02|42804/i.test(msg || '');
-}
-function isTimeoutError(msg) {
-  return /statement timeout|canceling statement|57014|timeout/i.test(msg || '');
-}
-
-async function tryUpsert(row) {
-  let result = await supabase.from('vault').upsert(row, { onConflict: 'id' }).select('id').maybeSingle();
-  if (!result.error) return result;
-  const msg = (result.error && result.error.message) ? String(result.error.message) : '';
-  if (!/permission|rls|policy|401|403|JWT/i.test(msg)) {
-    result = await supabase.from('vault').upsert(row).select('id').maybeSingle();
+  const recordCount = Array.isArray(data) ? data.length : 0;
+  const updatedAt = new Date().toISOString();
+  // ALWAYS a plain object — never a pre-stringified JSON string (avoids jsonb/text mismatch)
+  let payloadObj = payload;
+  if (typeof payloadObj === 'string') {
+    try { payloadObj = JSON.parse(payloadObj); } catch (_) {}
   }
-  return result;
-}
-
-async function tryUpdateInsert(row) {
-  try {
-    const updBody = { ...row };
-    delete updBody.id;
-    const upd = await supabase.from('vault').update(updBody).eq('id', 'main').select('id').maybeSingle();
-    if (!upd.error && upd.data) return upd;
-    const ins = await supabase.from('vault').insert(row).select('id').maybeSingle();
-    return ins;
-  } catch (e) {
-    return { data: null, error: e };
+  if (!payloadObj || typeof payloadObj !== 'object') {
+    return { data: null, error: new Error('Invalid encrypted payload object') };
   }
-}
 
-// Pass 1: object payload (preferred for jsonb)
-let result = await tryUpsert(rowObj);
-if (!result.error) return result;
-let msg = (result.error && result.error.message) ? String(result.error.message) : '';
-console.warn('cloudUpsert primary failed', msg);
+  const row = {
+    id: 'main',
+    payload: payloadObj,
+    record_count: recordCount,
+    updated_at: updatedAt
+  };
+  const rowMin = {
+    id: 'main',
+    payload: payloadObj,
+    updated_at: updatedAt
+  };
 
-// Pass 1b: object without record_count
-if (isColumnError(msg)) {
-  result = await tryUpsert(rowObjMin);
+  // Path A: standard upsert (jsonb column + JSON object)
+  let result = await supabase
+    .from('vault')
+    .upsert(row, { onConflict: 'id' })
+    .select('id')
+    .maybeSingle();
   if (!result.error) return result;
-  msg = (result.error && result.error.message) ? String(result.error.message) : msg;
-}
 
-// Pass 2: string payload (preferred if column is text and object cast fails)
-if (isTypeMismatch(msg) || /jsonb|text/i.test(msg)) {
-  console.warn('cloudUpsert: type mismatch — retrying with string payload');
-  result = await tryUpsert(rowStr);
-  if (!result.error) return result;
-  msg = (result.error && result.error.message) ? String(result.error.message) : msg;
-  if (isColumnError(msg)) {
-    result = await tryUpsert(rowStrMin);
+  let msg = (result.error && result.error.message) ? String(result.error.message) : '';
+  console.warn('cloudUpsert primary failed', msg);
+
+  // Path A2: without record_count if column missing
+  if (/record_count|column .* does not exist|Could not find the .* column/i.test(msg)) {
+    result = await supabase.from('vault').upsert(rowMin, { onConflict: 'id' }).select('id').maybeSingle();
     if (!result.error) return result;
     msg = (result.error && result.error.message) ? String(result.error.message) : msg;
   }
+
+  // Path B: RPC upsert_vault (bypasses PostgREST column type inference — run SQL to create it)
+  try {
+    const rpc = await supabase.rpc('upsert_vault', {
+      p_id: 'main',
+      p_payload: payloadObj,
+      p_record_count: recordCount
+    });
+    if (!rpc.error) return { data: { id: 'main' }, error: null };
+    console.warn('cloudUpsert RPC failed', rpc.error && rpc.error.message);
+    msg = (rpc.error && rpc.error.message) ? String(rpc.error.message) : msg;
+  } catch (rpcErr) {
+    console.warn('cloudUpsert RPC exception', rpcErr);
+  }
+
+  // Path C: update then insert
+  try {
+    let upd = await supabase.from('vault').update({
+      payload: payloadObj,
+      record_count: recordCount,
+      updated_at: updatedAt
+    }).eq('id', 'main').select('id').maybeSingle();
+    if (!upd.error && upd.data) return upd;
+    if (upd.error && /record_count|column .* does not exist/i.test(String(upd.error.message || ''))) {
+      upd = await supabase.from('vault').update({
+        payload: payloadObj,
+        updated_at: updatedAt
+      }).eq('id', 'main').select('id').maybeSingle();
+      if (!upd.error && upd.data) return upd;
+    }
+    const ins = await supabase.from('vault').insert(row).select('id').maybeSingle();
+    if (!ins.error) return ins;
+    msg = (ins.error && ins.error.message) ? String(ins.error.message) : msg;
+  } catch (e) {
+    return { data: null, error: e };
+  }
+
+  return { data: null, error: result.error || new Error(msg || 'cloudUpsert failed') };
 }
 
-// Pass 3: update-then-insert object, then string
-result = await tryUpdateInsert(rowObj);
-if (!result.error) return result;
-msg = (result.error && result.error.message) ? String(result.error.message) : msg;
-if (isTypeMismatch(msg) || isColumnError(msg)) {
-  result = await tryUpdateInsert(isColumnError(msg) ? rowStrMin : rowStr);
-  if (!result.error) return result;
-}
-
-return result.error ? result : { data: null, error: result.error || new Error(msg || 'cloudUpsert failed') };
-}
-
-/**
- * Estimate approximate JSON size of the encrypted payload for pre-flight checks.
- * Base64 of ciphertext + metadata; 4 MB is a safe client-side ceiling for free-tier.
- */
 function estimatePayloadBytes(payload) {
 try {
 return JSON.stringify(payload).length;
@@ -5167,23 +5151,37 @@ showToast('Cloud schema type mismatch on payload. Run vault SQL + NOTIFY pgrst r
 console.info('%cOneWeb: run SQL then: NOTIFY pgrst, \'reload schema\';', 'color:#93c5fd');
 } else if (/permission|rls|policy|401|403/i.test(msg)) {
 showToast('Save blocked by cloud permissions. Run the recommended vault SQL in Supabase (see console).', 'error', 6000);
-console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
-'create table if not exists public.vault (\n' +
+console.info('%cOneWeb vault SQL — RESET (run in Supabase SQL Editor):\n' +
+'-- RESET vault table (safe: app keeps encrypted copy in IndexedDB)\n' +
+'drop function if exists public.upsert_vault(text, jsonb, integer);\n' +
+'drop table if exists public.vault;\n' +
+'create table public.vault (\n' +
 '  id text primary key,\n' +
 '  payload jsonb not null,\n' +
 '  record_count integer not null default 0,\n' +
-'  updated_at timestamptz default now()\n' +
+'  updated_at timestamptz not null default now()\n' +
 ');\n' +
-'alter table public.vault add column if not exists record_count integer not null default 0;\n' +
-'-- Keep payload as jsonb (client sends JSON object). Optional: convert to text if timeouts persist.\n' +
-'-- alter table public.vault alter column payload type text using payload::text;\n' +
+'alter table public.vault enable row level security;\n' +
+'create policy \"anon_all_vault\" on public.vault for all to anon using (true) with check (true);\n' +
+'grant select, insert, update, delete on public.vault to anon;\n' +
+'create or replace function public.upsert_vault(p_id text, p_payload jsonb, p_record_count integer)\n' +
+'returns void\n' +
+'language plpgsql\n' +
+'security definer\n' +
+'as $$\n' +
+'begin\n' +
+'  insert into public.vault (id, payload, record_count, updated_at)\n' +
+'  values (p_id, p_payload, coalesce(p_record_count, 0), now())\n' +
+'  on conflict (id) do update set\n' +
+'    payload = excluded.payload,\n' +
+'    record_count = excluded.record_count,\n' +
+'    updated_at = now();\n' +
+'end;\n' +
+'$$;\n' +
+'grant execute on function public.upsert_vault(text, jsonb, integer) to anon;\n' +
 'alter role authenticator set statement_timeout = \'60s\';\n' +
 'alter role anon set statement_timeout = \'60s\';\n' +
-'alter table public.vault enable row level security;\n' +
-'drop policy if exists "anon_all_vault" on public.vault;\n' +
-'create policy "anon_all_vault" on public.vault for all to anon using (true) with check (true);\n' +
-'grant select, insert, update, delete on public.vault to anon;\n' +
-'NOTIFY pgrst, \'reload schema\';', 'color:#93c5fd');
+'NOTIFY pgrst, \'reload schema\';'', 'color:#93c5fd');
 } else if (/statement timeout|canceling statement|57014|timeout/i.test(msg)) {
 showToast('Cloud timed out saving a large vault. Try fewer/smaller transcripts, or run the vault SQL (adds record_count) and Save again.', 'warning', 5500);
 } else if (!isOnline) {
