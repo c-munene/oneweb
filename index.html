@@ -848,13 +848,18 @@ const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
  * create table if not exists public.vault (
  *   id text primary key,
  *   payload jsonb not null,
+ *   record_count integer not null default 0,
  *   updated_at timestamptz default now()
  * );
+ * -- If the table already exists without record_count:
+ * alter table public.vault add column if not exists record_count integer not null default 0;
  * alter table public.vault enable row level security;
  * drop policy if exists "anon_all_vault" on public.vault;
  * create policy "anon_all_vault" on public.vault
  *   for all to anon using (true) with check (true);
  * grant select, insert, update, delete on public.vault to anon;
+ * -- Optional: raise statement timeout for large encrypted payloads (project settings may override)
+ * -- alter database postgres set statement_timeout = '30s';
  *
  * Security model: the blob is AES-256-GCM encrypted client-side.
  * The anon key can read/write the ciphertext but cannot decrypt it
@@ -1384,11 +1389,19 @@ async function recoverFromLocalHistory() {
   }
   showLoading(true);
   try {
-    const { data: row, error } = await supabase
+    let { data: row, error } = await supabase
       .from('vault')
       .select('payload, record_count')
       .eq('id', 'main')
       .maybeSingle();
+    // Schema without record_count column
+    if (error && /record_count|column .* does not exist|Could not find the .* column/i.test(String(error.message || ''))) {
+      ({ data: row, error } = await supabase
+        .from('vault')
+        .select('payload')
+        .eq('id', 'main')
+        .maybeSingle());
+    }
     if (error) throw error;
     if (!row || !row.payload) {
       showToast('No cloud vault found', 'warning');
@@ -4841,51 +4854,89 @@ async function persistLocalSafetySnapshot() {
  */
 async function cloudPeekRecordCount() {
   try {
-    const { data: row, error } = await supabase
+    let { data: row, error } = await supabase
       .from('vault')
       .select('record_count')
       .eq('id', 'main')
       .maybeSingle();
+    if (error && /record_count|column .* does not exist|Could not find the .* column/i.test(String(error.message || ''))) {
+      // Column not migrated yet — fall back to counting is not possible without decrypt; return 0
+      return 0;
+    }
     if (error || !row) return 0;
     return Number(row.record_count) || 0;
   } catch (_) { return 0; }
 }
 
 async function cloudUpsert(payload) {
-const row = {
+const recordCount = Array.isArray(data) ? data.length : 0;
+const rowFull = {
   id: 'main',
   payload: payload,
-  record_count: Array.isArray(data) ? data.length : 0,
+  record_count: recordCount,
+  updated_at: new Date().toISOString()
+};
+// Minimal row without record_count (for schemas that never added the column)
+const rowMinimal = {
+  id: 'main',
+  payload: payload,
   updated_at: new Date().toISOString()
 };
 
-// Primary path: PostgREST upsert with explicit conflict target + Prefer merge
+function isColumnError(msg) {
+  return /record_count|column .* does not exist|Could not find the .* column/i.test(msg || '');
+}
+function isTimeoutError(msg) {
+  return /statement timeout|canceling statement|57014|timeout/i.test(msg || '');
+}
+
+// Primary path: PostgREST upsert with explicit conflict target
 let result = await supabase
-.from('vault')
-.upsert(row, { onConflict: 'id' })
-.select('id')
-.maybeSingle();
+  .from('vault')
+  .upsert(rowFull, { onConflict: 'id' })
+  .select('id')
+  .maybeSingle();
 
 if (!result.error) return result;
 
-const msg = (result.error && result.error.message) ? String(result.error.message) : '';
+let msg = (result.error && result.error.message) ? String(result.error.message) : '';
 console.warn('cloudUpsert primary failed', msg);
 
-// Fallback 1: plain upsert
-if (!/permission|rls|policy|401|403|JWT/i.test(msg)) {
+// If record_count column is missing, retry without it
+if (isColumnError(msg)) {
+  console.warn('cloudUpsert: record_count column missing — retrying without it (run ALTER TABLE SQL)');
   result = await supabase
     .from('vault')
-    .upsert(row)
+    .upsert(rowMinimal, { onConflict: 'id' })
     .select('id')
     .maybeSingle();
   if (!result.error) return result;
+  msg = (result.error && result.error.message) ? String(result.error.message) : msg;
+}
+
+// Fallback 1: plain upsert (full, then minimal)
+if (!/permission|rls|policy|401|403|JWT/i.test(msg)) {
+  result = await supabase.from('vault').upsert(rowFull).select('id').maybeSingle();
+  if (!result.error) return result;
+  msg = (result.error && result.error.message) ? String(result.error.message) : msg;
+  if (isColumnError(msg)) {
+    result = await supabase.from('vault').upsert(rowMinimal).select('id').maybeSingle();
+    if (!result.error) return result;
+    msg = (result.error && result.error.message) ? String(result.error.message) : msg;
+  }
 }
 
 // Fallback 2: update then insert (handles edge cases without unique constraint)
 try {
-  const upd = await supabase.from('vault').update({ payload }).eq('id', 'main').select('id').maybeSingle();
+  const updPayload = isColumnError(msg) ? { payload, updated_at: rowMinimal.updated_at } : { payload, record_count: recordCount, updated_at: rowFull.updated_at };
+  const upd = await supabase.from('vault').update(updPayload).eq('id', 'main').select('id').maybeSingle();
   if (!upd.error && upd.data) return upd;
-  const ins = await supabase.from('vault').insert(row).select('id').maybeSingle();
+  // If update failed because column missing, try minimal update
+  if (upd.error && isColumnError(String(upd.error.message || ''))) {
+    const upd2 = await supabase.from('vault').update({ payload, updated_at: rowMinimal.updated_at }).eq('id', 'main').select('id').maybeSingle();
+    if (!upd2.error && upd2.data) return upd2;
+  }
+  const ins = await supabase.from('vault').insert(isColumnError(msg) ? rowMinimal : rowFull).select('id').maybeSingle();
   return ins;
 } catch (e) {
   return { data: null, error: e };
@@ -5029,12 +5080,16 @@ console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
 'create table if not exists public.vault (\n' +
 '  id text primary key,\n' +
 '  payload jsonb not null,\n' +
+'  record_count integer not null default 0,\n' +
 '  updated_at timestamptz default now()\n' +
 ');\n' +
+'alter table public.vault add column if not exists record_count integer not null default 0;\n' +
 'alter table public.vault enable row level security;\n' +
 'drop policy if exists "anon_all_vault" on public.vault;\n' +
 'create policy "anon_all_vault" on public.vault for all to anon using (true) with check (true);\n' +
 'grant select, insert, update, delete on public.vault to anon;', 'color:#93c5fd');
+} else if (/statement timeout|canceling statement|57014|timeout/i.test(msg)) {
+showToast('Cloud timed out saving a large vault. Try fewer/smaller transcripts, or run the vault SQL (adds record_count) and Save again.', 'warning', 5500);
 } else if (!isOnline) {
 showToast('You are offline. Changes stay in memory only until you are online and click Save.', 'warning', 4000);
 } else {
