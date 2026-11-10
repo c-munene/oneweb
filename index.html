@@ -847,14 +847,13 @@ const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
  * ---------------------------------------------------------
  * create table if not exists public.vault (
  *   id text primary key,
- *   payload text not null,
+ *   payload jsonb not null,
  *   record_count integer not null default 0,
  *   updated_at timestamptz default now()
  * );
- * -- Migrate existing projects (jsonb → text is much faster for opaque encrypted blobs):
  * alter table public.vault add column if not exists record_count integer not null default 0;
- * alter table public.vault alter column payload type text using payload::text;
- * -- Raise statement timeout so large vault read/write does not 500
+ * -- Optional if large-vault timeouts persist: store as text instead of jsonb
+ * -- alter table public.vault alter column payload type text using payload::text;
  * alter role authenticator set statement_timeout = '60s';
  * alter role anon set statement_timeout = '60s';
  * alter table public.vault enable row level security;
@@ -862,6 +861,7 @@ const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
  * create policy "anon_all_vault" on public.vault
  *   for all to anon using (true) with check (true);
  * grant select, insert, update, delete on public.vault to anon;
+ * NOTIFY pgrst, 'reload schema';
  *
  * Security model: the blob is AES-256-GCM encrypted client-side.
  * The anon key can read/write the ciphertext but cannot decrypt it
@@ -4835,8 +4835,8 @@ const SAVE_RETRY_MAX = 5;
 // Session password uses sessionStorage only (survives same-tab refresh, not device power-off).
 
 function scheduleSave(immediate) {
-  // Cloud is the only durable store for student records and transcripts.
-  // Device storage is NOT used for the vault (no localStorage / no local vault drafts).
+  // Dual-write: encrypted vault → IndexedDB (always) + cloud (when online).
+  // IDB is the local safety net so records are never lost if cloud times out.
   if (!sessionPassword) return;
   localDirty = true;
   pendingCloudSave = true;
@@ -4845,7 +4845,12 @@ function scheduleSave(immediate) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  // Session-only transcript staging cache (upload helpers) — not a roster backup.
+  const delay = immediate ? 80 : Math.max(SAVE_DEBOUNCE_MS || 180, 200);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    saveToStorage(false, { silent: true, isManual: false }).catch(() => {});
+  }, delay);
+  // Also keep transcript blobs cached on-device for fast rehydrate
   if (window.__txCacheTimer) clearTimeout(window.__txCacheTimer);
   window.__txCacheTimer = setTimeout(() => {
     window.__txCacheTimer = null;
@@ -4853,9 +4858,23 @@ function scheduleSave(immediate) {
   }, immediate ? 80 : 400);
 }
 
-/** Disabled: student records must not be stored on the device. Cloud only. */
+/** Encrypt current roster and persist to IndexedDB (+ history ring). Always runs when password is set. */
 async function persistLocalSafetySnapshot() {
-  return;
+  if (!sessionPassword) return false;
+  try {
+    const envelope = buildVaultEnvelope();
+    const payload = await encryptPayload(envelope, sessionPassword);
+    await idbPutVaultBlob(payload, {
+      recordCount: Array.isArray(data) ? data.length : 0,
+      source: 'local_safety',
+      updatedAt: Date.now()
+    });
+    localVaultUpdatedAt = Date.now();
+    return true;
+  } catch (e) {
+    console.warn('persistLocalSafetySnapshot failed', e);
+    return false;
+  }
 }
 
 /**
@@ -4881,77 +4900,106 @@ async function cloudPeekRecordCount() {
 
 async function cloudUpsert(payload) {
 const recordCount = Array.isArray(data) ? data.length : 0;
-const rowFull = {
+const updatedAt = new Date().toISOString();
+// Always send a JSON *object* for payload (PostgREST maps object → jsonb/json).
+// If the column is text, Postgres will cast. If a string is required, we retry.
+const payloadObj = normalizeVaultPayload(payload) || payload;
+const payloadStr = (typeof payloadObj === 'string')
+  ? payloadObj
+  : JSON.stringify(payloadObj);
+
+const rowObj = {
   id: 'main',
-  payload: payload,
+  payload: payloadObj,
   record_count: recordCount,
-  updated_at: new Date().toISOString()
+  updated_at: updatedAt
 };
-// Minimal row without record_count (for schemas that never added the column)
-const rowMinimal = {
+const rowObjMin = {
   id: 'main',
-  payload: payload,
-  updated_at: new Date().toISOString()
+  payload: payloadObj,
+  updated_at: updatedAt
+};
+const rowStr = {
+  id: 'main',
+  payload: payloadStr,
+  record_count: recordCount,
+  updated_at: updatedAt
+};
+const rowStrMin = {
+  id: 'main',
+  payload: payloadStr,
+  updated_at: updatedAt
 };
 
 function isColumnError(msg) {
   return /record_count|column .* does not exist|Could not find the .* column/i.test(msg || '');
 }
+function isTypeMismatch(msg) {
+  return /is of type (jsonb|json|text)|expression is of type (jsonb|json|text)|22P02|42804/i.test(msg || '');
+}
 function isTimeoutError(msg) {
   return /statement timeout|canceling statement|57014|timeout/i.test(msg || '');
 }
 
-// Primary path: PostgREST upsert with explicit conflict target
-let result = await supabase
-  .from('vault')
-  .upsert(rowFull, { onConflict: 'id' })
-  .select('id')
-  .maybeSingle();
+async function tryUpsert(row) {
+  let result = await supabase.from('vault').upsert(row, { onConflict: 'id' }).select('id').maybeSingle();
+  if (!result.error) return result;
+  const msg = (result.error && result.error.message) ? String(result.error.message) : '';
+  if (!/permission|rls|policy|401|403|JWT/i.test(msg)) {
+    result = await supabase.from('vault').upsert(row).select('id').maybeSingle();
+  }
+  return result;
+}
 
+async function tryUpdateInsert(row) {
+  try {
+    const updBody = { ...row };
+    delete updBody.id;
+    const upd = await supabase.from('vault').update(updBody).eq('id', 'main').select('id').maybeSingle();
+    if (!upd.error && upd.data) return upd;
+    const ins = await supabase.from('vault').insert(row).select('id').maybeSingle();
+    return ins;
+  } catch (e) {
+    return { data: null, error: e };
+  }
+}
+
+// Pass 1: object payload (preferred for jsonb)
+let result = await tryUpsert(rowObj);
 if (!result.error) return result;
-
 let msg = (result.error && result.error.message) ? String(result.error.message) : '';
 console.warn('cloudUpsert primary failed', msg);
 
-// If record_count column is missing, retry without it
+// Pass 1b: object without record_count
 if (isColumnError(msg)) {
-  console.warn('cloudUpsert: record_count column missing — retrying without it (run ALTER TABLE SQL)');
-  result = await supabase
-    .from('vault')
-    .upsert(rowMinimal, { onConflict: 'id' })
-    .select('id')
-    .maybeSingle();
+  result = await tryUpsert(rowObjMin);
   if (!result.error) return result;
   msg = (result.error && result.error.message) ? String(result.error.message) : msg;
 }
 
-// Fallback 1: plain upsert (full, then minimal)
-if (!/permission|rls|policy|401|403|JWT/i.test(msg)) {
-  result = await supabase.from('vault').upsert(rowFull).select('id').maybeSingle();
+// Pass 2: string payload (preferred if column is text and object cast fails)
+if (isTypeMismatch(msg) || /jsonb|text/i.test(msg)) {
+  console.warn('cloudUpsert: type mismatch — retrying with string payload');
+  result = await tryUpsert(rowStr);
   if (!result.error) return result;
   msg = (result.error && result.error.message) ? String(result.error.message) : msg;
   if (isColumnError(msg)) {
-    result = await supabase.from('vault').upsert(rowMinimal).select('id').maybeSingle();
+    result = await tryUpsert(rowStrMin);
     if (!result.error) return result;
     msg = (result.error && result.error.message) ? String(result.error.message) : msg;
   }
 }
 
-// Fallback 2: update then insert (handles edge cases without unique constraint)
-try {
-  const updPayload = isColumnError(msg) ? { payload, updated_at: rowMinimal.updated_at } : { payload, record_count: recordCount, updated_at: rowFull.updated_at };
-  const upd = await supabase.from('vault').update(updPayload).eq('id', 'main').select('id').maybeSingle();
-  if (!upd.error && upd.data) return upd;
-  // If update failed because column missing, try minimal update
-  if (upd.error && isColumnError(String(upd.error.message || ''))) {
-    const upd2 = await supabase.from('vault').update({ payload, updated_at: rowMinimal.updated_at }).eq('id', 'main').select('id').maybeSingle();
-    if (!upd2.error && upd2.data) return upd2;
-  }
-  const ins = await supabase.from('vault').insert(isColumnError(msg) ? rowMinimal : rowFull).select('id').maybeSingle();
-  return ins;
-} catch (e) {
-  return { data: null, error: e };
+// Pass 3: update-then-insert object, then string
+result = await tryUpdateInsert(rowObj);
+if (!result.error) return result;
+msg = (result.error && result.error.message) ? String(result.error.message) : msg;
+if (isTypeMismatch(msg) || isColumnError(msg)) {
+  result = await tryUpdateInsert(isColumnError(msg) ? rowStrMin : rowStr);
+  if (!result.error) return result;
 }
+
+return result.error ? result : { data: null, error: result.error || new Error(msg || 'cloudUpsert failed') };
 }
 
 /**
@@ -5034,8 +5082,20 @@ showToast(
 }
 }
 
-// Cloud-only: vault is not written to device storage.
+// 1) ALWAYS persist encrypted vault to IndexedDB first (never lose local data)
+try {
+  await idbPutVaultBlob(payload, {
+    recordCount: Array.isArray(data) ? data.length : 0,
+    source: isManual ? 'manual_save' : 'auto_save',
+    updatedAt: Date.now()
+  });
+  usedLocalOnly = true; // at least local is durable until cloud confirms
+  localVaultUpdatedAt = Date.now();
+} catch (idbErr) {
+  console.warn('IDB vault write failed', idbErr);
+}
 
+// 2) Then push to cloud (best-effort; retries on transient errors)
 for (let attempt = 1; attempt <= SAVE_RETRY_MAX; attempt++) {
 if (!sessionPassword) break;
 try {
@@ -5047,13 +5107,15 @@ pendingCloudSave = false;
 localDirty = false;
 dirtyIds.clear();
 success = true;
+usedLocalOnly = false;
 lastError = null;
 break;
 } catch (e) {
 lastError = e;
 const msg = (e && e.message) ? String(e.message) : String(e);
-// Do not retry hard permission failures
+// Do not retry hard permission / type-schema failures endlessly
 if (/permission|rls|policy|401|403|JWT/i.test(msg)) break;
+if (/is of type|expression is of type|22P02|42804/i.test(msg) && attempt >= 2) break;
 // Exponential backoff with jitter
 if (attempt < SAVE_RETRY_MAX) {
 const delay = Math.min(2200, 320 * Math.pow(1.7, attempt - 1)) + Math.floor(Math.random() * 120);
@@ -5072,8 +5134,23 @@ const tc = data.filter(r => r.transcriptFile && r.transcriptFile.data).length;
 const extra = tc ? ` · ${tc} transcript(s) in cloud` : '';
 showToast(`Encrypted & saved ${data.length} record(s) to cloud${extra}`, 'success', 2800);
 }
+} else if (usedLocalOnly) {
+// Cloud failed but IndexedDB has the encrypted vault — data is safe on this device
+pendingCloudSave = true;
+localDirty = true; // still wants cloud sync
+updateSyncStatusUI();
+console.warn('Cloud save failed — vault kept in IndexedDB', lastError);
+if (isManual && !silent) {
+  const msg = (lastError && lastError.message) ? String(lastError.message) : '';
+  if (/is of type|expression is of type/i.test(msg)) {
+    showToast('Saved on this device (IndexedDB). Cloud schema mismatch — run the vault SQL in Supabase, then Save again.', 'warning', 6000);
+  } else if (/statement timeout|57014|timeout/i.test(msg)) {
+    showToast('Saved on this device (IndexedDB). Cloud timed out — run the timeout SQL, then Save again.', 'warning', 6000);
+  } else {
+    showToast(`Saved on this device (IndexedDB). Cloud sync pending (${data.length} records).`, 'warning', 5000);
+  }
+}
 } else {
-usedLocalOnly = false;
 pendingCloudSave = true;
 localDirty = true;
 updateSyncStatusUI();
@@ -5085,23 +5162,28 @@ lastSaveErrorAt = now;
 const msg = (lastError && lastError.message) ? String(lastError.message) : '';
 if (/payload|too large|413|request entity|entity too large/i.test(msg)) {
 showToast('Cloud rejected the payload size (vault too large). Try fewer/smaller transcripts, export JSON, or Save again.', 'warning', 5500);
+} else if (/is of type|expression is of type|22P02|42804/i.test(msg)) {
+showToast('Cloud schema type mismatch on payload. Run vault SQL + NOTIFY pgrst reload schema, then Save again. Data is in IndexedDB.', 'warning', 6500);
+console.info('%cOneWeb: run SQL then: NOTIFY pgrst, \'reload schema\';', 'color:#93c5fd');
 } else if (/permission|rls|policy|401|403/i.test(msg)) {
 showToast('Save blocked by cloud permissions. Run the recommended vault SQL in Supabase (see console).', 'error', 6000);
 console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
 'create table if not exists public.vault (\n' +
 '  id text primary key,\n' +
-'  payload text not null,\n' +
+'  payload jsonb not null,\n' +
 '  record_count integer not null default 0,\n' +
 '  updated_at timestamptz default now()\n' +
 ');\n' +
 'alter table public.vault add column if not exists record_count integer not null default 0;\n' +
-'alter table public.vault alter column payload type text using payload::text;\n' +
+'-- Keep payload as jsonb (client sends JSON object). Optional: convert to text if timeouts persist.\n' +
+'-- alter table public.vault alter column payload type text using payload::text;\n' +
 'alter role authenticator set statement_timeout = \'60s\';\n' +
 'alter role anon set statement_timeout = \'60s\';\n' +
 'alter table public.vault enable row level security;\n' +
 'drop policy if exists "anon_all_vault" on public.vault;\n' +
 'create policy "anon_all_vault" on public.vault for all to anon using (true) with check (true);\n' +
-'grant select, insert, update, delete on public.vault to anon;', 'color:#93c5fd');
+'grant select, insert, update, delete on public.vault to anon;\n' +
+'NOTIFY pgrst, \'reload schema\';', 'color:#93c5fd');
 } else if (/statement timeout|canceling statement|57014|timeout/i.test(msg)) {
 showToast('Cloud timed out saving a large vault. Try fewer/smaller transcripts, or run the vault SQL (adds record_count) and Save again.', 'warning', 5500);
 } else if (!isOnline) {
