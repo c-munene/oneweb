@@ -847,19 +847,21 @@ const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
  * ---------------------------------------------------------
  * create table if not exists public.vault (
  *   id text primary key,
- *   payload jsonb not null,
+ *   payload text not null,
  *   record_count integer not null default 0,
  *   updated_at timestamptz default now()
  * );
- * -- If the table already exists without record_count:
+ * -- Migrate existing projects (jsonb → text is much faster for opaque encrypted blobs):
  * alter table public.vault add column if not exists record_count integer not null default 0;
+ * alter table public.vault alter column payload type text using payload::text;
+ * -- Raise statement timeout so large vault read/write does not 500
+ * alter role authenticator set statement_timeout = '60s';
+ * alter role anon set statement_timeout = '60s';
  * alter table public.vault enable row level security;
  * drop policy if exists "anon_all_vault" on public.vault;
  * create policy "anon_all_vault" on public.vault
  *   for all to anon using (true) with check (true);
  * grant select, insert, update, delete on public.vault to anon;
- * -- Optional: raise statement timeout for large encrypted payloads (project settings may override)
- * -- alter database postgres set statement_timeout = '30s';
  *
  * Security model: the blob is AES-256-GCM encrypted client-side.
  * The anon key can read/write the ciphertext but cannot decrypt it
@@ -1039,11 +1041,25 @@ gz: gz ? 1 : 0
 };
 }
 
+function normalizeVaultPayload(payload) {
+  // jsonb returns object; text column may return a JSON string
+  if (payload == null) return null;
+  if (typeof payload === 'string') {
+    const s = payload.trim();
+    if (!s) return null;
+    try { return JSON.parse(s); } catch (_) { return null; }
+  }
+  if (typeof payload === 'object') return payload;
+  return null;
+}
+
 function isValidEncryptedPayload(payload) {
-return !!(payload && typeof payload === 'object' && payload.salt && payload.iv && payload.ct);
+  payload = normalizeVaultPayload(payload);
+  return !!(payload && typeof payload === 'object' && payload.salt && payload.iv && payload.ct);
 }
 
 async function decryptPayload(payload, password) {
+payload = normalizeVaultPayload(payload);
 if (!isValidEncryptedPayload(payload)) {
 const err = new Error('Invalid encrypted payload');
 err.code = 'CORRUPT_VAULT';
@@ -1083,25 +1099,20 @@ throw err;
 
 async function hasEncryptedData() {
 try {
+// Lightweight existence check only — never pull the multi‑MB encrypted payload here.
 const query = supabase
 .from('vault')
-.select('id,payload')
+.select('id')
 .eq('id', 'main')
 .maybeSingle();
 
-const timeout = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 6000));
+const timeout = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 8000));
 const { data, error } = await Promise.race([query, timeout]);
 if (error) {
 console.warn('hasEncryptedData error', error);
 return false;
 }
-// Treat missing or corrupt (non-encrypted) rows as "no vault"
-if (!data || !data.id) return false;
-if (data.payload && !isValidEncryptedPayload(data.payload)) {
-console.warn('Vault row exists but payload is not a valid encrypted envelope — treating as empty');
-return false;
-}
-return true;
+return !!(data && data.id);
 } catch (e) {
 console.warn('hasEncryptedData exception', e);
 return false;
@@ -5079,11 +5090,14 @@ showToast('Save blocked by cloud permissions. Run the recommended vault SQL in S
 console.info('%cOneWeb vault SQL (run in Supabase SQL Editor):\n' +
 'create table if not exists public.vault (\n' +
 '  id text primary key,\n' +
-'  payload jsonb not null,\n' +
+'  payload text not null,\n' +
 '  record_count integer not null default 0,\n' +
 '  updated_at timestamptz default now()\n' +
 ');\n' +
 'alter table public.vault add column if not exists record_count integer not null default 0;\n' +
+'alter table public.vault alter column payload type text using payload::text;\n' +
+'alter role authenticator set statement_timeout = \'60s\';\n' +
+'alter role anon set statement_timeout = \'60s\';\n' +
 'alter table public.vault enable row level security;\n' +
 'drop policy if exists "anon_all_vault" on public.vault;\n' +
 'create policy "anon_all_vault" on public.vault for all to anon using (true) with check (true);\n' +
