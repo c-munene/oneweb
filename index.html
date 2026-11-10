@@ -5181,7 +5181,7 @@ console.info('%cOneWeb vault SQL — RESET (run in Supabase SQL Editor):\n' +
 'grant execute on function public.upsert_vault(text, jsonb, integer) to anon;\n' +
 'alter role authenticator set statement_timeout = \'60s\';\n' +
 'alter role anon set statement_timeout = \'60s\';\n' +
-'NOTIFY pgrst, \'reload schema\';'', 'color:#93c5fd');
+'NOTIFY pgrst, \'reload schema\';', 'color:#93c5fd');
 } else if (/statement timeout|canceling statement|57014|timeout/i.test(msg)) {
 showToast('Cloud timed out saving a large vault. Try fewer/smaller transcripts, or run the vault SQL (adds record_count) and Save again.', 'warning', 5500);
 } else if (!isOnline) {
