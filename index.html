@@ -519,7 +519,7 @@ svg[aria-hidden="true"]{display:inline-block;vertical-align:-0.125em;width:1em;h
               <th scope="col" role="columnheader" style="min-width:200px">Program</th>
               <th scope="col" role="columnheader" style="min-width:180px">Transcript Status</th>
               <th scope="col" role="columnheader" style="min-width:160px">App Status</th>
-              <th scope="col" role="columnheader" style="min-width:150px">Application Date</th>
+              <th scope="col" role="columnheader" style="min-width:200px">Final Comment</th>
               <th scope="col" role="columnheader" style="min-width:200px">Transcript File</th>
               <th scope="col" role="columnheader" style="text-align:center;min-width:80px">Actions</th>
             </tr>
@@ -796,7 +796,7 @@ const columns = [
 { key: 'program', type: 'customSelect', options: PROGRAM_OPTIONS },
 { key: 'transcriptStatus', type: 'customSelect', options: TRANSCRIPT_STATUS_OPTIONS },
 { key: 'appStatus', type: 'appStatus' },
-{ key: 'applicationDate', type: 'date', placeholder: '' },
+{ key: 'finalComment', type: 'text', placeholder: 'Final comment…' },
 { key: 'transcriptFile', type: 'file' }
 ];
 
@@ -836,9 +836,10 @@ const headerMap = {
 'program': 'program', 'major': 'program', 'degree program': 'program', 'course': 'program',
 'field of study': 'program',
 'transcript status': 'transcriptStatus', 'transcriptstatus': 'transcriptStatus', 'transcript_status': 'transcriptStatus',
-'application date': 'applicationDate', 'app date': 'applicationDate', 'applicationdate': 'applicationDate',
-'app_date': 'applicationDate', 'date applied': 'applicationDate', 'applied date': 'applicationDate',
-'application_date': 'applicationDate', 'date of application': 'applicationDate'
+'application date': 'finalComment', 'app date': 'finalComment', 'applicationdate': 'finalComment',
+'app_date': 'finalComment', 'date applied': 'finalComment', 'applied date': 'finalComment',
+'application_date': 'finalComment', 'date of application': 'finalComment',
+'final comment': 'finalComment', 'finalcomment': 'finalComment', 'comment': 'finalComment', 'final_comment': 'finalComment'
 };
 
 const STORAGE_KEY = 'oneweb_studentRecords_enc_v1';
@@ -4032,7 +4033,7 @@ select.innerHTML = '<option value="">All programs</option>' +
 all.map(p => `<option value="${escapeHtml(p)}" ${p === current ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
 }
 
-const SEARCH_KEYS = ['name', 'university', 'email', 'highSchool', 'phone', 'program', 'ssn', 'username', 'address', 'ethnicity', 'appStatus', 'transcriptStatus', 'gender', 'gradYear', 'gpa', 'startDate', 'transcriptMail', 'applicationDate'];
+const SEARCH_KEYS = ['name', 'university', 'email', 'highSchool', 'phone', 'program', 'ssn', 'username', 'address', 'ethnicity', 'appStatus', 'transcriptStatus', 'gender', 'gradYear', 'gpa', 'startDate', 'transcriptMail', 'finalComment'];
 
 let _filterRaf = null;
 let _lastFilterKey = '';
@@ -4586,7 +4587,7 @@ const headers = [
 'Student Name', 'University', 'SSN', 'DOB', 'Email', 'Gender',
 'Username', 'Password', 'Address', 'High School', 'Grad Period',
 'GPA', 'Phone', 'Start Date', 'Transcript Mail', 'Ethnicity',
-'Program', 'Transcript Status', 'App Status', 'Application Date', 'Transcript Filename'
+'Program', 'Transcript Status', 'App Status', 'Final Comment', 'Transcript Filename'
 ];
 const keys = columns.map(c => c.key).filter(k => k !== 'transcriptFile');
 keys.push('transcriptFile');
@@ -4619,7 +4620,7 @@ const headers = [
 'Student Name', 'University', 'SSN', 'DOB', 'Email', 'Gender',
 'Username', 'Password', 'Address', 'High School', 'Grad Period',
 'GPA', 'Phone', 'Start Date', 'Transcript Mail', 'Ethnicity',
-'Program', 'Transcript Status', 'App Status', 'Application Date', 'Transcript Filename'
+'Program', 'Transcript Status', 'App Status', 'Final Comment', 'Transcript Filename'
 ];
 const keys = columns.map(c => c.key).filter(k => k !== 'transcriptFile');
 keys.push('transcriptFile');
@@ -4791,7 +4792,7 @@ dob: '2007-03-14', email: 'amara.chen@lincoln.edu', gender: 'Female',
 username: 'achen07', password: 'SecureP@ss1', address: '450 Serra Mall, Stanford, CA 94305',
 highSchool: 'William P. Clements High School', gradYear: '08/15/2021 – 06/05/2025', gpa: '3.48', phone: '+1 650 555 0101',
 startDate: 'Fall', transcriptMail: 'transcripts@stanford.edu',
-appStatus: 'Accepted', applicationDate: '2025-09-12', ethnicity: 'Asian', program: 'Computer Science', transcriptStatus: 'Sent (Received)',
+appStatus: 'Accepted', finalComment: 'Strong candidate — offer sent', ethnicity: 'Asian', program: 'Computer Science', transcriptStatus: 'Sent (Received)',
 transcriptFile: null,
 createdAt: Date.now() - 50000
 },
@@ -4801,7 +4802,7 @@ dob: '2006-11-02', email: 'jhale@westfield.edu', gender: 'Male',
 username: 'jhale26', password: 'GoBlue2024!', address: '500 S State St, Ann Arbor, MI 48109',
 highSchool: 'Blue Valley High School', gradYear: '08/20/2020 – 06/01/2024', gpa: '3.51', phone: '+1 734 555 0198',
 startDate: 'Fall', transcriptMail: 'registrar@umich.edu',
-appStatus: 'ID', applicationDate: '2025-10-01', ethnicity: 'White', program: 'Business Administration', transcriptStatus: 'Sent (Not Received)',
+appStatus: 'ID', finalComment: 'Awaiting ID verification', ethnicity: 'White', program: 'Business Administration', transcriptStatus: 'Sent (Not Received)',
 transcriptFile: null,
 createdAt: Date.now() - 40000
 },
@@ -4811,7 +4812,7 @@ dob: '2007-07-22', email: 'sreyes@rioseco.edu', gender: 'Female',
 username: 'sreyes', password: 'Bruins!2025', address: '405 Hilgard Ave, Los Angeles, CA 90095',
 highSchool: 'Northville High School', gradYear: '08/10/2021 – 06/12/2025', gpa: '3.53', phone: '+1 310 555 0144',
 startDate: 'Spring', transcriptMail: 'transcripts@ucla.edu',
-appStatus: 'Application Fee', applicationDate: '2025-08-22', ethnicity: 'Hispanic / Latino', program: 'Psychology', transcriptStatus: 'Not Sent',
+appStatus: 'Application Fee', finalComment: 'Fee payment pending', ethnicity: 'Hispanic / Latino', program: 'Psychology', transcriptStatus: 'Not Sent',
 transcriptFile: null,
 createdAt: Date.now() - 30000
 },
@@ -4821,7 +4822,7 @@ dob: '2006-05-18', email: 'mthompson@mit.edu', gender: 'Male',
 username: 'mthompson', password: 'MitRocks!', address: '77 Massachusetts Ave, Cambridge, MA 02139',
 highSchool: 'William P. Clements High School', gradYear: '09/01/2020 – 05/28/2024', gpa: '3.48', phone: '+1 617 555 0177',
 startDate: 'Fall', transcriptMail: 'registrar@mit.edu',
-appStatus: 'Rejected', applicationDate: '2025-07-15', ethnicity: 'Black / African American', program: 'Electrical Engineering', transcriptStatus: 'Sent (Received)',
+appStatus: 'Rejected', finalComment: 'Does not meet GPA threshold', ethnicity: 'Black / African American', program: 'Electrical Engineering', transcriptStatus: 'Sent (Received)',
 transcriptFile: null,
 createdAt: Date.now() - 20000
 },
@@ -4831,7 +4832,7 @@ dob: '2007-01-30', email: 'ppatel@berkeley.edu', gender: 'Female',
 username: 'ppatel', password: 'GoBears2025', address: '110 Sproul Hall, Berkeley, CA 94720',
 highSchool: 'Blue Valley High School', gradYear: '08/15/2021 – 06/05/2025', gpa: '3.51', phone: '+1 510 555 0133',
 startDate: 'Fall 2025', transcriptMail: 'transcripts@berkeley.edu',
-appStatus: 'Other - Pending Review', applicationDate: '2025-11-01', ethnicity: 'Asian', program: 'Data Science', transcriptStatus: 'Not Sent',
+appStatus: 'Other - Pending Review', finalComment: 'Under committee review', ethnicity: 'Asian', program: 'Data Science', transcriptStatus: 'Not Sent',
 transcriptFile: null,
 createdAt: Date.now() - 10000
 }
