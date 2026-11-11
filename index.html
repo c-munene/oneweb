@@ -1258,6 +1258,12 @@ lastActivityAt = now;
 resetIdleTimer();
 }
 
+/** Alias kept for older call sites / session restore */
+function startIdleWatch() {
+  resetIdleTimer();
+}
+
+
 function updateSyncStatusUI(detail) {
 const el = document.getElementById('syncStatus');
 const txt = document.getElementById('syncStatusText');
@@ -2640,7 +2646,7 @@ if (appRoot) {
   void appRoot.offsetWidth;
   requestAnimationFrame(() => appRoot.classList.add('ready'));
 }
-startIdleWatch();
+resetIdleTimer();
 startLiveSync();
 updateSyncStatusUI();
 updateStats();
