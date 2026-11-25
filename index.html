@@ -171,6 +171,36 @@ svg[aria-hidden="true"]{display:inline-block;vertical-align:-0.125em;width:1em;h
   .digital-clock{display:none;} /* keep pagination usable on very narrow screens */
 }
 
+
+/* Page transition + skeleton loader (pagination only) */
+.table-scroll.page-transitioning{pointer-events:none;overflow:hidden;}
+.table-scroll.page-exit-next{animation:pageExitNext 0.28s cubic-bezier(0.4,0,0.2,1) forwards;}
+.table-scroll.page-exit-prev{animation:pageExitPrev 0.28s cubic-bezier(0.4,0,0.2,1) forwards;}
+.table-scroll.page-enter-next{animation:pageEnterNext 0.34s cubic-bezier(0.16,1,0.3,1) forwards;}
+.table-scroll.page-enter-prev{animation:pageEnterPrev 0.34s cubic-bezier(0.16,1,0.3,1) forwards;}
+@keyframes pageExitNext{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(-18px);}}
+@keyframes pageExitPrev{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(18px);}}
+@keyframes pageEnterNext{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:translateX(0);}}
+@keyframes pageEnterPrev{from{opacity:0;transform:translateX(-18px);}to{opacity:1;transform:translateX(0);}}
+.page-skeleton{position:absolute;left:0;right:0;bottom:0;top:0;z-index:15;background:var(--surface);display:none;flex-direction:column;padding:0;pointer-events:none;border-radius:0 0 12px 12px;overflow:hidden;}
+.table-wrap.has-hint .page-skeleton{top:auto;}
+.page-skeleton.visible{display:flex;}
+.page-skeleton-row{display:flex;align-items:center;gap:12px;height:50px;padding:0 14px;border-bottom:1px solid var(--border-soft);flex-shrink:0;}
+.page-skeleton-cell{height:12px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.09) 45%,rgba(255,255,255,0.04) 100%);background-size:200% 100%;animation:skelShimmer 1.15s ease-in-out infinite;}
+.page-skeleton-cell.num{width:28px;flex-shrink:0;}
+.page-skeleton-cell.sm{width:72px;flex-shrink:0;}
+.page-skeleton-cell.md{width:120px;flex:0 0 auto;}
+.page-skeleton-cell.lg{flex:1;min-width:80px;max-width:220px;}
+.page-skeleton-cell.xl{flex:1.4;min-width:100px;}
+@keyframes skelShimmer{0%{background-position:100% 0;}100%{background-position:-100% 0;}}
+.page-skeleton-row:nth-child(odd) .page-skeleton-cell{animation-delay:0s;}
+.page-skeleton-row:nth-child(even) .page-skeleton-cell{animation-delay:0.12s;}
+.table-wrap{position:relative;}
+@media (prefers-reduced-motion:reduce){
+.table-scroll.page-exit-next,.table-scroll.page-exit-prev,.table-scroll.page-enter-next,.table-scroll.page-enter-prev{animation:none !important;opacity:1;transform:none;}
+.page-skeleton-cell{animation:none;background:rgba(255,255,255,0.06);}
+}
+
 </style>
 </head>
 <body class="p-3 sm:p-4 md:p-5">
@@ -526,12 +556,23 @@ svg[aria-hidden="true"]{display:inline-block;vertical-align:-0.125em;width:1em;h
           </thead>
           <tbody id="tableBody"></tbody>
         </table>
+        <div id="pageSkeleton" class="page-skeleton" aria-hidden="true">
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+        <div class="page-skeleton-row"><div class="page-skeleton-cell num"></div><div class="page-skeleton-cell xl"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div><div class="page-skeleton-cell lg"></div><div class="page-skeleton-cell md"></div><div class="page-skeleton-cell sm"></div></div>
+      </div>
         <div id="emptyState" class="empty-state hidden" role="status">
           <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
           <p class="text-base font-medium" style="color:var(--text-muted)">No student records yet</p>
           <p class="text-sm mt-1" style="color:var(--text-faint)">Click “Enable Editing” then “Add”, or import an Excel file</p>
         </div>
       </div>
+      
     </div>
     <div class="pagination-bar hidden" id="paginationBar" role="navigation" aria-label="Pagination">
       <div class="pagination-info" id="pageInfo">Page <strong>1</strong> of <strong>1</strong> · Showing <strong>0</strong>–<strong>0</strong> of <strong>0</strong></div>
@@ -3722,16 +3763,57 @@ btnNext.disabled = currentPage >= totalPages;
 btnLast.disabled = currentPage >= totalPages;
 }
 
+let _pageTransitionLock = false;
 function goToPage(page) {
 const totalPages = getTotalPages();
-currentPage = Math.max(1, Math.min(page, totalPages));
-virtualStart = -1;
-virtualEnd = -1;
-renderTable();
-updatePagination();
-updateStats();
+const target = Math.max(1, Math.min(page, totalPages));
+if (target === currentPage || _pageTransitionLock) return;
+
 const scrollEl = document.getElementById('tableScroll');
-if (scrollEl) scrollEl.scrollTop = 0;
+const skel = document.getElementById('pageSkeleton');
+const goingNext = target > currentPage;
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const finish = () => {
+  currentPage = target;
+  virtualStart = -1;
+  virtualEnd = -1;
+  renderTable();
+  updatePagination();
+  updateStats();
+  if (scrollEl) {
+    scrollEl.scrollTop = 0;
+    scrollEl.classList.remove('page-exit-next', 'page-exit-prev', 'page-transitioning');
+    if (!reduceMotion) {
+      scrollEl.classList.add(goingNext ? 'page-enter-next' : 'page-enter-prev');
+      const onEnd = () => {
+        scrollEl.classList.remove('page-enter-next', 'page-enter-prev');
+        scrollEl.removeEventListener('animationend', onEnd);
+      };
+      scrollEl.addEventListener('animationend', onEnd);
+    }
+  }
+  if (skel) {
+    skel.classList.remove('visible');
+    skel.setAttribute('aria-hidden', 'true');
+  }
+  _pageTransitionLock = false;
+};
+
+if (reduceMotion || !scrollEl) {
+  finish();
+  return;
+}
+
+_pageTransitionLock = true;
+scrollEl.classList.add('page-transitioning', goingNext ? 'page-exit-next' : 'page-exit-prev');
+if (skel) {
+  skel.classList.add('visible');
+  skel.setAttribute('aria-hidden', 'false');
+}
+
+const EXIT_MS = 280;
+setTimeout(finish, EXIT_MS);
 }
 
 function buildRowHtml(row, absoluteIdx) {
