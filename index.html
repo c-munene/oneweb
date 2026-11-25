@@ -3710,10 +3710,11 @@ bar.classList.remove('hidden');
 if (currentPage > totalPages) currentPage = totalPages;
 if (currentPage < 1) currentPage = 1;
 
-const start = (currentPage - 1) * PAGE_SIZE + 1;
-const end = Math.min(currentPage * PAGE_SIZE, total);
+const pageLen = Math.min(PAGE_SIZE, Math.max(0, total - (currentPage - 1) * PAGE_SIZE));
+const start = pageLen ? 1 : 0;
+const end = pageLen;
 
-info.innerHTML = `Page <strong>${currentPage}</strong> of <strong>${totalPages}</strong> · Showing <strong>${start}</strong>–<strong>${end}</strong> of <strong>${total}</strong>`;
+info.innerHTML = `Page <strong>${currentPage}</strong> of <strong>${totalPages}</strong> · <strong>${start}</strong>–<strong>${end}</strong> of <strong>${pageLen}</strong> on this page · <strong>${total}</strong> total`;
 
 btnFirst.disabled = currentPage <= 1;
 btnPrev.disabled = currentPage <= 1;
@@ -3728,6 +3729,7 @@ virtualStart = -1;
 virtualEnd = -1;
 renderTable();
 updatePagination();
+updateStats();
 const scrollEl = document.getElementById('tableScroll');
 if (scrollEl) scrollEl.scrollTop = 0;
 }
@@ -3915,7 +3917,7 @@ if (topPad > 0) {
 html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="23" style="height:${topPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
 }
 for (let i = start; i < end; i++) {
-html += buildRowHtml(pageData[i], pageOffset + i);
+html += buildRowHtml(pageData[i], i);
 }
 if (bottomPad > 0) {
 html += `<tr class="virtual-spacer" aria-hidden="true"><td colspan="23" style="height:${bottomPad}px;padding:0;border:none;background:transparent;line-height:0;font-size:0"></td></tr>`;
@@ -3974,17 +3976,20 @@ virtualEnd = -1;
 renderVirtualRows(pageData, pageOffset, true);
 } else {
 // No enter animation on filter/search re-renders — keeps the list smooth
-tbody.innerHTML = pageData.map((row, idx) => buildRowHtml(row, pageOffset + idx)).join('');
+tbody.innerHTML = pageData.map((row, idx) => buildRowHtml(row, idx)).join('');
 document.getElementById('dataTable').setAttribute('aria-rowcount', String(pageData.length));
 }
 updatePagination();
 }
 
 function updateStats() {
+// Page-scoped stats: only records on the current page (max PAGE_SIZE).
+// Each page is independent — completed pages are never re-counted here.
+const pageData = getPagedData();
 let accepted = 0, rejected = 0, idCount = 0, fee = 0;
 let received = 0, sentNR = 0, notSent = 0, transcripts = 0;
-for (let i = 0; i < data.length; i++) {
-const row = data[i];
+for (let i = 0; i < pageData.length; i++) {
+const row = pageData[i];
 const s = row.appStatus;
 if (s === 'Accepted') accepted++;
 else if (s === 'Rejected') rejected++;
@@ -3998,8 +4003,9 @@ else if (ts === 'Not Sent') notSent++;
 
 if (row.transcriptFile && row.transcriptFile.data) transcripts++;
 }
-document.getElementById('statRoster').textContent = data.length;
-document.getElementById('statShowing').textContent = filteredData.length;
+const pageCount = pageData.length;
+document.getElementById('statRoster').textContent = pageCount;
+document.getElementById('statShowing').textContent = pageCount;
 document.getElementById('statAccepted').textContent = accepted;
 document.getElementById('statRejected').textContent = rejected;
 document.getElementById('statID').textContent = idCount;
@@ -4043,7 +4049,7 @@ const search = document.getElementById('searchInput').value.toLowerCase().trim()
 const status = document.getElementById('statusFilter').value;
 const program = document.getElementById('programFilter').value;
 const sort = document.getElementById('sortSelect').value;
-const filterKey = search + '\0' + status + '\0' + program + '\0' + sort + '\0' + data.length;
+const filterKey = search + '\0' + status + '\0' + program + '\0' + sort;
 
 const next = [];
 for (let i = 0; i < data.length; i++) {
@@ -4294,20 +4300,39 @@ const ok = await requireAdmin('add a record');
 if (!ok) return;
 const newRow = createEmptyRow();
 newRow.updatedAt = Date.now();
-data.unshift(newRow);
+// Append so previously filled pages (1–100, 101–200, …) stay unchanged.
+// When the current last page is full, this automatically starts a new page.
+data.push(newRow);
 dataById.set(newRow.id, newRow);
 dirtyIds.add(newRow.id);
 scheduleSave();
+// Preserve page when only the roster grew — do not force page 1
+const prevFilterKey = _lastFilterKey;
 applyFilters();
+// Place the new record on the correct page (last page under default order)
+const idxInFiltered = filteredData.findIndex(r => r.id === newRow.id);
+if (idxInFiltered >= 0) {
+  currentPage = Math.floor(idxInFiltered / PAGE_SIZE) + 1;
+} else {
+  currentPage = getTotalPages();
+}
+virtualStart = -1;
+virtualEnd = -1;
+renderTable();
+updatePagination();
+updateStats();
 if (usedPanelOpen) scheduleUsedPanelRender();
 setTimeout(() => {
-const first = document.querySelector('#tableBody tr:first-child .cell-input, #tableBody tr:first-child .app-status-trigger');
-if (first) {
-first.focus();
-document.getElementById('tableScroll').scrollTo({ top: 0, behavior: 'smooth' });
-}
+const scrollEl = document.getElementById('tableScroll');
+if (scrollEl) scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
+const rows = document.querySelectorAll('#tableBody tr:not(.virtual-spacer)');
+const last = rows.length ? rows[rows.length - 1] : null;
+const focusEl = last && last.querySelector('.cell-input, .app-status-trigger');
+if (focusEl) focusEl.focus();
 }, 40);
-showToast('New student added and saved', 'success', 2000);
+const pageNum = currentPage;
+const onPage = getPagedData().length;
+showToast(`New student added · Page ${pageNum} (${onPage}/${PAGE_SIZE})`, 'success', 2200);
 }
 
 async function deleteRow(id) {
