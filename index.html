@@ -3720,12 +3720,14 @@ renderTable();
 }
 
 function getPagedData() {
-const start = (currentPage - 1) * PAGE_SIZE;
-return filteredData.slice(start, start + PAGE_SIZE);
+// filteredData already holds only the filtered rows of the *current page*
+return filteredData;
 }
 
 function getTotalPages() {
-return Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+// Page count is based on the full sorted roster, not the page-local filter
+const n = (typeof _sortedData !== 'undefined' && _sortedData) ? _sortedData.length : data.length;
+return Math.max(1, Math.ceil(n / PAGE_SIZE));
 }
 
 function updatePagination() {
@@ -3738,10 +3740,11 @@ const btnLast = document.getElementById('btnLastPage');
 
 if (!bar || !info) return;
 
-const total = filteredData.length;
+const rosterTotal = (typeof _sortedData !== 'undefined' && _sortedData) ? _sortedData.length : data.length;
 const totalPages = getTotalPages();
+const pageLen = filteredData.length; // rows matching page-local search/filters
 
-if (total === 0) {
+if (rosterTotal === 0) {
 bar.classList.add('hidden');
 return;
 }
@@ -3751,11 +3754,10 @@ bar.classList.remove('hidden');
 if (currentPage > totalPages) currentPage = totalPages;
 if (currentPage < 1) currentPage = 1;
 
-const pageLen = Math.min(PAGE_SIZE, Math.max(0, total - (currentPage - 1) * PAGE_SIZE));
 const start = pageLen ? 1 : 0;
 const end = pageLen;
 
-info.innerHTML = `Page <strong>${currentPage}</strong> of <strong>${totalPages}</strong> · <strong>${start}</strong>–<strong>${end}</strong> of <strong>${pageLen}</strong> on this page · <strong>${total}</strong> total`;
+info.innerHTML = `Page <strong>${currentPage}</strong> of <strong>${totalPages}</strong> · <strong>${start}</strong>–<strong>${end}</strong> of <strong>${pageLen}</strong> on this page · <strong>${rosterTotal}</strong> total`;
 
 btnFirst.disabled = currentPage <= 1;
 btnPrev.disabled = currentPage <= 1;
@@ -3778,9 +3780,8 @@ const finish = () => {
   currentPage = target;
   virtualStart = -1;
   virtualEnd = -1;
-  renderTable();
-  updatePagination();
-  updateStats();
+  // Rebuild filteredData for the newly selected page (page-local filter)
+  applyFiltersImmediate();
   if (scrollEl) {
     scrollEl.scrollTop = 0;
     scrollEl.classList.remove('page-exit-next', 'page-exit-prev', 'page-transitioning');
@@ -4126,36 +4127,10 @@ const SEARCH_KEYS = ['name', 'university', 'email', 'highSchool', 'phone', 'prog
 let _filterRaf = null;
 let _lastFilterKey = '';
 
-function applyFilters() {
-const search = document.getElementById('searchInput').value.toLowerCase().trim();
-const status = document.getElementById('statusFilter').value;
-const program = document.getElementById('programFilter').value;
-const sort = document.getElementById('sortSelect').value;
-const filterKey = search + '\0' + status + '\0' + program + '\0' + sort;
+let _sortedData = null;
 
-const next = [];
-for (let i = 0; i < data.length; i++) {
-const row = data[i];
-if (search) {
-let matchSearch = false;
-for (let k = 0; k < SEARCH_KEYS.length; k++) {
-const v = row[SEARCH_KEYS[k]];
-if (v != null && String(v).toLowerCase().includes(search)) {
-matchSearch = true;
-break;
-}
-}
-if (!matchSearch) continue;
-}
-if (status) {
-if (status === 'Other') {
-if (!(row.appStatus && !isFixedAppStatus(row.appStatus))) continue;
-} else if (row.appStatus !== status) continue;
-}
-if (program && row.program !== program) continue;
-next.push(row);
-}
-
+function buildSortedData(sort) {
+const next = data.slice();
 if (sort === 'name-asc') {
 next.sort((a, b) => normalize(a.name).localeCompare(normalize(b.name)));
 } else if (sort === 'name-desc') {
@@ -4165,27 +4140,76 @@ next.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 } else if (sort === 'time-asc') {
 next.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
+return next;
+}
 
+function rowMatchesPageFilters(row, search, status, program) {
+if (search) {
+let matchSearch = false;
+for (let k = 0; k < SEARCH_KEYS.length; k++) {
+const v = row[SEARCH_KEYS[k]];
+if (v != null && String(v).toLowerCase().includes(search)) {
+matchSearch = true;
+break;
+}
+}
+if (!matchSearch) return false;
+}
+if (status) {
+if (status === 'Other') {
+if (!(row.appStatus && !isFixedAppStatus(row.appStatus))) return false;
+} else if (row.appStatus !== status) return false;
+}
+if (program && row.program !== program) return false;
+return true;
+}
+
+/** Core: sort full roster → take current page → filter only that page. */
+function applyFiltersImmediate() {
+const search = document.getElementById('searchInput').value.toLowerCase().trim();
+const status = document.getElementById('statusFilter').value;
+const program = document.getElementById('programFilter').value;
+const sort = document.getElementById('sortSelect').value;
+const filterKey = search + '\0' + status + '\0' + program + '\0' + sort;
+
+_sortedData = buildSortedData(sort);
+
+const totalPages = Math.max(1, Math.ceil(_sortedData.length / PAGE_SIZE));
+if (currentPage > totalPages) currentPage = totalPages;
+if (currentPage < 1) currentPage = 1;
+
+const start = (currentPage - 1) * PAGE_SIZE;
+const pageSlice = _sortedData.slice(start, start + PAGE_SIZE);
+
+const next = [];
+for (let i = 0; i < pageSlice.length; i++) {
+if (rowMatchesPageFilters(pageSlice[i], search, status, program)) {
+next.push(pageSlice[i]);
+}
+}
 filteredData = next;
 
 const criteriaChanged = filterKey !== _lastFilterKey;
 if (criteriaChanged) {
-currentPage = 1;
+// Page-local search/filter: stay on the current page (do not jump to page 1)
 virtualStart = -1;
 virtualEnd = -1;
 _lastFilterKey = filterKey;
 }
 
-if (_filterRaf) cancelAnimationFrame(_filterRaf);
-_filterRaf = requestAnimationFrame(() => {
-_filterRaf = null;
 const scrollEl = document.getElementById('tableScroll');
 renderTable();
-// New search/filter → top of list; same criteria refresh → keep position
 if (scrollEl && criteriaChanged) scrollEl.scrollTop = 0;
 updateStats();
 updateProgramFilter();
 if (usedPanelOpen) scheduleUsedPanelRender();
+}
+
+function applyFilters() {
+if (_filterRaf) cancelAnimationFrame(_filterRaf);
+_filterRaf = requestAnimationFrame(() => {
+_filterRaf = null;
+applyFiltersImmediate();
 });
 }
 
@@ -4389,20 +4413,17 @@ dataById.set(newRow.id, newRow);
 dirtyIds.add(newRow.id);
 scheduleSave();
 // Preserve page when only the roster grew — do not force page 1
-const prevFilterKey = _lastFilterKey;
-applyFilters();
-// Place the new record on the correct page (last page under default order)
-const idxInFiltered = filteredData.findIndex(r => r.id === newRow.id);
-if (idxInFiltered >= 0) {
-  currentPage = Math.floor(idxInFiltered / PAGE_SIZE) + 1;
+const sort = document.getElementById('sortSelect').value;
+_sortedData = buildSortedData(sort);
+const idxInSorted = _sortedData.findIndex(r => r.id === newRow.id);
+if (idxInSorted >= 0) {
+  currentPage = Math.floor(idxInSorted / PAGE_SIZE) + 1;
 } else {
-  currentPage = getTotalPages();
+  currentPage = Math.max(1, Math.ceil(_sortedData.length / PAGE_SIZE));
 }
 virtualStart = -1;
 virtualEnd = -1;
-renderTable();
-updatePagination();
-updateStats();
+applyFiltersImmediate();
 if (usedPanelOpen) scheduleUsedPanelRender();
 setTimeout(() => {
 const scrollEl = document.getElementById('tableScroll');
